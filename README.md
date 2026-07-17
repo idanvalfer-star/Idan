@@ -1,44 +1,68 @@
 # 🛒 Cartly — Smart Grocery List
 
-A clean, fun, single-file grocery shopping app. No install, no server, no account —
-just open it and go. Everything is saved on your device and works offline.
+A clean, fun grocery shopping app that can **watch a recipe video and pull out the
+ingredients for you**. Your lists save on your device and the core app works
+offline; a small local server adds the real video-watching.
 
-## How to use it
+## Two ways to run it
 
-**Open `index.html` in any browser** (phone or desktop). That's it.
+### 1. Just the app (no setup)
+Open **`index.html`** in any browser (phone or desktop). Everything works —
+lists, aisle sorting, tips, recipes, dark mode — and saves locally. On a phone,
+*Share → Add to Home Screen* installs it like a real app.
 
-On a phone you can tap your browser's *Share → Add to Home Screen* to install it
-like a real app (it ships with an app icon and runs full-screen).
+In this mode the video feature reads a **caption you paste** to find ingredients
+(a plain web page can't download or watch a video).
 
-## What it does
+### 2. With the server (real video watching)
+Run the server and Cartly will actually **watch** an Instagram / YouTube / TikTok
+video — reading its spoken audio and on-screen text — and extract the ingredients.
 
-- **📝 Shopping list** — add items with an optional quantity, tick them off (they
-  slide down into a *Got it* group), and delete or clear the ticked ones. Every
-  item is auto-tagged with its grocery category and an emoji.
-- **📋 Starter list** — one tap drops in the everyday essentials (milk, eggs,
-  bread…), skipping anything you already have.
-- **🏪 Sort by aisle** — flip the toggle and the list regroups by supermarket
-  section in a natural walking order (Produce → Bakery → … → Household), so
-  everything in the same part of the store sits together.
-- **🔪 Tips** — cutting & prep tips tailored to what's on your list right now
-  (how to dice an onion, cube an avocado, slice chicken…), plus money-saving
-  shopping habits.
-- **🍳 Recipes** — a set of quick recipes with ingredients and steps. Recipes
-  that match what's already on your list float to the top, and one tap adds all
-  the ingredients.
-- **🎬 Add from a video** — paste an **Instagram or YouTube** link and the
-  caption. Cartly pulls the thumbnail (YouTube) and title, writes a quick
-  summary, and auto-detects the ingredients with their quantities. Pick which
-  ones to add to your list. Saved videos stay in the app so you can re-add them
-  later.
-- **🌙 Light & dark mode**, mobile-first design, smooth animations.
+```bash
+npm install
+export ANTHROPIC_API_KEY=sk-ant-...      # required: Claude reads the recipe
+export OPENAI_API_KEY=sk-...             # optional: Whisper transcribes audio
+npm start
+```
+
+Then open **http://localhost:3000**.
+
+**Extra tools the server needs on your machine:**
+- [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) — fetches the video, captions, audio
+- [`ffmpeg`](https://ffmpeg.org/) — extracts audio and sample frames
+
+Install them with e.g. `brew install yt-dlp ffmpeg` (macOS) or your package manager.
+
+**How the watching works, per platform:**
+- **YouTube** — uses the video's real captions when available (needs only the
+  Anthropic key); falls back to audio transcription if there are none.
+- **Instagram / TikTok** — no captions, so the server downloads the audio and
+  transcribes it with **Whisper** (needs the OpenAI key). Without an OpenAI key it
+  still reads **on-screen text from sampled frames** using Claude's vision.
+- In every case Claude turns the transcript + frames into a short description and a
+  structured ingredient list, which you pick from and add to your list.
+
+If a link can't be read (private video, missing tool, no key), Cartly falls back to
+the caption you pasted so you're never stuck.
+
+## Features
+- ✅ **List** — add items, tick them off (they sink to a "Got it" group), delete,
+  clear-ticked; every item auto-tagged with a grocery category + emoji
+- 📋 **Starter list** — one tap adds the everyday essentials (de-duplicated)
+- 🏪 **Sort by aisle** — regroups the list by supermarket section in walking order
+- 🔪 **Tips** — cutting/prep tips tailored to what's on your list, plus money-saving
+  shopping habits
+- 🍳 **Recipes** — quick recipes with ingredients + steps; matches to your list float
+  to the top and add all ingredients in one tap
+- 🎬 **Add from a video** — see above
+- 🌙 Light/dark mode, mobile-first design
+
+## Files
+- `index.html` — the whole app (UI + logic, works standalone)
+- `server.js` — Express server: serves the app + the `/api/analyze` endpoint
+- `lib/analyze.js` — the video pipeline (yt-dlp → captions/Whisper → frames → Claude)
 
 ## Notes
-
-- All data lives in your browser's `localStorage` — it stays on the one device
-  and isn't synced anywhere.
-- The video feature reads the **caption you paste** (a browser can't watch the
-  video itself), then matches it against a built-in food dictionary. Paste more
-  of the caption for better ingredient detection. It never needs an API key.
-- The whole app is one self-contained `index.html` — no build step and no
-  external network calls required to run.
+- List data lives in your browser's `localStorage` — on that one device, not synced.
+- The server uses your keys only to analyse videos you submit; nothing is stored
+  server-side (temp files are deleted after each request).

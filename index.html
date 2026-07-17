@@ -226,14 +226,14 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   <section id="tab-video" class="hide">
     <div class="card">
       <h2>🎬 Add from a video</h2>
-      <p class="sub">Paste an Instagram or YouTube link and the caption. Cartly grabs the thumbnail, writes a quick summary, and pulls out the ingredients for you.</p>
+      <p class="sub" id="vSub">Paste an Instagram, YouTube or TikTok link. Cartly watches the video, writes a quick summary, and pulls out the ingredients for you.</p>
       <div class="field">
         <label>Video link</label>
-        <input id="vUrl" placeholder="https://youtube.com/…  or  instagram.com/…" autocomplete="off">
+        <input id="vUrl" placeholder="https://youtube.com/…  ·  instagram.com/…  ·  tiktok.com/…" autocomplete="off">
       </div>
       <div class="field">
-        <label>Caption / description</label>
-        <textarea id="vCap" placeholder="Paste the recipe caption here — e.g. '2 cups flour, 3 eggs, 1 tbsp butter, a pinch of salt…'"></textarea>
+        <label id="vCapLabel">Caption / description <span style="text-transform:none;font-weight:600;opacity:.7">(optional)</span></label>
+        <textarea id="vCap" placeholder="Optional — paste the caption to help, or as a fallback if the link can't be read."></textarea>
       </div>
       <button class="btn" id="vParse">✨ Analyse video</button>
       <div id="vResult" class="hide" style="margin-top:16px"></div>
@@ -641,27 +641,80 @@ function makeDescription(caption, platform, ingCount){
   return `${plat} recipe with ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
 }
 
+// Server capabilities, filled in on load. When there's no backend (app opened
+// as a plain file), the caption paste-parser is used instead.
+const backend = { video:false, whisper:false };
+
+// Build the selectable ingredient row objects the result UI expects, from a
+// list of {name, quantity} — classifying each name for its emoji.
+function toRows(list){
+  return list.filter(g=>g && g.name).map(g=>{
+    const info = classify(g.name);
+    return { key:info.key, name:cap(g.name.trim()), qty:(g.quantity||g.qty||"").trim(),
+             emoji:info.emoji||"•", on:true };
+  });
+}
+// Local caption parser → rows (offline fallback).
+function localRows(caption){
+  return extractIngredients(caption).map(g=>({key:g.key, name:g.name, qty:g.qty, emoji:g.emoji, on:true}));
+}
+
 let pendingVideo = null;
+let analysing = false;
 async function analyseVideo(){
+  if(analysing) return;
   const url = document.getElementById("vUrl").value.trim();
   const cap = document.getElementById("vCap").value.trim();
   if(!url && !cap){ toast("Paste a link or caption first"); return; }
   const platform = platformOf(url);
-  const ing = extractIngredients(cap);
-  const desc = makeDescription(cap, platform, ing.length);
-  let thumb = "";
-  const yid = ytId(url);
-  if(yid) thumb = `https://img.youtube.com/vi/${yid}/hqdefault.jpg`;
+  const btn = document.getElementById("vParse");
 
-  pendingVideo = {id:uid(), url, platform, title:"", thumb, description:desc, ingredients:ing};
-  renderVideoResult();
+  // No backend, or no URL to fetch: use the local caption parser.
+  if(!backend.video || !url){
+    if(!cap){ toast("Add your OpenAI/Anthropic keys on the server, or paste the caption"); return; }
+    const rows = localRows(cap);
+    const yid = ytId(url);
+    pendingVideo = { id:uid(), url, platform, title:"",
+      thumb: yid?`https://img.youtube.com/vi/${yid}/hqdefault.jpg`:"",
+      description: makeDescription(cap, platform, rows.length), ingredients:rows,
+      source: backend.video ? "caption" : "caption (offline)" };
+    renderVideoResult();
+    return;
+  }
 
-  // best-effort title fetch (won't break if it fails / CORS)
-  if(yid){
-    try{
-      const r = await fetch(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${yid}`);
-      if(r.ok){ const j = await r.json(); if(j.title){ pendingVideo.title=j.title; renderVideoResult(); } }
-    }catch(e){/* offline / blocked — fine */}
+  // Real analysis via the server.
+  analysing = true;
+  btn.disabled = true; btn.textContent = "🍳 Watching the video…";
+  try{
+    const r = await fetch("/api/analyze", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ url, caption: cap }),
+    });
+    const data = await r.json().catch(()=>({error:"Bad response from server"}));
+    if(!r.ok) throw Object.assign(new Error(data.error||"Analysis failed"), {code:data.code});
+    pendingVideo = { id:uid(), url, platform:data.platform||platform, title:data.title||"",
+      thumb:data.thumb||"", description:data.description||"", ingredients:toRows(data.ingredients||[]),
+      source:data.source||"" };
+    renderVideoResult();
+    if(!pendingVideo.ingredients.length) toast("No ingredients found in that video");
+  }catch(e){
+    // Graceful fallback to the caption parser if one was pasted.
+    if(cap){
+      const rows = localRows(cap);
+      pendingVideo = { id:uid(), url, platform, title:"",
+        thumb:(ytId(url)?`https://img.youtube.com/vi/${ytId(url)}/hqdefault.jpg`:""),
+        description: makeDescription(cap, platform, rows.length), ingredients:rows,
+        source:"caption (fallback)" };
+      renderVideoResult();
+      toast("Couldn't watch it — used the caption instead");
+    }else{
+      const msg = e.code==="NO_WHISPER" || /whisper|openai/i.test(e.message||"")
+        ? "This video needs audio transcription — add an OpenAI key, or paste the caption."
+        : (e.message || "Analysis failed. Paste the caption to try that instead.");
+      toast(msg);
+    }
+  }finally{
+    analysing = false; btn.disabled = false; btn.textContent = "✨ Analyse video";
   }
 }
 function renderVideoResult(){
@@ -786,6 +839,25 @@ document.getElementById("themeBtn").onclick = ()=>{
 
 // expose handlers used in inline HTML
 Object.assign(window,{toggleItem,delItem,setCat,addRecipe,togglePending,commitVideo,readd,delVideo});
+
+// Detect the video backend and set the Video-tab copy accordingly.
+(async function initBackend(){
+  const sub = document.getElementById("vSub");
+  try{
+    const r = await fetch("/api/config");
+    if(r.ok){
+      const c = await r.json();
+      backend.video = !!c.videoBackend; backend.whisper = !!c.whisper;
+    }
+  }catch(e){/* opened as a file — no backend */}
+  if(backend.video){
+    sub.innerHTML = backend.whisper
+      ? "Paste an Instagram, YouTube or TikTok link. Cartly watches the video — reading the audio and on-screen text — and pulls out the ingredients."
+      : "Paste a link. Cartly watches YouTube videos in full; for Instagram/TikTok it reads on-screen text (add an OpenAI key on the server to hear the audio too).";
+  }else{
+    sub.innerHTML = "Paste a link and the video's caption — Cartly reads the caption to pull out ingredients. Run the Cartly server with an API key to have it truly watch the video.";
+  }
+})();
 
 renderList();
 </script>
