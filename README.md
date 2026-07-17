@@ -50,11 +50,11 @@ the caption you pasted so you're never stuck.
   clear-ticked; every item auto-tagged with a grocery category + emoji
 - 📋 **Starter list** — one tap adds the everyday essentials (de-duplicated)
 - 🏪 **Sort by aisle** — regroups the list by supermarket section in walking order
-- 🔪 **Tips** — cutting/prep tips tailored to what's on your list, plus money-saving
-  shopping habits
-- 🍳 **Recipes** — quick recipes with ingredients + steps; matches to your list float
-  to the top and add all ingredients in one tap
-- 🎬 **Add from a video** — see above
+- 🍳 **Recipes** — your own editable recipe book: add, edit, and delete recipes,
+  create one from a pasted video link/caption, and send all its ingredients to the
+  list in one tap. Recipes matching your list float to the top.
+- 🎬 **Add from a video** — see above; you can add the ingredients straight to the
+  list or save the whole thing as a recipe
 - 🌙 Light/dark mode, mobile-first design
 
 ## Files

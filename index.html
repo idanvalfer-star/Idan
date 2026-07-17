@@ -178,7 +178,6 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 
   <nav class="tabs">
     <button class="tab active" data-tab="list"><span class="ei">📝</span>List</button>
-    <button class="tab" data-tab="ideas"><span class="ei">💡</span>Tips</button>
     <button class="tab" data-tab="recipes"><span class="ei">🍳</span>Recipes</button>
     <button class="tab" data-tab="video"><span class="ei">🎬</span>Video</button>
   </nav>
@@ -199,25 +198,16 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <div id="listBox"></div>
   </section>
 
-  <!-- TIPS -->
-  <section id="tab-ideas" class="hide">
-    <div class="card">
-      <h2>🔪 Cutting & prep tips</h2>
-      <p class="sub" id="tipsSub">Smart ways to handle what's on your list.</p>
-      <div id="cutTips"></div>
-    </div>
-    <div class="card">
-      <h2>💰 Shop smarter</h2>
-      <p class="sub">Little habits that trim the bill.</p>
-      <div id="saveTips"></div>
-    </div>
-  </section>
-
   <!-- RECIPES -->
   <section id="tab-recipes" class="hide">
     <div class="card">
-      <h2>🍳 Recipe ideas</h2>
-      <p class="sub">Tap “Add ingredients” to send everything to your list. Recipes matching your list float to the top.</p>
+      <h2>🍳 My recipes</h2>
+      <p class="sub">Your recipe book. Add or edit your own, pull one from a video, and send all its ingredients to your list. Recipes matching your list float to the top.</p>
+      <div class="toolbar" style="margin-bottom:4px">
+        <button class="chip on" id="newRecipeChip">➕ New recipe</button>
+        <button class="chip ghost" id="videoRecipeChip">🎬 From a video</button>
+      </div>
+      <div id="recipeEditor" class="hide"></div>
       <div id="recipeBox"></div>
     </div>
   </section>
@@ -447,16 +437,6 @@ const RECIPES = [
    steps:["Spoon yogurt into a bowl.","Top with berries & sliced banana.","Drizzle honey, scatter oats."]},
 ];
 
-/* ---------------- Money-saving tips ---------------- */
-const SAVE_TIPS = [
-  {ic:"📝",t:"Shop your list, not the aisles",d:"Sticking to a written list is the single biggest way to cut impulse buys. Cartly's aisle sort keeps you moving in one direction."},
-  {ic:"🍽️",t:"Never shop hungry",d:"A quick snack before you go quietly shrinks the basket — hunger makes everything look essential."},
-  {ic:"🏷️",t:"Check the unit price",d:"Compare price per kg/litre on the shelf label, not the sticker price. Bigger isn't always cheaper."},
-  {ic:"🥫",t:"Buy staples in bulk",d:"Rice, pasta, oats and canned goods keep for months and are far cheaper per serve in larger packs."},
-  {ic:"🧊",t:"Freeze before it spoils",d:"Bread, herbs, meat and ripe bananas all freeze well. Waste is money you already spent."},
-  {ic:"🌽",t:"Buy what's in season",d:"In-season produce is cheaper, tastier, and usually local. Off-season berries cost a premium."},
-];
-
 /* ---------------- State ---------------- */
 const LS = "cartly.v1";
 let state = load();
@@ -466,6 +446,27 @@ function load(){
 }
 function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------------- Recipe book (editable, persisted) ---------------- */
+/* Seed the user's recipe book from the built-ins the first time. After that
+   they own it — add, edit, delete freely. ing is [{name, qty}]. */
+function seedRecipes(){
+  if(Array.isArray(state.recipes)) return;
+  state.recipes = RECIPES.map(r=>({
+    id:uid(), e:r.e, n:r.n, time:r.time,
+    ing:r.ing.map(x=>({name:cap(x), qty:""})),
+    steps:r.steps.slice(), src:""
+  }));
+  save();
+}
+/* Parse a free-text ingredient line into {name, qty} — "2 cups flour" -> {flour, 2 cups} */
+function parseIngLine(line){
+  line = line.trim().replace(/^[-*•·]\s*/,"");
+  if(!line) return null;
+  const m = line.match(new RegExp("^((?:\\d+[\\d\\/.,½¼¾ -]*)?\\s*(?:"+UNITS+")?)\\s+(.+)$","i"));
+  if(m && m[1].trim() && m[2].trim()) return {name:m[2].trim(), qty:m[1].trim()};
+  return {name:line, qty:""};
+}
 
 /* ---------------- Toast ---------------- */
 let toastT;
@@ -539,63 +540,134 @@ function renderList(){
   box.innerHTML = html;
 }
 
-/* ---------------- Tips render ---------------- */
-function renderTips(){
-  const box = document.getElementById("cutTips");
-  const sub = document.getElementById("tipsSub");
-  // find tips for items on the list
-  const seen = new Set(); const tips = [];
-  state.items.forEach(it=>{
-    const info = classify(it.name);
-    if(info.key && FOODS[info.key] && FOODS[info.key].cut && !seen.has(info.key)){
-      seen.add(info.key);
-      tips.push({ic:FOODS[info.key].e, t:cap(info.key), d:FOODS[info.key].cut});
-    }
-  });
-  if(tips.length){
-    sub.textContent = "Prep tips for the items on your list right now.";
-  } else {
-    sub.textContent = "Add produce like onion, avocado or mango to your list for tailored tips. Here are some favourites:";
-    ["onion","avocado","garlic","mango","chicken"].forEach(k=>{
-      if(FOODS[k]&&FOODS[k].cut) tips.push({ic:FOODS[k].e,t:cap(k),d:FOODS[k].cut});
-    });
-  }
-  box.innerHTML = tips.map(t=>`<div class="tip"><div class="ic">${t.ic}</div>
-    <div><div class="t">${esc(t.t)}</div><div class="d">${esc(t.d)}</div></div></div>`).join("");
-  document.getElementById("saveTips").innerHTML = SAVE_TIPS.map(t=>
-    `<div class="tip"><div class="ic">${t.ic}</div><div><div class="t">${esc(t.t)}</div><div class="d">${esc(t.d)}</div></div></div>`).join("");
-}
-
-/* ---------------- Recipes render ---------------- */
+/* ---------------- Recipes ---------------- */
 function haveSet(){ return new Set(state.items.filter(i=>!i.checked).map(i=>{ const c=classify(i.name); return c.key||i.name.toLowerCase(); })); }
+function ingKey(name){ const c=classify(name); return c.key||name.toLowerCase(); }
 function renderRecipes(){
+  seedRecipes();
   const have = haveSet();
-  const scored = RECIPES.map(r=>{
-    const m = r.ing.filter(x=>have.has(x)).length;
+  const box = document.getElementById("recipeBox");
+  if(!state.recipes.length){
+    box.innerHTML = `<div class="empty"><div class="big">📖</div><h3>No recipes yet</h3>
+      <p>Tap <b>➕ New recipe</b> to write one, or <b>🎬 From a video</b> to pull one from a link.</p></div>`;
+    return;
+  }
+  const scored = state.recipes.map(r=>{
+    const m = (r.ing||[]).filter(x=>have.has(ingKey(x.name))).length;
     return {r, m};
   }).sort((a,b)=> b.m-a.m);
-  document.getElementById("recipeBox").innerHTML = scored.map(({r,m})=>{
+  box.innerHTML = scored.map(({r,m})=>{
     const match = m>=2;
-    const ing = r.ing.map(x=>{
-      const info = FOODS[x]||{e:"•"};
-      const has = have.has(x);
-      return `<span class="pill ${has?'have':''}">${info.e||""} ${cap(x)}</span>`;
+    const ing = (r.ing||[]).map(x=>{
+      const info = classify(x.name);
+      const has = have.has(ingKey(x.name));
+      return `<span class="pill ${has?'have':''}">${info.emoji||"•"} ${esc(cap(x.name))}${x.qty?` <span style="opacity:.7">${esc(x.qty)}</span>`:""}</span>`;
     }).join("");
-    const steps = r.steps.map(s=>`<li>${esc(s)}</li>`).join("");
+    const steps = (r.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("");
+    const srcTag = r.src?`<span class="tag src">🎬 ${esc(r.src)}</span>`:"";
     return `<div class="recipe ${match?'match':''}">
-      <div class="rhead"><div class="rem">${r.e}</div>
-        <div><div class="rt">${esc(r.n)}</div>
-        <div class="rmeta">⏱️ ${r.time} · ${r.ing.length} ingredients${match?`<span class="badge">✓ ${m} on your list</span>`:""}</div></div></div>
-      <div class="ing">${ing}</div>
-      <details class="recipe-more"><summary>View steps ▾</summary><ol class="steps">${steps}</ol></details>
-      <button class="btn sm sec" style="margin-top:10px" onclick='addRecipe(${JSON.stringify(r.n)})'>➕ Add ingredients to list</button>
+      <div class="rhead"><div class="rem">${r.e||"🍽️"}</div>
+        <div style="flex:1"><div class="rt">${esc(r.n)}</div>
+        <div class="rmeta">${r.time?`⏱️ ${esc(r.time)} · `:""}${(r.ing||[]).length} ingredients${match?`<span class="badge">✓ ${m} on your list</span>`:""} ${srcTag}</div></div></div>
+      <div class="ing">${ing||'<span class="pill">no ingredients yet</span>'}</div>
+      ${steps?`<details class="recipe-more"><summary>View steps ▾</summary><ol class="steps">${steps}</ol></details>`:""}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn sm" style="flex:1;min-width:160px" onclick='addRecipeToList(${JSON.stringify(r.id)})'>➕ Add ingredients to list</button>
+        <button class="btn sm sec" onclick='editRecipe(${JSON.stringify(r.id)})'>✏️ Edit</button>
+        <button class="btn sm sec" onclick='delRecipe(${JSON.stringify(r.id)})'>🗑️</button>
+      </div>
     </div>`;
   }).join("");
 }
-function addRecipe(name){
-  const r = RECIPES.find(x=>x.n===name); if(!r) return;
-  let n=0; r.ing.forEach(i=>{ if(addItem(cap(i),"",r.n.split(" ")[0])) n++; });
+function addRecipeToList(id){
+  const r = state.recipes.find(x=>x.id===id); if(!r) return;
+  let n=0; (r.ing||[]).forEach(i=>{ if(addItem(cap(i.name), i.qty||"", (r.n||"recipe").split(" ")[0])) n++; });
   renderList(); toast(n? `Added ${n} ingredient${n>1?'s':''} 🛒` : "Already on your list");
+}
+function delRecipe(id){
+  state.recipes = state.recipes.filter(x=>x.id!==id); save(); renderRecipes(); toast("Recipe removed");
+}
+
+/* ---------- Recipe editor ---------- */
+let editingRecipeId = null;
+function ingToText(ing){ return (ing||[]).map(x=> (x.qty?x.qty+" ":"")+x.name).join("\n"); }
+function textToIng(t){ return (t||"").split(/\n/).map(parseIngLine).filter(Boolean); }
+function editRecipe(id){ openRecipeEditor(id); }
+function openRecipeEditor(id, videoOpen){
+  editingRecipeId = id || null;
+  const r = id ? state.recipes.find(x=>x.id===id) : null;
+  const ed = document.getElementById("recipeEditor");
+  ed.classList.remove("hide");
+  ed.innerHTML = `<div class="card" style="border:1px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft)">
+    <div class="vc-plat" style="margin-bottom:8px">${r?"✏️ Edit recipe":"➕ New recipe"}</div>
+    <details class="recipe-more" ${videoOpen?"open":""} style="margin-bottom:10px">
+      <summary style="margin-bottom:8px">🎬 Fill from a video link ▾</summary>
+      <div class="field"><input id="reVUrl" placeholder="Paste a YouTube / Instagram / TikTok link"></div>
+      <div class="field"><textarea id="reVCap" placeholder="…and/or paste the caption" style="min-height:60px"></textarea></div>
+      <button class="btn sm sec" id="reVFill" type="button">✨ Fill from video</button>
+    </details>
+    <div class="field"><label>Name</label><input id="reName" placeholder="e.g. Weeknight Pasta" value="${r?esc(r.n):""}"></div>
+    <div style="display:flex;gap:8px">
+      <div class="field" style="flex:0 0 84px"><label>Icon</label><input id="reEmoji" maxlength="4" value="${r?esc(r.e||"🍽️"):"🍽️"}"></div>
+      <div class="field" style="flex:1"><label>Time</label><input id="reTime" placeholder="20 min" value="${r?esc(r.time||""):""}"></div>
+    </div>
+    <div class="field"><label>Ingredients — one per line</label><textarea id="reIng" placeholder="2 cups flour&#10;3 eggs&#10;1 tbsp butter">${r?esc(ingToText(r.ing)):""}</textarea></div>
+    <div class="field"><label>Steps — one per line</label><textarea id="reSteps" placeholder="Mix the dry ingredients&#10;Add the wet, whisk to a batter">${r?esc((r.steps||[]).join("\n")):""}</textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="reSave" type="button" style="flex:1">💾 Save recipe</button>
+      <button class="btn sec" id="reCancel" type="button" style="flex:0 0 auto">Cancel</button>
+    </div>
+  </div>`;
+  document.getElementById("reCancel").onclick = closeRecipeEditor;
+  document.getElementById("reSave").onclick = saveRecipe;
+  document.getElementById("reVFill").onclick = fillRecipeFromVideo;
+  ed.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeRecipeEditor(){ editingRecipeId=null; const ed=document.getElementById("recipeEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
+function saveRecipe(){
+  const name = document.getElementById("reName").value.trim() || "Untitled recipe";
+  const emoji = document.getElementById("reEmoji").value.trim() || "🍽️";
+  const time = document.getElementById("reTime").value.trim();
+  const ing = textToIng(document.getElementById("reIng").value);
+  const steps = document.getElementById("reSteps").value.split(/\n/).map(s=>s.trim()).filter(Boolean);
+  if(editingRecipeId){
+    const r = state.recipes.find(x=>x.id===editingRecipeId);
+    if(r){ Object.assign(r, {n:name, e:emoji, time, ing, steps}); }
+  } else {
+    state.recipes.unshift({id:uid(), n:name, e:emoji, time, ing, steps, src:""});
+  }
+  save(); closeRecipeEditor(); renderRecipes(); toast("Recipe saved 📖");
+}
+async function fillRecipeFromVideo(){
+  const url = document.getElementById("reVUrl").value.trim();
+  const cap2 = document.getElementById("reVCap").value.trim();
+  if(!url && !cap2){ toast("Paste a link or caption first"); return; }
+  const btn = document.getElementById("reVFill");
+  btn.disabled = true; btn.textContent = "🍳 Reading…";
+  try{
+    const res = await analyzeSource(url, cap2);
+    if(res.title && !document.getElementById("reName").value.trim()) document.getElementById("reName").value = res.title;
+    else if(!document.getElementById("reName").value.trim() && res.description) document.getElementById("reName").value = res.description.split(/[.!?\n]/)[0].slice(0,60);
+    document.getElementById("reIng").value = ingToText(res.ingredients);
+    // stash source + link note
+    const r = editingRecipeId ? state.recipes.find(x=>x.id===editingRecipeId) : null;
+    if(r) r.src = res.source;
+    toast(res.ingredients.length? `Pulled ${res.ingredients.length} ingredient${res.ingredients.length>1?'s':''} 🎬` : "No ingredients found");
+  }catch(e){ toast(niceError(e)); }
+  finally{ btn.disabled=false; btn.textContent="✨ Fill from video"; }
+}
+/* Save the currently-analysed video (Video tab) straight into the recipe book. */
+function saveVideoAsRecipe(){
+  const v = pendingVideo; if(!v) return;
+  const chosen = v.ingredients.filter(x=>x.on);
+  const name = (v.title || (v.description||"").split(/[.!?\n]/)[0] || "Video recipe").slice(0,60).trim() || "Video recipe";
+  state.recipes.unshift({
+    id:uid(), n:name, e:"🎬", time:"",
+    ing: chosen.map(g=>({name:g.name, qty:g.qty||""})),
+    steps: v.description ? [v.description] : [],
+    src: (v.source||"video"),
+  });
+  save(); toast("Saved to your recipes 📖");
 }
 
 /* ---------------- Video parsing ---------------- */
@@ -659,63 +731,67 @@ function localRows(caption){
   return extractIngredients(caption).map(g=>({key:g.key, name:g.name, qty:g.qty, emoji:g.emoji, on:true}));
 }
 
+function niceError(e){
+  if(e && (e.code==="NO_WHISPER") || /whisper|openai/i.test(e && e.message||""))
+    return "This video needs audio transcription — add an OpenAI key on the server, or paste the caption.";
+  return (e && e.message) || "Couldn't read that. Paste the caption to try that instead.";
+}
+
+// Shared analysis used by the Video tab and the recipe editor. Returns a
+// normalized {platform, title, thumb, description, ingredients:[{name,qty}], source}.
+// Uses the server when available, otherwise (or on failure, with a caption)
+// falls back to the local caption parser so it always works standalone.
+async function analyzeSource(url, cap){
+  const platform = platformOf(url);
+  const yid = ytId(url);
+  const thumb = yid ? `https://img.youtube.com/vi/${yid}/hqdefault.jpg` : "";
+  const localResult = () => {
+    const rows = extractIngredients(cap||"");
+    return { platform, title:"", thumb,
+      description: makeDescription(cap||"", platform, rows.length),
+      ingredients: rows.map(g=>({name:g.name, qty:g.qty})),
+      source: backend.video ? "caption" : "caption (offline)" };
+  };
+  if(backend.video && url){
+    try{
+      const r = await fetch("/api/analyze", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ url, caption: cap }),
+      });
+      const data = await r.json().catch(()=>({error:"Bad response from server"}));
+      if(!r.ok) throw Object.assign(new Error(data.error||"Analysis failed"), {code:data.code});
+      return { platform:data.platform||platform, title:data.title||"", thumb:data.thumb||thumb,
+        description:data.description||"", source:data.source||"",
+        ingredients:(data.ingredients||[]).map(g=>({name:g.name, qty:g.quantity||""})) };
+    }catch(e){
+      if(cap){ const res = localResult(); res.source = "caption (fallback)"; return res; }
+      throw e;
+    }
+  }
+  return localResult();
+}
+
 let pendingVideo = null;
 let analysing = false;
 async function analyseVideo(){
   if(analysing) return;
   const url = document.getElementById("vUrl").value.trim();
   const cap = document.getElementById("vCap").value.trim();
-  if(!url && !cap){ toast("Paste a link or caption first"); return; }
-  const platform = platformOf(url);
+  if(!url && !cap){ toast("Paste a link or the caption first"); return; }
+  if((!backend.video || !url) && !cap){ toast("Paste the video's caption to pull out ingredients"); return; }
   const btn = document.getElementById("vParse");
-
-  // No backend, or no URL to fetch: use the local caption parser.
-  if(!backend.video || !url){
-    if(!cap){ toast("Add your OpenAI/Anthropic keys on the server, or paste the caption"); return; }
-    const rows = localRows(cap);
-    const yid = ytId(url);
-    pendingVideo = { id:uid(), url, platform, title:"",
-      thumb: yid?`https://img.youtube.com/vi/${yid}/hqdefault.jpg`:"",
-      description: makeDescription(cap, platform, rows.length), ingredients:rows,
-      source: backend.video ? "caption" : "caption (offline)" };
-    renderVideoResult();
-    return;
-  }
-
-  // Real analysis via the server.
+  const watching = backend.video && url;
   analysing = true;
-  btn.disabled = true; btn.textContent = "🍳 Watching the video…";
+  btn.disabled = true; btn.textContent = watching ? "🍳 Watching the video…" : "🍳 Reading…";
   try{
-    const r = await fetch("/api/analyze", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ url, caption: cap }),
-    });
-    const data = await r.json().catch(()=>({error:"Bad response from server"}));
-    if(!r.ok) throw Object.assign(new Error(data.error||"Analysis failed"), {code:data.code});
-    pendingVideo = { id:uid(), url, platform:data.platform||platform, title:data.title||"",
-      thumb:data.thumb||"", description:data.description||"", ingredients:toRows(data.ingredients||[]),
-      source:data.source||"" };
+    const res = await analyzeSource(url, cap);
+    pendingVideo = { id:uid(), url, platform:res.platform, title:res.title, thumb:res.thumb,
+      description:res.description, ingredients:toRows(res.ingredients), source:res.source };
     renderVideoResult();
-    if(!pendingVideo.ingredients.length) toast("No ingredients found in that video");
-  }catch(e){
-    // Graceful fallback to the caption parser if one was pasted.
-    if(cap){
-      const rows = localRows(cap);
-      pendingVideo = { id:uid(), url, platform, title:"",
-        thumb:(ytId(url)?`https://img.youtube.com/vi/${ytId(url)}/hqdefault.jpg`:""),
-        description: makeDescription(cap, platform, rows.length), ingredients:rows,
-        source:"caption (fallback)" };
-      renderVideoResult();
-      toast("Couldn't watch it — used the caption instead");
-    }else{
-      const msg = e.code==="NO_WHISPER" || /whisper|openai/i.test(e.message||"")
-        ? "This video needs audio transcription — add an OpenAI key, or paste the caption."
-        : (e.message || "Analysis failed. Paste the caption to try that instead.");
-      toast(msg);
-    }
-  }finally{
-    analysing = false; btn.disabled = false; btn.textContent = "✨ Analyse video";
-  }
+    if(!pendingVideo.ingredients.length) toast("No ingredients found — try pasting the caption");
+    else if(res.source && res.source.includes("fallback")) toast("Couldn't watch it — used the caption instead");
+  }catch(e){ toast(niceError(e)); }
+  finally{ analysing = false; btn.disabled = false; btn.textContent = "✨ Analyse video"; }
 }
 function renderVideoResult(){
   const v = pendingVideo; if(!v) return;
@@ -735,8 +811,9 @@ function renderVideoResult(){
     <p style="font-size:14px;margin:6px 0 14px;line-height:1.5">${esc(v.description)}</p>
     ${v.ingredients.length?`<div class="vc-plat" style="margin-bottom:4px">🧾 Ingredients (${v.ingredients.filter(x=>x.on).length} selected)</div>`:""}
     ${ingHtml}
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn" onclick="commitVideo()">🛒 Add selected to list</button>
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn" style="flex:1;min-width:180px" onclick="commitVideo()">🛒 Add selected to list</button>
+      <button class="btn sec" onclick="saveVideoAsRecipe()">📖 Save as recipe</button>
     </div>`;
 }
 function togglePending(i){ if(!pendingVideo) return; pendingVideo.ingredients[i].on=!pendingVideo.ingredients[i].on; renderVideoResult(); }
@@ -808,14 +885,16 @@ document.getElementById("clearDoneChip").onclick = ()=>{
   toast(had?"Cleared ticked items 🧹":"Nothing ticked yet");
 };
 document.getElementById("vParse").onclick = analyseVideo;
+document.getElementById("newRecipeChip").onclick = ()=>openRecipeEditor(null, false);
+document.getElementById("videoRecipeChip").onclick = ()=>openRecipeEditor(null, true);
 
 // tabs
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
   t.classList.add("active");
   const id = t.dataset.tab;
-  ["list","ideas","recipes","video"].forEach(s=>document.getElementById("tab-"+s).classList.toggle("hide", s!==id));
-  if(id==="ideas") renderTips();
+  ["list","recipes","video"].forEach(s=>document.getElementById("tab-"+s).classList.toggle("hide", s!==id));
+  if(id!=="recipes") closeRecipeEditor();
   if(id==="recipes") renderRecipes();
   if(id==="video") renderSavedVideos();
   window.scrollTo({top:0,behavior:"smooth"});
@@ -838,7 +917,9 @@ document.getElementById("themeBtn").onclick = ()=>{
 };
 
 // expose handlers used in inline HTML
-Object.assign(window,{toggleItem,delItem,setCat,addRecipe,togglePending,commitVideo,readd,delVideo});
+Object.assign(window,{toggleItem,delItem,setCat,addRecipeToList,editRecipe,delRecipe,
+  togglePending,commitVideo,saveVideoAsRecipe,readd,delVideo});
+seedRecipes();
 
 // Detect the video backend and set the Video-tab copy accordingly.
 (async function initBackend(){
