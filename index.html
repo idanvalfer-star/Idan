@@ -55,7 +55,11 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 .addbar{display:flex;gap:8px;background:var(--card);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);margin-bottom:14px}
 .addbar input{flex:1;min-width:0;border:none;background:transparent;font-size:16px;padding:12px 8px 12px 14px;color:var(--ink);outline:none}
 .addbar input::placeholder{color:var(--muted)}
-.qty{width:86px;border:1px solid var(--line)!important;border-radius:12px;text-align:center;font-size:14px!important;padding:12px 6px!important}
+.qtybox{display:flex;align-items:center;flex:none;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.qbtn{width:32px;align-self:stretch;font-size:20px;font-weight:800;color:var(--muted);background:transparent;line-height:1}
+.qbtn:active{background:var(--line)}
+.qtybox .qty{width:40px;border:none;background:transparent;text-align:center;font-size:15px;font-weight:700;padding:12px 0;color:var(--ink);outline:none}
+.qtybox .qty::-webkit-outer-spin-button,.qtybox .qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .add-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;font-size:22px;
   width:52px;border-radius:14px;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);transition:transform .12s}
 .add-btn:active{transform:scale(.92)}
@@ -190,14 +194,17 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   <section id="tab-list">
     <div class="addbar">
       <input id="addInput" placeholder="Add a grocery…" autocomplete="off" enterkeyhint="done">
-      <input id="addQty" class="qty" placeholder="qty" autocomplete="off">
+      <div class="qtybox" title="How many?">
+        <button class="qbtn" id="qMinus" type="button" aria-label="less">−</button>
+        <input id="addQty" class="qty" value="1" placeholder="How many?" inputmode="numeric" autocomplete="off" aria-label="How many?">
+        <button class="qbtn" id="qPlus" type="button" aria-label="more">+</button>
+      </div>
       <button class="add-btn" id="addBtn" aria-label="Add">+</button>
     </div>
     <div class="toolbar">
       <button class="chip" id="sortChip">🏪 Sort by aisle</button>
       <button class="chip ghost" id="defaultChip">📋 Starter list</button>
       <button class="chip ghost" id="editStarterChip">✎ Edit starter</button>
-      <button class="chip ghost" id="clearDoneChip">🧹 Clear ticked</button>
       <button class="chip ghost" id="clearAllChip">🗑️ Clear all</button>
       <span class="count-pill" id="countPill"></span>
     </div>
@@ -212,7 +219,6 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <p class="sub">Your recipe book. Add or edit your own, pull one from a video, and send all its ingredients to your list. Recipes matching your list float to the top.</p>
       <div class="toolbar" style="margin-bottom:4px">
         <button class="chip on" id="newRecipeChip">➕ New recipe</button>
-        <button class="chip ghost" id="videoRecipeChip">🎬 From a video</button>
       </div>
       <div id="recipeEditor" class="hide"></div>
       <div id="recipeBox"></div>
@@ -502,20 +508,21 @@ function addItem(name, qty, source){
 }
 function toggleItem(id){
   const it = state.items.find(i=>i.id===id); if(!it) return;
-  const checking = !it.checked;
+  it.checked = !it.checked; save();
+  // Animate in place — the item stays where it is, just shown checked.
   const row = document.querySelector(`.item[data-id="${id}"]`);
   const box = row && row.querySelector(".check");
-  if(checking && box){
-    // Play the tick-draw + pop + row flash, then reflow so the animation is seen.
-    box.classList.add("done","pop");
-    row.classList.add("checked","flash");
-    it.checked = true; save();
-    document.getElementById("countPill").textContent =
-      `${state.items.filter(i=>!i.checked).length} to get · ${state.items.filter(i=>i.checked).length} ticked`;
-    setTimeout(renderList, 340);
-  } else {
-    it.checked = false; save(); renderList();
-  }
+  if(row && box){
+    row.classList.toggle("checked", it.checked);
+    box.classList.toggle("done", it.checked);
+    if(it.checked){
+      box.classList.remove("pop"); void box.offsetWidth; box.classList.add("pop");
+      row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+    } else {
+      box.classList.remove("pop"); row.classList.remove("flash");
+    }
+    updateCount();
+  } else { renderList(); }
 }
 function delItem(id){ state.items = state.items.filter(i=>i.id!==id); save(); renderList(); }
 function setCat(id,cat){ const it=state.items.find(i=>i.id===id); if(it){ it.category=cat; it.emoji=SECTION_EMOJI[cat]||it.emoji; save(); renderList(); } }
@@ -538,34 +545,33 @@ function itemRow(it){
     <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
   </div>`;
 }
+function updateCount(){
+  const total = state.items.length;
+  const to = state.items.filter(i=>!i.checked).length;
+  document.getElementById("countPill").textContent = total ? `${to} to get · ${total-to} ticked` : "";
+}
 function renderList(){
   const box = document.getElementById("listBox");
-  const active = state.items.filter(i=>!i.checked);
-  const done = state.items.filter(i=>i.checked);
-  const total = state.items.length;
-  document.getElementById("countPill").textContent = total? `${active.length} to get · ${done.length} ticked` : "";
+  updateCount();
   document.getElementById("sortChip").classList.toggle("on", state.sortAisle);
 
-  if(total===0){
+  if(!state.items.length){
     box.innerHTML = `<div class="empty"><div class="big">🧺</div><h3>Your cart is empty</h3>
       <p>Add something above, or tap <b>📋 Starter list</b> for the essentials.</p></div>`;
     return;
   }
+  // Checked items stay in place, shown ticked (no separate "Got it" group).
   let html = "";
   if(state.sortAisle){
     const groups = {};
-    active.forEach(i=>{ (groups[i.category]=groups[i.category]||[]).push(i); });
+    state.items.forEach(i=>{ (groups[i.category]=groups[i.category]||[]).push(i); });
     SECTIONS.forEach(sec=>{
       if(!groups[sec]) return;
       html += `<div class="section-head">${SECTION_EMOJI[sec]} ${sec}<span class="ln"></span></div>`;
       html += groups[sec].map(itemRow).join("");
     });
   } else {
-    html += active.map(itemRow).join("");
-  }
-  if(done.length){
-    html += `<div class="section-head">✅ Got it<span class="ln"></span></div>`;
-    html += done.map(itemRow).join("");
+    html += state.items.map(itemRow).join("");
   }
   box.innerHTML = html;
 }
@@ -623,19 +629,13 @@ let editingRecipeId = null;
 function ingToText(ing){ return (ing||[]).map(x=> (x.qty?x.qty+" ":"")+x.name).join("\n"); }
 function textToIng(t){ return (t||"").split(/\n/).map(parseIngLine).filter(Boolean); }
 function editRecipe(id){ openRecipeEditor(id); }
-function openRecipeEditor(id, videoOpen){
+function openRecipeEditor(id){
   editingRecipeId = id || null;
   const r = id ? state.recipes.find(x=>x.id===id) : null;
   const ed = document.getElementById("recipeEditor");
   ed.classList.remove("hide");
   ed.innerHTML = `<div class="card" style="border:1px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft)">
     <div class="vc-plat" style="margin-bottom:8px">${r?"✏️ Edit recipe":"➕ New recipe"}</div>
-    <details class="recipe-more" ${videoOpen?"open":""} style="margin-bottom:10px">
-      <summary style="margin-bottom:8px">🎬 Fill from a video link ▾</summary>
-      <div class="field"><input id="reVUrl" placeholder="Paste a YouTube / Instagram / TikTok link"></div>
-      <div class="field"><textarea id="reVCap" placeholder="…and/or paste the caption" style="min-height:60px"></textarea></div>
-      <button class="btn sm sec" id="reVFill" type="button">✨ Fill from video</button>
-    </details>
     <div class="field"><label>Name</label><input id="reName" placeholder="e.g. Weeknight Pasta" value="${r?esc(r.n):""}"></div>
     <div style="display:flex;gap:8px">
       <div class="field" style="flex:0 0 84px"><label>Icon</label><input id="reEmoji" maxlength="4" value="${r?esc(r.e||"🍽️"):"🍽️"}"></div>
@@ -650,7 +650,6 @@ function openRecipeEditor(id, videoOpen){
   </div>`;
   document.getElementById("reCancel").onclick = closeRecipeEditor;
   document.getElementById("reSave").onclick = saveRecipe;
-  document.getElementById("reVFill").onclick = fillRecipeFromVideo;
   ed.scrollIntoView({behavior:"smooth", block:"start"});
 }
 function closeRecipeEditor(){ editingRecipeId=null; const ed=document.getElementById("recipeEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
@@ -667,24 +666,6 @@ function saveRecipe(){
     state.recipes.unshift({id:uid(), n:name, e:emoji, time, ing, steps, src:""});
   }
   save(); closeRecipeEditor(); renderRecipes(); toast("Recipe saved 📖");
-}
-async function fillRecipeFromVideo(){
-  const url = document.getElementById("reVUrl").value.trim();
-  const cap2 = document.getElementById("reVCap").value.trim();
-  if(!url && !cap2){ toast("Paste a link or caption first"); return; }
-  const btn = document.getElementById("reVFill");
-  btn.disabled = true; btn.textContent = "🍳 Reading…";
-  try{
-    const res = await analyzeSource(url, cap2);
-    if(res.title && !document.getElementById("reName").value.trim()) document.getElementById("reName").value = res.title;
-    else if(!document.getElementById("reName").value.trim() && res.description) document.getElementById("reName").value = res.description.split(/[.!?\n]/)[0].slice(0,60);
-    document.getElementById("reIng").value = ingToText(res.ingredients);
-    // stash source + link note
-    const r = editingRecipeId ? state.recipes.find(x=>x.id===editingRecipeId) : null;
-    if(r) r.src = res.source;
-    toast(res.ingredients.length? `Pulled ${res.ingredients.length} ingredient${res.ingredients.length>1?'s':''} 🎬` : "No ingredients found");
-  }catch(e){ toast(niceError(e)); }
-  finally{ btn.disabled=false; btn.textContent="✨ Fill from video"; }
 }
 /* Save the currently-analysed video (Video tab) straight into the recipe book. */
 function saveVideoAsRecipe(){
@@ -808,7 +789,19 @@ async function analyseVideo(){
   const url = document.getElementById("vUrl").value.trim();
   const cap = document.getElementById("vCap").value.trim();
   if(!url && !cap){ toast("Paste a link or the caption first"); return; }
-  if((!backend.video || !url) && !cap){ toast("Paste the video's caption to pull out ingredients"); return; }
+  // No server to watch the link, and nothing to read from: explain inline.
+  if((!backend.video || !url) && !cap){
+    const box = document.getElementById("vResult");
+    box.classList.remove("hide");
+    box.innerHTML = `<div class="vplace">${platformOf(url)==='instagram'?'📸':platformOf(url)==='tiktok'?'🎵':'🎬'}</div>
+      <p style="font-size:14px;line-height:1.55;margin:6px 0 0">
+        To read a link automatically, Cartly needs its own server running (with an API key) — a plain
+        web page can't download or watch a video. On this hosted version, <b>paste the video's caption
+        below</b> and I'll pull out the ingredients. See the README for one-command hosting to unlock
+        pasting just a link.</p>`;
+    document.getElementById("vCap").focus();
+    return;
+  }
   const btn = document.getElementById("vParse");
   const watching = backend.video && url;
   analysing = true;
@@ -894,14 +887,20 @@ function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 function cap(s){ return String(s).replace(/\b\w/g,c=>c.toUpperCase()); }
 
 /* ---------------- Wiring ---------------- */
+function qtyVal(){ const n = parseInt(document.getElementById("addQty").value, 10); return (isNaN(n)||n<1)?1:n; }
+function setQty(n){ document.getElementById("addQty").value = Math.max(1, n); }
 function addFromInput(){
-  const inp = document.getElementById("addInput"), q = document.getElementById("addQty");
-  const r = addItem(inp.value, q.value.trim());
-  if(r){ inp.value=""; q.value=""; inp.focus(); renderList(); if(r==="dup") toast("Already on your list — updated"); }
+  const inp = document.getElementById("addInput");
+  const n = qtyVal();
+  const r = addItem(inp.value, n>1 ? String(n) : "");  // default 1 shows no badge
+  if(r){ inp.value=""; setQty(1); inp.focus(); renderList(); if(r==="dup") toast("Already on your list — updated"); }
 }
 document.getElementById("addBtn").onclick = addFromInput;
 document.getElementById("addInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromInput(); });
 document.getElementById("addQty").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromInput(); });
+document.getElementById("qMinus").onclick = ()=> setQty(qtyVal()-1);
+document.getElementById("qPlus").onclick = ()=> setQty(qtyVal()+1);
+document.getElementById("addQty").addEventListener("blur", ()=> setQty(qtyVal()));
 
 document.getElementById("sortChip").onclick = ()=>{ state.sortAisle=!state.sortAisle; save(); renderList();
   toast(state.sortAisle?"Sorted by supermarket aisle 🏪":"Back to newest first"); };
@@ -910,11 +909,6 @@ document.getElementById("defaultChip").onclick = ()=>{
   if(!state.starter.length){ toast("Your starter list is empty — tap ✎ Edit starter"); return; }
   let n=0; state.starter.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
   toast(n? `Added ${n} essential${n>1?'s':''} 📋` : "Essentials already on your list");
-};
-document.getElementById("clearDoneChip").onclick = ()=>{
-  const had = state.items.some(i=>i.checked);
-  state.items = state.items.filter(i=>!i.checked); save(); renderList();
-  toast(had?"Cleared ticked items 🧹":"Nothing ticked yet");
 };
 document.getElementById("clearAllChip").onclick = ()=>{
   if(!state.items.length){ toast("List is already empty"); return; }
@@ -946,8 +940,7 @@ function openStarterEditor(){
 function closeStarterEditor(){ const ed=document.getElementById("starterEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
 document.getElementById("editStarterChip").onclick = openStarterEditor;
 document.getElementById("vParse").onclick = analyseVideo;
-document.getElementById("newRecipeChip").onclick = ()=>openRecipeEditor(null, false);
-document.getElementById("videoRecipeChip").onclick = ()=>openRecipeEditor(null, true);
+document.getElementById("newRecipeChip").onclick = ()=>openRecipeEditor(null);
 
 // tabs
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
