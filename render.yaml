@@ -1,0 +1,13 @@
+# One-click deploy on Render (render.com). New → Blueprint → pick this repo/branch.
+# Then add your ANTHROPIC_API_KEY (and optional OPENAI_API_KEY) when prompted.
+services:
+  - type: web
+    name: cartly
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

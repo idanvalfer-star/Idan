@@ -490,10 +490,20 @@ function parseIngLine(line){
 
 /* ---------------- Toast ---------------- */
 let toastT;
-function toast(msg){
+function toast(msg, action){
   const el = document.getElementById("toast");
-  el.textContent = msg; el.classList.add("show");
-  clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove("show"), 1900);
+  el.innerHTML = "";
+  const span = document.createElement("span"); span.textContent = msg; el.appendChild(span);
+  if(action){
+    const b = document.createElement("button");
+    b.textContent = action.label;
+    b.style.cssText = "margin-left:14px;font-weight:800;color:var(--accent);background:none;font-size:14px";
+    b.onclick = ()=>{ el.classList.remove("show"); el.style.pointerEvents="none"; action.fn(); };
+    el.appendChild(b);
+  }
+  el.style.pointerEvents = action ? "auto" : "none";
+  el.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove("show"), action?4500:1900);
 }
 
 /* ---------------- Item ops ---------------- */
@@ -912,8 +922,9 @@ document.getElementById("defaultChip").onclick = ()=>{
 };
 document.getElementById("clearAllChip").onclick = ()=>{
   if(!state.items.length){ toast("List is already empty"); return; }
-  if(!confirm(`Clear all ${state.items.length} item${state.items.length>1?'s':''} from your list?`)) return;
-  state.items = []; save(); renderList(); toast("List cleared 🗑️");
+  const backup = state.items.slice();
+  state.items = []; save(); renderList();
+  toast("List cleared 🗑️", { label:"Undo", fn:()=>{ state.items = backup; save(); renderList(); toast("Restored"); } });
 };
 
 /* ---------- Starter-list editor ---------- */
