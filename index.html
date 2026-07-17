@@ -1,0 +1,791 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#22c55e">
+<title>Cartly — Grocery List</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Cartly","short_name":"Cartly","start_url":".","display":"standalone","background_color":"%23fbfdf7","theme_color":"%2322c55e","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#fbfdf7; --card:#ffffff; --ink:#15271c; --muted:#6b7d72;
+  --line:#e7efe6; --accent:#22c55e; --accent-2:#16a34a; --accent-soft:#e9fbef;
+  --amber:#f59e0b; --amber-soft:#fff5e0; --blue:#3b82f6; --pink:#ec4899;
+  --shadow:0 8px 30px rgba(20,60,35,.08); --shadow-sm:0 2px 10px rgba(20,60,35,.06);
+  --radius:20px;
+}
+[data-theme="dark"]{
+  --bg:#0e1512; --card:#16201b; --ink:#e8f2ea; --muted:#9db3a6;
+  --line:#24322b; --accent:#34d399; --accent-2:#22c55e; --accent-soft:#12241b;
+  --amber:#fbbf24; --amber-soft:#241d0e; --blue:#60a5fa; --pink:#f472b6;
+  --shadow:0 10px 34px rgba(0,0,0,.45); --shadow-sm:0 2px 12px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif;
+  background:
+    radial-gradient(900px 500px at 100% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(800px 420px at -10% 8%, color-mix(in srgb, var(--pink) 10%, transparent), transparent 55%),
+    var(--bg);
+  color:var(--ink); -webkit-tap-highlight-color:transparent;
+  padding-bottom:env(safe-area-inset-bottom);
+  transition:background .3s,color .3s;
+}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px 120px}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit}
+
+/* header */
+header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
+.logo{font-size:30px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.12))}
+.brand h1{margin:0;font-size:24px;letter-spacing:-.5px;font-weight:800}
+.brand p{margin:1px 0 0;font-size:12.5px;color:var(--muted)}
+.spacer{flex:1}
+.icon-btn{width:42px;height:42px;border-radius:14px;background:var(--card);box-shadow:var(--shadow-sm);
+  display:grid;place-items:center;font-size:19px;transition:transform .15s,background .2s}
+.icon-btn:active{transform:scale(.9)}
+
+/* tabs */
+.tabs{display:flex;gap:6px;background:var(--card);padding:6px;border-radius:16px;box-shadow:var(--shadow-sm);margin-bottom:16px;position:sticky;top:8px;z-index:20}
+.tab{flex:1;padding:10px 6px;border-radius:11px;font-weight:700;font-size:13px;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:3px;transition:.18s;white-space:nowrap}
+.tab .ei{font-size:17px}
+.tab.active{background:var(--accent-soft);color:var(--accent-2)}
+
+/* add bar */
+.addbar{display:flex;gap:8px;background:var(--card);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);margin-bottom:14px}
+.addbar input{flex:1;min-width:0;border:none;background:transparent;font-size:16px;padding:12px 8px 12px 14px;color:var(--ink);outline:none}
+.addbar input::placeholder{color:var(--muted)}
+.qty{width:86px;border:1px solid var(--line)!important;border-radius:12px;text-align:center;font-size:14px!important;padding:12px 6px!important}
+.add-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;font-size:22px;
+  width:52px;border-radius:14px;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);transition:transform .12s}
+.add-btn:active{transform:scale(.92)}
+
+/* toolbar row */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+  padding:8px 13px;border-radius:999px;font-size:13px;font-weight:700;color:var(--ink);box-shadow:var(--shadow-sm);transition:.15s}
+.chip:active{transform:scale(.95)}
+.chip.on{background:var(--accent);color:#fff;border-color:transparent}
+.chip.ghost{color:var(--muted)}
+.count-pill{margin-left:auto;font-size:12.5px;color:var(--muted);align-self:center;font-weight:700}
+
+/* list */
+.section-head{display:flex;align-items:center;gap:8px;margin:16px 4px 8px;font-size:13px;font-weight:800;
+  letter-spacing:.3px;color:var(--muted);text-transform:uppercase}
+.section-head .ln{flex:1;height:1px;background:var(--line)}
+.item{display:flex;align-items:center;gap:12px;background:var(--card);padding:13px 14px;border-radius:16px;
+  box-shadow:var(--shadow-sm);margin-bottom:9px;animation:pop .28s ease}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+.check{width:26px;height:26px;border-radius:9px;border:2.5px solid var(--line);flex:none;display:grid;place-items:center;
+  transition:.18s;position:relative}
+.check.done{background:var(--accent);border-color:var(--accent)}
+.check svg{width:15px;height:15px;stroke:#fff;stroke-width:3.4;fill:none;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .22s ease}
+.check.done svg{stroke-dashoffset:0}
+.item .body{flex:1;min-width:0}
+.item .nm{font-size:15.5px;font-weight:650;line-height:1.25;word-break:break-word}
+.item.checked .nm{text-decoration:line-through;color:var(--muted)}
+.item .meta{font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.cat-emoji{font-size:20px;flex:none}
+.tag{background:var(--accent-soft);color:var(--accent-2);padding:1px 8px;border-radius:999px;font-weight:700;font-size:11px}
+.tag.src{background:var(--amber-soft);color:var(--amber)}
+.del{color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:10px;flex:none;opacity:.7}
+.del:active{transform:scale(.85);background:var(--line)}
+.catsel{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font-size:11px;padding:2px 4px;font-weight:700}
+
+/* empty */
+.empty{text-align:center;padding:46px 20px;color:var(--muted)}
+.empty .big{font-size:56px;margin-bottom:10px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.1))}
+.empty h3{margin:0 0 6px;color:var(--ink);font-size:18px}
+.empty p{margin:0;font-size:14px;line-height:1.5}
+
+/* cards / panels */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 4px;font-size:17px;letter-spacing:-.3px}
+.card .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:12.5px;font-weight:800;color:var(--muted);margin:0 0 6px 3px;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field textarea{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);
+  border-radius:13px;padding:12px 14px;font-size:15px;outline:none;transition:border .15s}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{min-height:96px;resize:vertical;line-height:1.5}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#fff;font-weight:800;font-size:15px;padding:13px 18px;border-radius:14px;width:100%;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 40%,transparent);transition:transform .12s}
+.btn:active{transform:scale(.98)}
+.btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.btn.sm{width:auto;padding:9px 14px;font-size:13.5px;border-radius:11px}
+
+/* tips */
+.tip{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.tip:last-child{border-bottom:none}
+.tip .ic{font-size:24px;flex:none}
+.tip .t{font-weight:750;font-size:14.5px;margin-bottom:2px}
+.tip .d{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* recipe */
+.recipe{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:11px;background:var(--bg)}
+.recipe.match{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.recipe .rhead{display:flex;align-items:center;gap:11px}
+.recipe .rem{font-size:30px}
+.recipe .rt{font-weight:800;font-size:16px}
+.recipe .rmeta{font-size:12px;color:var(--muted);margin-top:1px}
+.badge{font-size:10.5px;font-weight:800;background:var(--accent);color:#fff;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.recipe .ing{display:flex;flex-wrap:wrap;gap:6px;margin:11px 0}
+.pill{font-size:12px;background:var(--card);border:1px solid var(--line);padding:4px 10px;border-radius:999px;color:var(--muted)}
+.pill.have{background:var(--accent-soft);color:var(--accent-2);border-color:transparent;font-weight:700}
+.steps{font-size:13px;color:var(--muted);line-height:1.6;margin:8px 0 12px;padding-left:18px}
+.steps li{margin-bottom:3px}
+details.recipe-more summary{cursor:pointer;color:var(--accent-2);font-weight:700;font-size:13px;list-style:none}
+details.recipe-more summary::-webkit-details-marker{display:none}
+
+/* video */
+.vthumb{width:100%;aspect-ratio:16/9;border-radius:14px;object-fit:cover;background:var(--line);display:block;margin-bottom:12px}
+.vplace{width:100%;aspect-ratio:16/9;border-radius:14px;display:grid;place-items:center;font-size:46px;margin-bottom:12px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--pink) 22%,var(--card)),color-mix(in srgb,var(--blue) 22%,var(--card)))}
+.ingrow{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ingrow:last-child{border-bottom:none}
+.ingrow .cb{width:23px;height:23px;border-radius:7px;border:2.5px solid var(--line);flex:none;display:grid;place-items:center;transition:.15s}
+.ingrow .cb.on{background:var(--accent);border-color:var(--accent)}
+.ingrow .cb svg{width:13px;height:13px;stroke:#fff;stroke-width:3.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ingrow .in{flex:1;font-size:14.5px;font-weight:600}
+.ingrow .qh{font-size:12px;color:var(--muted)}
+.vcard{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:12px;background:var(--bg)}
+.vcard .vc-body{padding:13px}
+.vcard .vc-plat{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.vcard .vc-desc{font-size:13.5px;color:var(--muted);margin:5px 0 10px;line-height:1.5}
+.linkline{font-size:12px;word-break:break-all}
+.linkline a{color:var(--blue);text-decoration:none}
+
+.hide{display:none!important}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.28s;z-index:100;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.foot{text-align:center;color:var(--muted);font-size:11.5px;padding:10px 0 4px;opacity:.8}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="logo">🛒</div>
+    <div class="brand">
+      <h1>Cartly</h1>
+      <p>Your smart grocery buddy</p>
+    </div>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="list"><span class="ei">📝</span>List</button>
+    <button class="tab" data-tab="ideas"><span class="ei">💡</span>Tips</button>
+    <button class="tab" data-tab="recipes"><span class="ei">🍳</span>Recipes</button>
+    <button class="tab" data-tab="video"><span class="ei">🎬</span>Video</button>
+  </nav>
+
+  <!-- LIST -->
+  <section id="tab-list">
+    <div class="addbar">
+      <input id="addInput" placeholder="Add a grocery…" autocomplete="off" enterkeyhint="done">
+      <input id="addQty" class="qty" placeholder="qty" autocomplete="off">
+      <button class="add-btn" id="addBtn" aria-label="Add">+</button>
+    </div>
+    <div class="toolbar">
+      <button class="chip" id="sortChip">🏪 Sort by aisle</button>
+      <button class="chip ghost" id="defaultChip">📋 Starter list</button>
+      <button class="chip ghost" id="clearDoneChip">🧹 Clear ticked</button>
+      <span class="count-pill" id="countPill"></span>
+    </div>
+    <div id="listBox"></div>
+  </section>
+
+  <!-- TIPS -->
+  <section id="tab-ideas" class="hide">
+    <div class="card">
+      <h2>🔪 Cutting & prep tips</h2>
+      <p class="sub" id="tipsSub">Smart ways to handle what's on your list.</p>
+      <div id="cutTips"></div>
+    </div>
+    <div class="card">
+      <h2>💰 Shop smarter</h2>
+      <p class="sub">Little habits that trim the bill.</p>
+      <div id="saveTips"></div>
+    </div>
+  </section>
+
+  <!-- RECIPES -->
+  <section id="tab-recipes" class="hide">
+    <div class="card">
+      <h2>🍳 Recipe ideas</h2>
+      <p class="sub">Tap “Add ingredients” to send everything to your list. Recipes matching your list float to the top.</p>
+      <div id="recipeBox"></div>
+    </div>
+  </section>
+
+  <!-- VIDEO -->
+  <section id="tab-video" class="hide">
+    <div class="card">
+      <h2>🎬 Add from a video</h2>
+      <p class="sub">Paste an Instagram or YouTube link and the caption. Cartly grabs the thumbnail, writes a quick summary, and pulls out the ingredients for you.</p>
+      <div class="field">
+        <label>Video link</label>
+        <input id="vUrl" placeholder="https://youtube.com/…  or  instagram.com/…" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Caption / description</label>
+        <textarea id="vCap" placeholder="Paste the recipe caption here — e.g. '2 cups flour, 3 eggs, 1 tbsp butter, a pinch of salt…'"></textarea>
+      </div>
+      <button class="btn" id="vParse">✨ Analyse video</button>
+      <div id="vResult" class="hide" style="margin-top:16px"></div>
+    </div>
+    <div id="savedVideos"></div>
+  </section>
+
+  <div class="foot">Cartly · saved on this device · works offline</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ---------------- Store sections in walk order ---------------- */
+const SECTIONS = ["Produce","Bakery","Deli","Meat & Seafood","Dairy & Eggs","Frozen",
+  "Pantry & Dry Goods","Canned & Jarred","Condiments & Spices","Snacks","Beverages","Household","Other"];
+const SECTION_EMOJI = {"Produce":"🥬","Bakery":"🥖","Deli":"🧀","Meat & Seafood":"🥩","Dairy & Eggs":"🥛",
+  "Frozen":"🧊","Pantry & Dry Goods":"🌾","Canned & Jarred":"🥫","Condiments & Spices":"🧂","Snacks":"🍿",
+  "Beverages":"🥤","Household":"🧻","Other":"🛍️"};
+
+/* ---------------- Food dictionary (keyword -> data) ---------------- */
+/* c=category, e=emoji, cut=prep/cutting tip */
+const FOODS = {
+  // Produce
+  onion:{c:"Produce",e:"🧅",cut:"Halve pole-to-pole, peel, then slice with the grain for strips or across for dice. Chill 15 min first to fight tears."},
+  garlic:{c:"Produce",e:"🧄",cut:"Smash a clove with the flat of your knife — the skin slips right off, then mince."},
+  tomato:{c:"Produce",e:"🍅",cut:"Use a serrated knife so you don't crush it. Score the base for easy peeling in hot water."},
+  potato:{c:"Produce",e:"🥔",cut:"Cut a flat side first so it won't roll, then plank and dice evenly for even cooking."},
+  carrot:{c:"Produce",e:"🥕",cut:"Slice on a long diagonal for more surface area, or roll-cut for stir-fries."},
+  "bell pepper":{c:"Produce",e:"🫑",cut:"Slice off top & bottom, stand it up, and cut down the walls to skip the seedy core."},
+  pepper:{c:"Produce",e:"🫑"},
+  avocado:{c:"Produce",e:"🥑",cut:"Halve around the pit, twist, then dice the flesh in the skin and scoop with a spoon."},
+  mango:{c:"Produce",e:"🥭",cut:"Slice down either side of the flat pit, score a grid, and push the skin inside-out."},
+  lettuce:{c:"Produce",e:"🥬",cut:"Tear by hand instead of cutting to keep edges from browning."},
+  spinach:{c:"Produce",e:"🥬"},
+  broccoli:{c:"Produce",e:"🥦",cut:"Cut florets from the stalk, then peel and slice the stalk — it's sweet and edible."},
+  cucumber:{c:"Produce",e:"🥒"},
+  lemon:{c:"Produce",e:"🍋",cut:"Roll it firmly before juicing to break the pulp and get more juice."},
+  lime:{c:"Produce",e:"🍋"},
+  apple:{c:"Produce",e:"🍎"},
+  banana:{c:"Produce",e:"🍌"},
+  orange:{c:"Produce",e:"🍊"},
+  strawberry:{c:"Produce",e:"🍓"},strawberries:{c:"Produce",e:"🍓"},
+  grape:{c:"Produce",e:"🍇"},grapes:{c:"Produce",e:"🍇"},
+  mushroom:{c:"Produce",e:"🍄",cut:"Wipe clean with a towel — don't soak, they drink water like a sponge."},
+  mushrooms:{c:"Produce",e:"🍄"},
+  ginger:{c:"Produce",e:"🫚",cut:"Scrape the skin off with a spoon edge to reach into the knobs without waste."},
+  celery:{c:"Produce",e:"🥬"},
+  zucchini:{c:"Produce",e:"🥒"},
+  eggplant:{c:"Produce",e:"🍆",cut:"Salt the cut slices 20 min and pat dry to pull out bitterness and excess water."},
+  corn:{c:"Produce",e:"🌽"},
+  cabbage:{c:"Produce",e:"🥬",cut:"Quarter through the core, cut the core out, then shred across the leaves."},
+  cauliflower:{c:"Produce",e:"🥦"},
+  chili:{c:"Produce",e:"🌶️",cut:"Wear gloves and remove the white ribs — that's where most of the heat lives."},
+  herbs:{c:"Produce",e:"🌿",cut:"Pile leaves, roll tight, and chiffonade — chop just once so they don't bruise."},
+  parsley:{c:"Produce",e:"🌿"},cilantro:{c:"Produce",e:"🌿"},basil:{c:"Produce",e:"🌿"},mint:{c:"Produce",e:"🌿"},
+  scallion:{c:"Produce",e:"🌿"},"green onion":{c:"Produce",e:"🌿"},
+  // Bakery
+  bread:{c:"Bakery",e:"🍞"},
+  bagel:{c:"Bakery",e:"🥯"},bagels:{c:"Bakery",e:"🥯"},
+  baguette:{c:"Bakery",e:"🥖"},
+  croissant:{c:"Bakery",e:"🥐"},
+  tortilla:{c:"Bakery",e:"🫓"},tortillas:{c:"Bakery",e:"🫓"},
+  bun:{c:"Bakery",e:"🍔"},buns:{c:"Bakery",e:"🍔"},
+  muffin:{c:"Bakery",e:"🧁"},
+  pita:{c:"Bakery",e:"🫓"},
+  // Deli
+  cheese:{c:"Deli",e:"🧀"},
+  ham:{c:"Deli",e:"🍖"},
+  turkey:{c:"Deli",e:"🦃"},
+  salami:{c:"Deli",e:"🍖"},
+  hummus:{c:"Deli",e:"🥣"},
+  olives:{c:"Deli",e:"🫒"},
+  // Meat & Seafood
+  chicken:{c:"Meat & Seafood",e:"🍗",cut:"Slice against the grain and freeze 15 min first for cleaner, even strips."},
+  beef:{c:"Meat & Seafood",e:"🥩",cut:"Rest after cooking and slice against the grain to keep it tender."},
+  steak:{c:"Meat & Seafood",e:"🥩"},
+  pork:{c:"Meat & Seafood",e:"🥓"},
+  bacon:{c:"Meat & Seafood",e:"🥓"},
+  sausage:{c:"Meat & Seafood",e:"🌭"},
+  "ground beef":{c:"Meat & Seafood",e:"🥩"},
+  mince:{c:"Meat & Seafood",e:"🥩"},
+  fish:{c:"Meat & Seafood",e:"🐟"},
+  salmon:{c:"Meat & Seafood",e:"🐟"},
+  shrimp:{c:"Meat & Seafood",e:"🦐",cut:"Devein along the back with a shallow slit; leave the tail on for a handle."},
+  tuna:{c:"Meat & Seafood",e:"🐟"},
+  // Dairy & Eggs
+  milk:{c:"Dairy & Eggs",e:"🥛"},
+  egg:{c:"Dairy & Eggs",e:"🥚"},eggs:{c:"Dairy & Eggs",e:"🥚"},
+  butter:{c:"Dairy & Eggs",e:"🧈"},
+  yogurt:{c:"Dairy & Eggs",e:"🥛"},yoghurt:{c:"Dairy & Eggs",e:"🥛"},
+  cream:{c:"Dairy & Eggs",e:"🥛"},
+  "cream cheese":{c:"Dairy & Eggs",e:"🧀"},
+  "sour cream":{c:"Dairy & Eggs",e:"🥛"},
+  mozzarella:{c:"Dairy & Eggs",e:"🧀"},
+  parmesan:{c:"Dairy & Eggs",e:"🧀"},
+  cheddar:{c:"Dairy & Eggs",e:"🧀"},
+  feta:{c:"Dairy & Eggs",e:"🧀"},
+  // Frozen
+  "ice cream":{c:"Frozen",e:"🍨"},
+  "frozen pizza":{c:"Frozen",e:"🍕"},
+  peas:{c:"Frozen",e:"🟢"},
+  "frozen berries":{c:"Frozen",e:"🫐"},
+  fries:{c:"Frozen",e:"🍟"},
+  // Pantry & Dry Goods
+  flour:{c:"Pantry & Dry Goods",e:"🌾"},
+  sugar:{c:"Pantry & Dry Goods",e:"🍚"},
+  rice:{c:"Pantry & Dry Goods",e:"🍚"},
+  pasta:{c:"Pantry & Dry Goods",e:"🍝"},
+  spaghetti:{c:"Pantry & Dry Goods",e:"🍝"},
+  noodles:{c:"Pantry & Dry Goods",e:"🍜"},
+  oats:{c:"Pantry & Dry Goods",e:"🥣"},
+  cereal:{c:"Pantry & Dry Goods",e:"🥣"},
+  lentils:{c:"Pantry & Dry Goods",e:"🫘"},
+  quinoa:{c:"Pantry & Dry Goods",e:"🌾"},
+  "baking soda":{c:"Pantry & Dry Goods",e:"🧂"},
+  "baking powder":{c:"Pantry & Dry Goods",e:"🧂"},
+  yeast:{c:"Pantry & Dry Goods",e:"🍞"},
+  "peanut butter":{c:"Pantry & Dry Goods",e:"🥜"},
+  honey:{c:"Pantry & Dry Goods",e:"🍯"},
+  "coconut milk":{c:"Pantry & Dry Goods",e:"🥥"},
+  // Canned & Jarred
+  "canned tomatoes":{c:"Canned & Jarred",e:"🥫"},
+  "tomato paste":{c:"Canned & Jarred",e:"🥫"},
+  beans:{c:"Canned & Jarred",e:"🫘"},
+  chickpeas:{c:"Canned & Jarred",e:"🫘"},
+  "coconut cream":{c:"Canned & Jarred",e:"🥥"},
+  broth:{c:"Canned & Jarred",e:"🥣"},stock:{c:"Canned & Jarred",e:"🥣"},
+  // Condiments & Spices
+  salt:{c:"Condiments & Spices",e:"🧂"},
+  "black pepper":{c:"Condiments & Spices",e:"🧂"},
+  "olive oil":{c:"Condiments & Spices",e:"🫒"},
+  oil:{c:"Condiments & Spices",e:"🫒"},
+  vinegar:{c:"Condiments & Spices",e:"🧴"},
+  "soy sauce":{c:"Condiments & Spices",e:"🍶"},
+  ketchup:{c:"Condiments & Spices",e:"🍅"},
+  mustard:{c:"Condiments & Spices",e:"🌭"},
+  mayo:{c:"Condiments & Spices",e:"🥚"},mayonnaise:{c:"Condiments & Spices",e:"🥚"},
+  cumin:{c:"Condiments & Spices",e:"🧂"},paprika:{c:"Condiments & Spices",e:"🌶️"},cinnamon:{c:"Condiments & Spices",e:"🧂"},
+  oregano:{c:"Condiments & Spices",e:"🌿"},"chili flakes":{c:"Condiments & Spices",e:"🌶️"},
+  vanilla:{c:"Condiments & Spices",e:"🍶"},"curry paste":{c:"Condiments & Spices",e:"🍛"},turmeric:{c:"Condiments & Spices",e:"🧂"},
+  // Snacks
+  chips:{c:"Snacks",e:"🍟"},
+  crackers:{c:"Snacks",e:"🍘"},
+  chocolate:{c:"Snacks",e:"🍫"},
+  cookies:{c:"Snacks",e:"🍪"},
+  nuts:{c:"Snacks",e:"🥜"},
+  popcorn:{c:"Snacks",e:"🍿"},
+  // Beverages
+  water:{c:"Beverages",e:"💧"},
+  coffee:{c:"Beverages",e:"☕"},
+  tea:{c:"Beverages",e:"🍵"},
+  juice:{c:"Beverages",e:"🧃"},
+  soda:{c:"Beverages",e:"🥤"},
+  wine:{c:"Beverages",e:"🍷"},
+  beer:{c:"Beverages",e:"🍺"},
+  // Household
+  "toilet paper":{c:"Household",e:"🧻"},
+  "paper towels":{c:"Household",e:"🧻"},
+  soap:{c:"Household",e:"🧼"},
+  detergent:{c:"Household",e:"🧴"},
+  "dish soap":{c:"Household",e:"🧼"},
+  "trash bags":{c:"Household",e:"🗑️"},
+  foil:{c:"Household",e:"🧻"},
+  sponge:{c:"Household",e:"🧽"},
+};
+/* keyword list sorted longest-first so multi-word matches win */
+const FOOD_KEYS = Object.keys(FOODS).sort((a,b)=>b.length-a.length);
+
+/* ---------------- Classify a free-text item ---------------- */
+function classify(name){
+  const n = " "+name.toLowerCase().trim()+" ";
+  for(const k of FOOD_KEYS){
+    const kk = " "+k+" ";
+    if(n.includes(kk) || n.includes(" "+k) && n.trim().toLowerCase().endsWith(k)) {
+      return {category:FOODS[k].c, emoji:FOODS[k].e, key:k};
+    }
+  }
+  // looser contains for single tokens
+  const raw = name.toLowerCase();
+  for(const k of FOOD_KEYS){ if(raw.includes(k)) return {category:FOODS[k].c, emoji:FOODS[k].e, key:k}; }
+  return {category:"Other", emoji:"🛍️", key:null};
+}
+
+/* ---------------- Default / starter list ---------------- */
+const DEFAULTS = ["Milk","Eggs","Bread","Butter","Bananas","Apples","Chicken","Rice",
+  "Pasta","Tomatoes","Onions","Cheese","Yogurt","Coffee","Olive oil","Toilet paper"];
+
+/* ---------------- Recipes ---------------- */
+const RECIPES = [
+  {n:"Weeknight Pasta Pomodoro",e:"🍝",time:"20 min",ing:["pasta","canned tomatoes","garlic","olive oil","basil","parmesan"],
+   steps:["Boil pasta in salted water.","Sizzle sliced garlic in olive oil, add tomatoes, simmer 10 min.","Toss pasta with sauce, top with basil & parmesan."]},
+  {n:"Crispy Chicken Stir-Fry",e:"🍗",time:"25 min",ing:["chicken","bell pepper","broccoli","soy sauce","ginger","garlic","rice"],
+   steps:["Slice chicken thin, sear hot.","Add veg, ginger & garlic, stir 4 min.","Splash soy sauce; serve over rice."]},
+  {n:"Loaded Avocado Toast",e:"🥑",time:"8 min",ing:["bread","avocado","egg","lemon","chili flakes"],
+   steps:["Toast bread.","Mash avocado with lemon & salt.","Top with a fried egg and chili flakes."]},
+  {n:"Creamy Tomato Soup",e:"🍅",time:"30 min",ing:["canned tomatoes","onion","garlic","cream","broth","butter"],
+   steps:["Soften onion & garlic in butter.","Add tomatoes & broth, simmer 15 min.","Blend, stir in cream."]},
+  {n:"Chickpea Coconut Curry",e:"🍛",time:"25 min",ing:["chickpeas","coconut milk","onion","garlic","ginger","curry paste","rice"],
+   steps:["Fry onion, garlic, ginger & curry paste.","Add chickpeas + coconut milk, simmer 12 min.","Serve with rice."]},
+  {n:"Fresh Garden Salad",e:"🥗",time:"10 min",ing:["lettuce","cucumber","tomato","feta","olive oil","lemon"],
+   steps:["Chop veg, crumble feta.","Whisk olive oil + lemon + salt.","Toss and serve."]},
+  {n:"Fluffy Pancakes",e:"🥞",time:"20 min",ing:["flour","milk","egg","butter","sugar","baking powder"],
+   steps:["Whisk dry, then wet, into a batter.","Rest 5 min.","Cook on buttered pan till bubbles pop; flip."]},
+  {n:"Beef Tacos",e:"🌮",time:"25 min",ing:["ground beef","tortillas","onion","cheese","tomato","cumin","paprika"],
+   steps:["Brown beef with onion, cumin & paprika.","Warm tortillas.","Fill and top with cheese & tomato."]},
+  {n:"Salmon & Roasted Veg",e:"🐟",time:"30 min",ing:["salmon","potato","broccoli","olive oil","lemon","garlic"],
+   steps:["Roast diced potato 15 min.","Add salmon, broccoli, garlic, oil.","Roast 12 min; finish with lemon."]},
+  {n:"Berry Yogurt Bowl",e:"🫐",time:"5 min",ing:["yogurt","frozen berries","honey","oats","banana"],
+   steps:["Spoon yogurt into a bowl.","Top with berries & sliced banana.","Drizzle honey, scatter oats."]},
+];
+
+/* ---------------- Money-saving tips ---------------- */
+const SAVE_TIPS = [
+  {ic:"📝",t:"Shop your list, not the aisles",d:"Sticking to a written list is the single biggest way to cut impulse buys. Cartly's aisle sort keeps you moving in one direction."},
+  {ic:"🍽️",t:"Never shop hungry",d:"A quick snack before you go quietly shrinks the basket — hunger makes everything look essential."},
+  {ic:"🏷️",t:"Check the unit price",d:"Compare price per kg/litre on the shelf label, not the sticker price. Bigger isn't always cheaper."},
+  {ic:"🥫",t:"Buy staples in bulk",d:"Rice, pasta, oats and canned goods keep for months and are far cheaper per serve in larger packs."},
+  {ic:"🧊",t:"Freeze before it spoils",d:"Bread, herbs, meat and ripe bananas all freeze well. Waste is money you already spent."},
+  {ic:"🌽",t:"Buy what's in season",d:"In-season produce is cheaper, tastier, and usually local. Off-season berries cost a premium."},
+];
+
+/* ---------------- State ---------------- */
+const LS = "cartly.v1";
+let state = load();
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(LS)); if(s&&s.items) return s; }catch(e){}
+  return {items:[], videos:[], sortAisle:false, theme:null};
+}
+function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
+const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------------- Toast ---------------- */
+let toastT;
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove("show"), 1900);
+}
+
+/* ---------------- Item ops ---------------- */
+function addItem(name, qty, source){
+  name = (name||"").trim(); if(!name) return false;
+  const info = classify(name);
+  // merge duplicates (same name, not checked)
+  const dup = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase() && !i.checked);
+  if(dup){ if(qty) dup.qty = qty; save(); return "dup"; }
+  state.items.unshift({id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||""});
+  save(); return true;
+}
+function toggleItem(id){ const it=state.items.find(i=>i.id===id); if(it){ it.checked=!it.checked; save(); renderList(); } }
+function delItem(id){ state.items = state.items.filter(i=>i.id!==id); save(); renderList(); }
+function setCat(id,cat){ const it=state.items.find(i=>i.id===id); if(it){ it.category=cat; it.emoji=SECTION_EMOJI[cat]||it.emoji; save(); renderList(); } }
+
+/* ---------------- Render list ---------------- */
+const catOptions = SECTIONS.map(s=>`<option value="${s}">${SECTION_EMOJI[s]} ${s}</option>`).join("");
+function itemRow(it){
+  const done = it.checked?"checked":"";
+  const src = it.source?`<span class="tag src">🎬 ${it.source}</span>`:"";
+  const sel = `<select class="catsel" onchange="setCat('${it.id}',this.value)">`+
+    SECTIONS.map(s=>`<option value="${s}" ${s===it.category?"selected":""}>${SECTION_EMOJI[s]} ${s}</option>`).join("")+`</select>`;
+  return `<div class="item ${done}" data-id="${it.id}">
+    <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
+      <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
+    <span class="cat-emoji">${it.emoji||"🛍️"}</span>
+    <div class="body">
+      <div class="nm">${esc(it.name)}${it.qty?` <span class="tag">${esc(it.qty)}</span>`:""}</div>
+      <div class="meta">${sel} ${src}</div>
+    </div>
+    <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
+  </div>`;
+}
+function renderList(){
+  const box = document.getElementById("listBox");
+  const active = state.items.filter(i=>!i.checked);
+  const done = state.items.filter(i=>i.checked);
+  const total = state.items.length;
+  document.getElementById("countPill").textContent = total? `${active.length} to get · ${done.length} ticked` : "";
+  document.getElementById("sortChip").classList.toggle("on", state.sortAisle);
+
+  if(total===0){
+    box.innerHTML = `<div class="empty"><div class="big">🧺</div><h3>Your cart is empty</h3>
+      <p>Add something above, or tap <b>📋 Starter list</b> for the essentials.</p></div>`;
+    return;
+  }
+  let html = "";
+  if(state.sortAisle){
+    const groups = {};
+    active.forEach(i=>{ (groups[i.category]=groups[i.category]||[]).push(i); });
+    SECTIONS.forEach(sec=>{
+      if(!groups[sec]) return;
+      html += `<div class="section-head">${SECTION_EMOJI[sec]} ${sec}<span class="ln"></span></div>`;
+      html += groups[sec].map(itemRow).join("");
+    });
+  } else {
+    html += active.map(itemRow).join("");
+  }
+  if(done.length){
+    html += `<div class="section-head">✅ Got it<span class="ln"></span></div>`;
+    html += done.map(itemRow).join("");
+  }
+  box.innerHTML = html;
+}
+
+/* ---------------- Tips render ---------------- */
+function renderTips(){
+  const box = document.getElementById("cutTips");
+  const sub = document.getElementById("tipsSub");
+  // find tips for items on the list
+  const seen = new Set(); const tips = [];
+  state.items.forEach(it=>{
+    const info = classify(it.name);
+    if(info.key && FOODS[info.key] && FOODS[info.key].cut && !seen.has(info.key)){
+      seen.add(info.key);
+      tips.push({ic:FOODS[info.key].e, t:cap(info.key), d:FOODS[info.key].cut});
+    }
+  });
+  if(tips.length){
+    sub.textContent = "Prep tips for the items on your list right now.";
+  } else {
+    sub.textContent = "Add produce like onion, avocado or mango to your list for tailored tips. Here are some favourites:";
+    ["onion","avocado","garlic","mango","chicken"].forEach(k=>{
+      if(FOODS[k]&&FOODS[k].cut) tips.push({ic:FOODS[k].e,t:cap(k),d:FOODS[k].cut});
+    });
+  }
+  box.innerHTML = tips.map(t=>`<div class="tip"><div class="ic">${t.ic}</div>
+    <div><div class="t">${esc(t.t)}</div><div class="d">${esc(t.d)}</div></div></div>`).join("");
+  document.getElementById("saveTips").innerHTML = SAVE_TIPS.map(t=>
+    `<div class="tip"><div class="ic">${t.ic}</div><div><div class="t">${esc(t.t)}</div><div class="d">${esc(t.d)}</div></div></div>`).join("");
+}
+
+/* ---------------- Recipes render ---------------- */
+function haveSet(){ return new Set(state.items.filter(i=>!i.checked).map(i=>{ const c=classify(i.name); return c.key||i.name.toLowerCase(); })); }
+function renderRecipes(){
+  const have = haveSet();
+  const scored = RECIPES.map(r=>{
+    const m = r.ing.filter(x=>have.has(x)).length;
+    return {r, m};
+  }).sort((a,b)=> b.m-a.m);
+  document.getElementById("recipeBox").innerHTML = scored.map(({r,m})=>{
+    const match = m>=2;
+    const ing = r.ing.map(x=>{
+      const info = FOODS[x]||{e:"•"};
+      const has = have.has(x);
+      return `<span class="pill ${has?'have':''}">${info.e||""} ${cap(x)}</span>`;
+    }).join("");
+    const steps = r.steps.map(s=>`<li>${esc(s)}</li>`).join("");
+    return `<div class="recipe ${match?'match':''}">
+      <div class="rhead"><div class="rem">${r.e}</div>
+        <div><div class="rt">${esc(r.n)}</div>
+        <div class="rmeta">⏱️ ${r.time} · ${r.ing.length} ingredients${match?`<span class="badge">✓ ${m} on your list</span>`:""}</div></div></div>
+      <div class="ing">${ing}</div>
+      <details class="recipe-more"><summary>View steps ▾</summary><ol class="steps">${steps}</ol></details>
+      <button class="btn sm sec" style="margin-top:10px" onclick='addRecipe(${JSON.stringify(r.n)})'>➕ Add ingredients to list</button>
+    </div>`;
+  }).join("");
+}
+function addRecipe(name){
+  const r = RECIPES.find(x=>x.n===name); if(!r) return;
+  let n=0; r.ing.forEach(i=>{ if(addItem(cap(i),"",r.n.split(" ")[0])) n++; });
+  renderList(); toast(n? `Added ${n} ingredient${n>1?'s':''} 🛒` : "Already on your list");
+}
+
+/* ---------------- Video parsing ---------------- */
+function ytId(url){
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([\w-]{11})/);
+  return m?m[1]:null;
+}
+function platformOf(url){
+  if(/youtu\.?be/.test(url)) return "youtube";
+  if(/instagram\.com/.test(url)) return "instagram";
+  if(/tiktok\.com/.test(url)) return "tiktok";
+  return "video";
+}
+const UNITS = "cups?|cup|tbsp|tablespoons?|tsp|teaspoons?|g|grams?|kg|ml|l|litres?|liters?|oz|ounces?|lb|lbs|pounds?|cloves?|slices?|cans?|pinch|handful|bunch|pieces?|sprigs?";
+function extractIngredients(caption){
+  const orig = " "+caption.toLowerCase().replace(/\s+/g," ")+" ";
+  let mask = orig;            // matched spans get blanked so substrings/plurals don't double-match
+  const found = [];
+  // FOOD_KEYS is sorted longest-first, so "eggs" is consumed before "egg", "bell pepper" before "pepper"
+  FOOD_KEYS.forEach(k=>{
+    const idx = mask.indexOf(" "+k);
+    if(idx===-1) return;
+    // grab a quantity that appears shortly before the keyword (read from original text)
+    const pre = orig.slice(Math.max(0,idx-16), idx+1);
+    const qm = pre.match(new RegExp("(\\d+[\\d\\/.,½¼¾ -]*)\\s*("+UNITS+")?\\s*$","i"));
+    let qty = "";
+    if(qm){ qty = (qm[1]+" "+(qm[2]||"")).replace(/\s+/g," ").trim(); }
+    found.push({key:k, name:cap(k), qty, emoji:(FOODS[k].e||"•"), on:true});
+    // blank the matched word (plus a trailing plural 's') in the mask
+    const start = idx+1, len = k.length + (mask[idx+1+k.length]==="s"?1:0);
+    mask = mask.slice(0,start) + " ".repeat(len) + mask.slice(start+len);
+  });
+  // sort by store section for nicer display
+  found.sort((a,b)=> SECTIONS.indexOf(FOODS[a.key].c)-SECTIONS.indexOf(FOODS[b.key].c));
+  return found;
+}
+function makeDescription(caption, platform, ingCount){
+  const clean = caption.replace(/#[\w]+/g,"").replace(/\s+/g," ").trim();
+  let first = clean.split(/[.!?\n]/)[0].trim();
+  if(first.length>90) first = first.slice(0,90).trim()+"…";
+  const plat = platform.charAt(0).toUpperCase()+platform.slice(1);
+  if(first) return `${plat} recipe: “${first}” — ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
+  return `${plat} recipe with ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
+}
+
+let pendingVideo = null;
+async function analyseVideo(){
+  const url = document.getElementById("vUrl").value.trim();
+  const cap = document.getElementById("vCap").value.trim();
+  if(!url && !cap){ toast("Paste a link or caption first"); return; }
+  const platform = platformOf(url);
+  const ing = extractIngredients(cap);
+  const desc = makeDescription(cap, platform, ing.length);
+  let thumb = "";
+  const yid = ytId(url);
+  if(yid) thumb = `https://img.youtube.com/vi/${yid}/hqdefault.jpg`;
+
+  pendingVideo = {id:uid(), url, platform, title:"", thumb, description:desc, ingredients:ing};
+  renderVideoResult();
+
+  // best-effort title fetch (won't break if it fails / CORS)
+  if(yid){
+    try{
+      const r = await fetch(`https://www.youtube.com/oembed?format=json&url=https://www.youtube.com/watch?v=${yid}`);
+      if(r.ok){ const j = await r.json(); if(j.title){ pendingVideo.title=j.title; renderVideoResult(); } }
+    }catch(e){/* offline / blocked — fine */}
+  }
+}
+function renderVideoResult(){
+  const v = pendingVideo; if(!v) return;
+  const box = document.getElementById("vResult");
+  const media = v.thumb
+    ? `<img class="vthumb" src="${v.thumb}" alt="" onerror="this.outerHTML='<div class=\\'vplace\\'>${v.platform==='instagram'?'📸':'🎬'}</div>'">`
+    : `<div class="vplace">${v.platform==='instagram'?'📸':v.platform==='tiktok'?'🎵':'🎬'}</div>`;
+  const ingHtml = v.ingredients.length
+    ? v.ingredients.map((g,i)=>`<div class="ingrow" onclick="togglePending(${i})">
+        <span class="cb ${g.on?'on':''}"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>
+        <span class="in">${g.emoji} ${esc(g.name)}</span>
+        ${g.qty?`<span class="qh">${esc(g.qty)}</span>`:""}</div>`).join("")
+    : `<p class="sub" style="margin:6px 0 0">No ingredients auto-detected — paste more of the caption, or add items manually on the List tab.</p>`;
+  box.classList.remove("hide");
+  box.innerHTML = `${media}
+    <div class="vc-plat">${v.platform}${v.title?` · ${esc(v.title)}`:""}</div>
+    <p style="font-size:14px;margin:6px 0 14px;line-height:1.5">${esc(v.description)}</p>
+    ${v.ingredients.length?`<div class="vc-plat" style="margin-bottom:4px">🧾 Ingredients (${v.ingredients.filter(x=>x.on).length} selected)</div>`:""}
+    ${ingHtml}
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn" onclick="commitVideo()">🛒 Add selected to list</button>
+    </div>`;
+}
+function togglePending(i){ if(!pendingVideo) return; pendingVideo.ingredients[i].on=!pendingVideo.ingredients[i].on; renderVideoResult(); }
+function commitVideo(){
+  const v = pendingVideo; if(!v) return;
+  const chosen = v.ingredients.filter(x=>x.on);
+  let n=0;
+  const label = v.platform==="instagram"?"insta":v.platform==="youtube"?"video":v.platform;
+  chosen.forEach(g=>{ if(addItem(g.name, g.qty, label)) n++; });
+  // save the video card (with the chosen ingredients recorded)
+  state.videos.unshift({id:v.id,url:v.url,platform:v.platform,title:v.title,thumb:v.thumb,
+    description:v.description, ingredients:chosen.map(c=>({name:c.name,qty:c.qty,emoji:c.emoji}))});
+  save();
+  pendingVideo=null;
+  document.getElementById("vUrl").value=""; document.getElementById("vCap").value="";
+  document.getElementById("vResult").classList.add("hide");
+  renderList(); renderSavedVideos();
+  toast(n? `Added ${n} ingredient${n>1?'s':''} from video 🎬` : "Saved video");
+}
+function renderSavedVideos(){
+  const box = document.getElementById("savedVideos");
+  if(!state.videos.length){ box.innerHTML=""; return; }
+  box.innerHTML = `<div class="section-head" style="margin-left:4px">🎞️ Saved videos<span class="ln"></span></div>`+
+    state.videos.map(v=>{
+      const media = v.thumb
+        ? `<img class="vthumb" style="margin:0" src="${v.thumb}" alt="" onerror="this.outerHTML='<div class=\\'vplace\\' style=\\'margin:0\\'>🎬</div>'">`
+        : `<div class="vplace" style="margin:0">${v.platform==='instagram'?'📸':'🎬'}</div>`;
+      const ing = v.ingredients.map(g=>`<span class="pill">${g.emoji||""} ${esc(g.name)}</span>`).join(" ");
+      return `<div class="vcard">${media}<div class="vc-body">
+        <div class="vc-plat">${v.platform}${v.title?` · ${esc(v.title)}`:""}</div>
+        <div class="vc-desc">${esc(v.description)}</div>
+        <div class="ing" style="margin:0 0 10px">${ing||'<span class="sub">no ingredients saved</span>'}</div>
+        ${v.url?`<div class="linkline">🔗 <a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.url)}</a></div>`:""}
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn sm sec" onclick='readd(${JSON.stringify(v.id)})'>➕ Re-add ingredients</button>
+          <button class="btn sm sec" onclick='delVideo(${JSON.stringify(v.id)})'>🗑️</button>
+        </div></div></div>`;
+    }).join("");
+}
+function readd(id){ const v=state.videos.find(x=>x.id===id); if(!v) return; let n=0;
+  const label=v.platform==="instagram"?"insta":"video";
+  v.ingredients.forEach(g=>{ if(addItem(g.name,g.qty,label)) n++; });
+  renderList(); toast(n?`Re-added ${n} item${n>1?'s':''} 🛒`:"Already on list"); }
+function delVideo(id){ state.videos = state.videos.filter(x=>x.id!==id); save(); renderSavedVideos(); }
+
+/* ---------------- Helpers ---------------- */
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function cap(s){ return String(s).replace(/\b\w/g,c=>c.toUpperCase()); }
+
+/* ---------------- Wiring ---------------- */
+function addFromInput(){
+  const inp = document.getElementById("addInput"), q = document.getElementById("addQty");
+  const r = addItem(inp.value, q.value.trim());
+  if(r){ inp.value=""; q.value=""; inp.focus(); renderList(); if(r==="dup") toast("Already on your list — updated"); }
+}
+document.getElementById("addBtn").onclick = addFromInput;
+document.getElementById("addInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromInput(); });
+document.getElementById("addQty").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromInput(); });
+
+document.getElementById("sortChip").onclick = ()=>{ state.sortAisle=!state.sortAisle; save(); renderList();
+  toast(state.sortAisle?"Sorted by supermarket aisle 🏪":"Back to newest first"); };
+document.getElementById("defaultChip").onclick = ()=>{
+  let n=0; DEFAULTS.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
+  toast(n? `Added ${n} essential${n>1?'s':''} 📋` : "Essentials already on your list");
+};
+document.getElementById("clearDoneChip").onclick = ()=>{
+  const had = state.items.some(i=>i.checked);
+  state.items = state.items.filter(i=>!i.checked); save(); renderList();
+  toast(had?"Cleared ticked items 🧹":"Nothing ticked yet");
+};
+document.getElementById("vParse").onclick = analyseVideo;
+
+// tabs
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  const id = t.dataset.tab;
+  ["list","ideas","recipes","video"].forEach(s=>document.getElementById("tab-"+s).classList.toggle("hide", s!==id));
+  if(id==="ideas") renderTips();
+  if(id==="recipes") renderRecipes();
+  if(id==="video") renderSavedVideos();
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+
+// theme
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  document.getElementById("themeBtn").textContent = t==="dark"?"☀️":"🌙";
+  document.querySelector('meta[name=theme-color]').setAttribute("content", t==="dark"?"#16201b":"#22c55e");
+}
+(function initTheme(){
+  let t = state.theme;
+  if(!t) t = matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";
+  applyTheme(t);
+})();
+document.getElementById("themeBtn").onclick = ()=>{
+  const t = document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+  state.theme=t; save(); applyTheme(t);
+};
+
+// expose handlers used in inline HTML
+Object.assign(window,{toggleItem,delItem,setCat,addRecipe,togglePending,commitVideo,readd,delVideo});
+
+renderList();
+</script>
