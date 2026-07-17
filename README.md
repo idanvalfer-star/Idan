@@ -46,9 +46,11 @@ If a link can't be read (private video, missing tool, no key), Cartly falls back
 the caption you pasted so you're never stuck.
 
 ## Features
-- ✅ **List** — add items, tick them off (they sink to a "Got it" group), delete,
-  clear-ticked; every item auto-tagged with a grocery category + emoji
-- 📋 **Starter list** — one tap adds the everyday essentials (de-duplicated)
+- ✅ **List** — add items, tick them off with a satisfying check animation (they
+  sink to a "Got it" group), delete, **clear ticked** or **clear the whole list**;
+  every item auto-tagged with a grocery category + emoji
+- 📋 **Starter list** — one tap adds your everyday essentials (de-duplicated), and
+  it's **editable** — tap ✎ Edit starter to set your own
 - 🏪 **Sort by aisle** — regroups the list by supermarket section in walking order
 - 🍳 **Recipes** — your own editable recipe book: add, edit, and delete recipes,
   create one from a pasted video link/caption, and send all its ingredients to the

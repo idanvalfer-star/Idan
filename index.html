@@ -82,6 +82,10 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 .check svg{width:15px;height:15px;stroke:#fff;stroke-width:3.4;fill:none;stroke-linecap:round;stroke-linejoin:round;
   stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .22s ease}
 .check.done svg{stroke-dashoffset:0}
+@keyframes checkpop{0%{transform:scale(1)}45%{transform:scale(1.28)}100%{transform:scale(1)}}
+.check.pop{animation:checkpop .32s cubic-bezier(.34,1.56,.64,1)}
+@keyframes rowflash{0%{background:var(--accent-soft)}100%{background:var(--card)}}
+.item.flash{animation:rowflash .55s ease}
 .item .body{flex:1;min-width:0}
 .item .nm{font-size:15.5px;font-weight:650;line-height:1.25;word-break:break-word}
 .item.checked .nm{text-decoration:line-through;color:var(--muted)}
@@ -192,9 +196,12 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <div class="toolbar">
       <button class="chip" id="sortChip">🏪 Sort by aisle</button>
       <button class="chip ghost" id="defaultChip">📋 Starter list</button>
+      <button class="chip ghost" id="editStarterChip">✎ Edit starter</button>
       <button class="chip ghost" id="clearDoneChip">🧹 Clear ticked</button>
+      <button class="chip ghost" id="clearAllChip">🗑️ Clear all</button>
       <span class="count-pill" id="countPill"></span>
     </div>
+    <div id="starterEditor" class="hide"></div>
     <div id="listBox"></div>
   </section>
 
@@ -447,6 +454,13 @@ function load(){
 function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
+/* Starter list — seeded from the built-in essentials, then user-editable. */
+function seedStarter(){
+  if(Array.isArray(state.starter)) return;
+  state.starter = DEFAULTS.slice();
+  save();
+}
+
 /* ---------------- Recipe book (editable, persisted) ---------------- */
 /* Seed the user's recipe book from the built-ins the first time. After that
    they own it — add, edit, delete freely. ing is [{name, qty}]. */
@@ -486,7 +500,23 @@ function addItem(name, qty, source){
   state.items.unshift({id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||""});
   save(); return true;
 }
-function toggleItem(id){ const it=state.items.find(i=>i.id===id); if(it){ it.checked=!it.checked; save(); renderList(); } }
+function toggleItem(id){
+  const it = state.items.find(i=>i.id===id); if(!it) return;
+  const checking = !it.checked;
+  const row = document.querySelector(`.item[data-id="${id}"]`);
+  const box = row && row.querySelector(".check");
+  if(checking && box){
+    // Play the tick-draw + pop + row flash, then reflow so the animation is seen.
+    box.classList.add("done","pop");
+    row.classList.add("checked","flash");
+    it.checked = true; save();
+    document.getElementById("countPill").textContent =
+      `${state.items.filter(i=>!i.checked).length} to get · ${state.items.filter(i=>i.checked).length} ticked`;
+    setTimeout(renderList, 340);
+  } else {
+    it.checked = false; save(); renderList();
+  }
+}
 function delItem(id){ state.items = state.items.filter(i=>i.id!==id); save(); renderList(); }
 function setCat(id,cat){ const it=state.items.find(i=>i.id===id); if(it){ it.category=cat; it.emoji=SECTION_EMOJI[cat]||it.emoji; save(); renderList(); } }
 
@@ -876,7 +906,9 @@ document.getElementById("addQty").addEventListener("keydown",e=>{ if(e.key==="En
 document.getElementById("sortChip").onclick = ()=>{ state.sortAisle=!state.sortAisle; save(); renderList();
   toast(state.sortAisle?"Sorted by supermarket aisle 🏪":"Back to newest first"); };
 document.getElementById("defaultChip").onclick = ()=>{
-  let n=0; DEFAULTS.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
+  seedStarter();
+  if(!state.starter.length){ toast("Your starter list is empty — tap ✎ Edit starter"); return; }
+  let n=0; state.starter.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
   toast(n? `Added ${n} essential${n>1?'s':''} 📋` : "Essentials already on your list");
 };
 document.getElementById("clearDoneChip").onclick = ()=>{
@@ -884,6 +916,35 @@ document.getElementById("clearDoneChip").onclick = ()=>{
   state.items = state.items.filter(i=>!i.checked); save(); renderList();
   toast(had?"Cleared ticked items 🧹":"Nothing ticked yet");
 };
+document.getElementById("clearAllChip").onclick = ()=>{
+  if(!state.items.length){ toast("List is already empty"); return; }
+  if(!confirm(`Clear all ${state.items.length} item${state.items.length>1?'s':''} from your list?`)) return;
+  state.items = []; save(); renderList(); toast("List cleared 🗑️");
+};
+
+/* ---------- Starter-list editor ---------- */
+function openStarterEditor(){
+  seedStarter();
+  const ed = document.getElementById("starterEditor");
+  ed.classList.remove("hide");
+  ed.innerHTML = `<div class="card" style="border:1px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft)">
+    <div class="vc-plat" style="margin-bottom:8px">✎ Edit your starter list</div>
+    <p class="sub" style="margin:0 0 10px">One item per line. Tapping “📋 Starter list” adds all of these.</p>
+    <div class="field"><textarea id="starterText" style="min-height:180px">${esc(state.starter.join("\n"))}</textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="starterSave" type="button" style="flex:1">💾 Save starter list</button>
+      <button class="btn sec" id="starterCancel" type="button" style="flex:0 0 auto">Cancel</button>
+    </div>
+  </div>`;
+  document.getElementById("starterCancel").onclick = closeStarterEditor;
+  document.getElementById("starterSave").onclick = ()=>{
+    state.starter = document.getElementById("starterText").value.split(/\n/).map(s=>s.trim()).filter(Boolean);
+    save(); closeStarterEditor(); toast("Starter list saved 📋");
+  };
+  ed.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeStarterEditor(){ const ed=document.getElementById("starterEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
+document.getElementById("editStarterChip").onclick = openStarterEditor;
 document.getElementById("vParse").onclick = analyseVideo;
 document.getElementById("newRecipeChip").onclick = ()=>openRecipeEditor(null, false);
 document.getElementById("videoRecipeChip").onclick = ()=>openRecipeEditor(null, true);
@@ -895,6 +956,7 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
   const id = t.dataset.tab;
   ["list","recipes","video"].forEach(s=>document.getElementById("tab-"+s).classList.toggle("hide", s!==id));
   if(id!=="recipes") closeRecipeEditor();
+  if(id!=="list") closeStarterEditor();
   if(id==="recipes") renderRecipes();
   if(id==="video") renderSavedVideos();
   window.scrollTo({top:0,behavior:"smooth"});
@@ -919,7 +981,7 @@ document.getElementById("themeBtn").onclick = ()=>{
 // expose handlers used in inline HTML
 Object.assign(window,{toggleItem,delItem,setCat,addRecipeToList,editRecipe,delRecipe,
   togglePending,commitVideo,saveVideoAsRecipe,readd,delVideo});
-seedRecipes();
+seedRecipes(); seedStarter();
 
 // Detect the video backend and set the Video-tab copy accordingly.
 (async function initBackend(){
