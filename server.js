@@ -19,11 +19,14 @@ app.use(express.json({ limit: "1mb" }));
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 // Tells the frontend which capabilities are live so it can set expectations.
 app.get("/api/config", (_req, res) => {
   res.json({
-    videoBackend: !!ANTHROPIC_API_KEY,
+    videoBackend: !!(ANTHROPIC_API_KEY || GEMINI_API_KEY),
+    provider: ANTHROPIC_API_KEY ? "claude" : GEMINI_API_KEY ? "gemini" : null,
     whisper: !!OPENAI_API_KEY,
   });
 });
@@ -37,12 +40,14 @@ app.post("/api/analyze", async (req, res) => {
     const result = await analyzeVideo(url, {
       anthropicKey: ANTHROPIC_API_KEY,
       openaiKey: OPENAI_API_KEY,
+      geminiKey: GEMINI_API_KEY,
+      geminiModel: GEMINI_MODEL,
     });
     res.json(result);
   } catch (e) {
     const code = e.code || "ERROR";
     const status =
-      code === "NO_ANTHROPIC_KEY" || code === "NO_YTDLP" ? 503 :
+      code === "NO_AI_KEY" || code === "NO_YTDLP" ? 503 :
       code === "NO_CONTENT" || code === "FETCH_FAILED" ? 422 : 500;
     res.status(status).json({ error: e.message || "Analysis failed.", code });
   }
@@ -53,7 +58,8 @@ app.use(express.static(__dirname, { index: false, extensions: ["html"] }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
+  const ai = ANTHROPIC_API_KEY ? "ON (Claude)" : GEMINI_API_KEY ? `ON (Gemini · ${GEMINI_MODEL}, free)` : "OFF — set ANTHROPIC_API_KEY or GEMINI_API_KEY";
   console.log(`\n  🛒  Cartly running at http://localhost:${PORT}`);
-  console.log(`      video analysis: ${ANTHROPIC_API_KEY ? "ON (Claude)" : "OFF — set ANTHROPIC_API_KEY"}`);
-  console.log(`      audio (Whisper): ${OPENAI_API_KEY ? "ON" : "OFF — set OPENAI_API_KEY for Instagram/TikTok"}\n`);
+  console.log(`      video analysis: ${ai}`);
+  console.log(`      audio (Whisper): ${OPENAI_API_KEY ? "ON" : "OFF — captions + on-screen text only"}\n`);
 });

@@ -1,5 +1,6 @@
 # One-click deploy on Render (render.com). New → Blueprint → pick this repo/branch.
-# Then add your ANTHROPIC_API_KEY (and optional OPENAI_API_KEY) when prompted.
+# FREE option: provide GEMINI_API_KEY (free from aistudio.google.com, no billing).
+# Or use ANTHROPIC_API_KEY (paid) for Claude. OPENAI_API_KEY is optional (audio).
 services:
   - type: web
     name: cartly
@@ -7,6 +8,8 @@ services:
     plan: free
     autoDeploy: true
     envVars:
+      - key: GEMINI_API_KEY
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY

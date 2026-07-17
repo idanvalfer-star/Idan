@@ -18,14 +18,23 @@ In this mode the video feature reads a **caption you paste** to find ingredients
 Run the server and Cartly will actually **watch** an Instagram / YouTube / TikTok
 video — reading its spoken audio and on-screen text — and extract the ingredients.
 
+You need **one** AI key. Pick either:
+
 ```bash
 npm install
-export ANTHROPIC_API_KEY=sk-ant-...      # required: Claude reads the recipe
-export OPENAI_API_KEY=sk-...             # optional: Whisper transcribes audio
+
+# FREE — Google Gemini (get a key at aistudio.google.com, no billing/credit card):
+export GEMINI_API_KEY=AIza...
+
+# …or PAID — Anthropic Claude (console.anthropic.com):
+# export ANTHROPIC_API_KEY=sk-ant-...
+
+export OPENAI_API_KEY=sk-...             # optional: Whisper transcribes audio (Instagram/TikTok)
 npm start
 ```
 
-Then open **http://localhost:3000**.
+Then open **http://localhost:3000**. If both AI keys are set, Claude is used; otherwise
+whichever one you provide.
 
 **Extra tools the server needs on your machine:**
 - [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) — fetches the video, captions, audio
@@ -34,13 +43,17 @@ Then open **http://localhost:3000**.
 Install them with e.g. `brew install yt-dlp ffmpeg` (macOS) or your package manager.
 
 **How the watching works, per platform:**
-- **YouTube** — uses the video's real captions when available (needs only the
-  Anthropic key); falls back to audio transcription if there are none.
-- **Instagram / TikTok** — no captions, so the server downloads the audio and
-  transcribes it with **Whisper** (needs the OpenAI key). Without an OpenAI key it
-  still reads **on-screen text from sampled frames** using Claude's vision.
-- In every case Claude turns the transcript + frames into a short description and a
-  structured ingredient list, which you pick from and add to your list.
+- **YouTube** — uses the video's real captions when available (free, no audio
+  transcription needed); falls back to audio transcription if there are none.
+- **Instagram / TikTok** — no captions, so the server reads **on-screen text from
+  sampled frames** using the model's vision. If you add an `OPENAI_API_KEY`, it also
+  transcribes the spoken **audio with Whisper** to catch ingredients said aloud.
+- In every case the AI (Gemini or Claude) turns the transcript + frames into a short
+  description and a structured ingredient list, which you pick from and add to the list.
+
+> **Fully free combo:** Gemini key + free Render hosting (below) + YouTube links =
+> no cost at all. Gemini also reads frames, so Instagram/TikTok work for on-screen
+> ingredients without any paid key.
 
 If a link can't be read (private video, missing tool, no key), Cartly falls back to
 the caption you pasted so you're never stuck.
@@ -54,13 +67,15 @@ phone can reach:
 - **Same Wi-Fi:** run `npm start` on your computer and open `http://<your-computer-ip>:3000`
   on your phone.
 - **Anywhere (Docker):** the included `Dockerfile` bundles `yt-dlp` + `ffmpeg`, so you
-  only supply keys:
+  only supply a key:
   ```bash
   docker build -t cartly .
-  docker run -p 3000:3000 -e ANTHROPIC_API_KEY=sk-ant-... -e OPENAI_API_KEY=sk-... cartly
+  docker run -p 3000:3000 -e GEMINI_API_KEY=AIza... cartly   # free
   ```
-  Or deploy that image to any host (Render, Railway, Fly.io, a VPS) and open its URL on
-  your phone. Add the keys as environment variables in the host's dashboard.
+- **Free on Render:** the included `render.yaml` deploys the Docker image on Render's
+  free plan. New → Blueprint → pick this repo/branch, paste your `GEMINI_API_KEY` when
+  prompted, and open the resulting `…onrender.com` URL on your phone. (Free instances
+  sleep when idle, so the first request after a break is slow.)
 
 Instagram/TikTok downloads sometimes need your login cookies; YouTube generally does not.
 
