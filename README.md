@@ -43,8 +43,10 @@ whichever one you provide.
 Install them with e.g. `brew install yt-dlp ffmpeg` (macOS) or your package manager.
 
 **How the watching works, per platform:**
-- **YouTube** — uses the video's real captions when available (free, no audio
-  transcription needed); falls back to audio transcription if there are none.
+- **YouTube** — with a Gemini key, Gemini watches the video **directly** (Google
+  fetches it server-side), so there's no download and no "confirm you're not a bot"
+  block that YouTube throws at cloud servers. With a Claude key it uses yt-dlp
+  captions instead.
 - **Instagram / TikTok** — no captions, so the server reads **on-screen text from
   sampled frames** using the model's vision. If you add an `OPENAI_API_KEY`, it also
   transcribes the spoken **audio with Whisper** to catch ingredients said aloud.
