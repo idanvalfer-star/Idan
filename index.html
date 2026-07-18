@@ -100,9 +100,9 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 .del{color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:10px;flex:none;opacity:.7}
 .del:active{transform:scale(.85);background:var(--line)}
 .stock-btn{font-size:16px;width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--bg);color:var(--muted);transition:.15s;opacity:.6}
-.stock-btn.on{opacity:1;background:var(--accent-soft);color:var(--accent-2);font-weight:700}
+.stock-btn.on{opacity:1;background:transparent;color:var(--accent);font-size:18px}
 .stock-btn:active{transform:scale(.88)}
-.item.in-stock{background:var(--accent-soft);border-inline-start:4px solid var(--accent-2)}
+.item.in-stock{background:color-mix(in srgb,var(--accent-soft) 60%,var(--card) 40%);border-inline-start:4px solid var(--accent-2)}
 .item.in-stock .nm{color:var(--accent-2);font-weight:700}
 .catsel{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font-size:11px;padding:2px 4px;font-weight:700}
 
@@ -691,7 +691,7 @@ function itemRow(it){
     ? `<img class="thumb" src="${it.img}" alt="" onclick="itemPhoto('${it.id}')" title="replace photo">`
     : `<span class="cat-emoji" onclick="itemPhoto('${it.id}')" style="cursor:pointer" title="add photo">${it.emoji||"🛍️"}</span>`;
   const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
-  const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'📦':'🏠'}</button>`;
+  const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'🏠':'☐'}</button>`;
   return `<div class="item ${done} ${inStockClass}" data-id="${it.id}">
     <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
       <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
@@ -1008,11 +1008,10 @@ function renderVideoResult(){
         ${g.qty?`<span class="qh">${esc(g.qty)}</span>`:""}</div>`).join("")
     : `<p class="sub" style="margin:6px 0 0">${isRTL()?"לא זוהו מרכיבים — הדביקו עוד מהכיתוב, או הוסיפו ידנית בלשונית הרשימה.":"No ingredients auto-detected — paste more of the caption, or add items manually on the List tab."}</p>`;
   box.classList.remove("hide");
-  const recipeName = v.name ? `<h3 style="margin:12px 0 6px;font-size:18px;font-weight:800">${esc(v.name)}</h3>` : "";
+  const recipeName = v.name ? `<h3 style="margin:12px 0 8px;font-size:18px;font-weight:800">${esc(v.name)}</h3>` : "";
   box.innerHTML = `${media}
     ${recipeName}
-    <div class="vc-plat">${v.platform}${v.title?` · ${esc(v.title)}`:""}</div>
-    <p style="font-size:13.5px;margin:6px 0 14px;line-height:1.5;color:var(--muted)">${esc(v.description)}</p>
+    <p style="font-size:13.5px;margin:0 0 14px;line-height:1.5;color:var(--muted)">${esc(v.description)}</p>
     ${v.ingredients.length?`<div class="vc-plat" style="margin-bottom:4px">🧾 ${esc(t("ingredients"))} (${v.ingredients.filter(x=>x.on).length})</div>`:""}
     ${ingHtml}
     <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
