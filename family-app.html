@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6366f1">
+  <title>Family Hub — Collaborate with Your Family</title>
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Family Hub","short_name":"Family Hub","start_url":".","display":"standalone","background_color":"%23f8f7ff","theme_color":"%236366f1","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E👨‍👩‍👧‍👦%3C/text%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E👨‍👩‍👧‍👦%3C/text%3E%3C/svg%3E">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8f7ff;
+      --card: #ffffff;
+      --ink: #1e1b4b;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --accent: #6366f1;
+      --accent-2: #4f46e5;
+      --accent-soft: #eef2ff;
+      --error: #dc2626;
+      --success: #10b981;
+      --shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
+      --shadow-sm: 0 2px 10px rgba(99, 102, 241, 0.06);
+      --radius: 16px;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --ink: #f1f5f9;
+      --muted: #94a3b8;
+      --line: #334155;
+      --accent: #818cf8;
+      --accent-2: #6366f1;
+      --accent-soft: #312e81;
+      --shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+      --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.35);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+      background: linear-gradient(135deg, var(--bg) 0%, color-mix(in srgb, var(--accent) 5%, var(--bg)) 100%);
+      color: var(--ink);
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
+      transition: background 0.3s, color 0.3s;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0 24px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      font-size: 32px;
+      font-weight: 800;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .brand p {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .spacer { flex: 1; }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 16px;
+      display: grid;
+      place-items: center;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+
+    .icon-btn:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .icon-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Page Management */
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Auth Pages */
+    .auth-page {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 100px);
+    }
+
+    .auth-container {
+      width: 100%;
+      max-width: 420px;
+      background: var(--card);
+      padding: 40px 30px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .auth-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .auth-header .logo {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .auth-header h2 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+
+    .auth-header p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .form-field input {
+      padding: 12px 14px;
+      border: 1.5px solid var(--line);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 15px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .form-field input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+      background: var(--card);
+    }
+
+    .form-field input::placeholder {
+      color: var(--muted);
+    }
+
+    .form-error {
+      display: none;
+      padding: 12px 14px;
+      background: #fee;
+      border: 1px solid #fcc;
+      border-radius: 10px;
+      color: var(--error);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .form-error.show {
+      display: block;
+    }
+
+    .btn {
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: white;
+      box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: var(--card);
+      color: var(--ink);
+      border: 1.5px solid var(--line);
+    }
+
+    .btn-secondary:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .form-divider {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .form-divider::before,
+    .form-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .form-link {
+      text-align: center;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .form-link a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .form-link a:hover {
+      opacity: 0.8;
+    }
+
+    /* Main Page */
+    .main-page {
+      min-height: calc(100vh - 100px);
+    }
+
+    .welcome-section {
+      text-align: center;
+      padding: 60px 20px;
+    }
+
+    .welcome-section .logo {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .welcome-section h2 {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--ink);
+      margin: 0 0 8px;
+    }
+
+    .welcome-section p {
+      font-size: 16px;
+      color: var(--muted);
+      margin: 0 0 32px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .welcome-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .welcome-actions .btn {
+      min-width: 140px;
+    }
+
+    /* Family List */
+    .family-section {
+      display: none;
+    }
+
+    .family-section.active {
+      display: block;
+    }
+
+    .family-header {
+      background: var(--card);
+      padding: 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
+
+    .family-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .family-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: white;
+      display: grid;
+      place-items: center;
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .family-details h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ink);
+    }
+
+    .family-details p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .family-spacer { flex: 1; }
+
+    /* List Controls */
+    .list-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .add-item-form {
+      display: flex;
+      gap: 8px;
+      background: var(--card);
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 16px;
+    }
+
+    .add-item-form input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .add-item-form input:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: var(--card);
+    }
+
+    .add-item-form button {
+      padding: 10px 16px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .add-item-form button:hover {
+      background: var(--accent-2);
+      transform: scale(1.05);
+    }
+
+    .add-item-form button:active {
+      transform: scale(0.98);
+    }
+
+    /* List Items */
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--card);
+      padding: 14px;
+      border-radius: 10px;
+      box-shadow: var(--shadow-sm);
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+
+    .item.checked {
+      opacity: 0.6;
+    }
+
+    .item.checked .item-text {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .item-text {
+      flex: 1;
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    .item-date {
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 140px;
+      text-align: right;
+    }
+
+    .item-by {
+      font-size: 11px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .item-delete {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+
+    .item-delete:hover {
+      color: var(--error);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state .emoji {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .empty-state p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .auth-container {
+        padding: 32px 20px;
+      }
+
+      .auth-header h2 {
+        font-size: 24px;
+      }
+
+      .family-info {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .family-spacer {
+        display: none;
+      }
+
+      .add-item-form {
+        flex-direction: column;
+      }
+
+      .item {
+        flex-wrap: wrap;
+      }
+
+      .item-date {
+        order: 3;
+        width: 100%;
+        margin-top: 8px;
+      }
+
+      .welcome-section {
+        padding: 40px 20px;
+      }
+
+      .welcome-section h2 {
+        font-size: 24px;
+      }
+    }
+
+    .theme-toggle-btn {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--ink);
+      transition: all 0.2s;
+    }
+
+    .theme-toggle-btn:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">👨‍👩‍👧‍👦</div>
+    <div class="brand">
+      <h1>Family Hub</h1>
+      <p>Stay connected with your family</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="header-actions">
+      <button class="theme-toggle-btn" id="themeBtn" title="Toggle theme">🌙</button>
+      <button class="icon-btn" id="logoutBtn" title="Sign out" style="display: none;">🚪</button>
+    </div>
+  </header>
+
+  <!-- MAIN PAGE -->
+  <div id="mainPage" class="page active">
+    <div class="welcome-section" id="welcomeSection">
+      <div class="logo">👨‍👩‍👧‍👦</div>
+      <h2>Welcome to Family Hub</h2>
+      <p>Keep your family connected and organized. Share lists, stay updated, and collaborate effortlessly.</p>
+      <div class="welcome-actions">
+        <button class="btn btn-primary" onclick="navigateTo('login')">Sign In</button>
+        <button class="btn btn-secondary" onclick="navigateTo('signup')">Create Account</button>
+      </div>
+    </div>
+
+    <div class="family-section" id="familySection">
+      <div class="family-header">
+        <div class="family-info">
+          <div class="family-avatar" id="familyAvatar">F</div>
+          <div class="family-details">
+            <h3 id="familyName">Family Name</h3>
+            <p id="userGreeting">Welcome, User</p>
+          </div>
+          <div class="family-spacer"></div>
+          <div>
+            <p style="margin: 0; font-size: 12px; color: var(--muted);">Members: <span id="memberCount">0</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="add-item-form">
+        <input type="text" id="newItemInput" placeholder="Add an item to the family list...">
+        <button onclick="addItem()">Add</button>
+      </div>
+
+      <div class="items-list" id="itemsList"></div>
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="emoji">📝</div>
+        <p>No items yet. Start by adding something to the list!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN PAGE -->
+  <div id="loginPage" class="page auth-page">
+    <div class="auth-container">
+      <div class="auth-header">
+        <div class="logo">👨‍👩‍👧‍👦</div>
+        <h2>Sign In</h2>
+        <p>Welcome back to your family hub</p>
+      </div>
+      <form class="auth-form" id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-field">
+          <label for="loginName">Name or Nickname</label>
+          <input type="text" id="loginName" placeholder="Enter your name or nickname" required>
+        </div>
+        <div class="form-field">
+          <label for="loginFamilyCode">Family Code</label>
+          <input type="text" id="loginFamilyCode" placeholder="Enter your family code" required>
+        </div>
+        <div class="form-error" id="loginError"></div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+      <div class="form-divider">or</div>
+      <div class="form-link">
+        Don't have an account? <a onclick="navigateTo('signup')">Sign Up</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNUP PAGE -->
+  <div id="signupPage" class="page auth-page">
+    <div class="auth-container">
+      <div class="auth-header">
+        <div class="logo">👨‍👩‍👧‍👦</div>
+        <h2>Join Family Hub</h2>
+        <p>Create your family account</p>
+      </div>
+      <form class="auth-form" id="signupForm" onsubmit="handleSignup(event)">
+        <div class="form-field">
+          <label for="signupName">Name</label>
+          <input type="text" id="signupName" placeholder="Your name" required>
+        </div>
+        <div class="form-field">
+          <label for="signupNickname">Nickname</label>
+          <input type="text" id="signupNickname" placeholder="Short name for quick recognition" required>
+        </div>
+        <div class="form-field">
+          <label for="signupFamilyName">Family Name</label>
+          <input type="text" id="signupFamilyName" placeholder="Your family name" required>
+        </div>
+        <div class="form-field">
+          <label for="signupFamilyCode">Family Code</label>
+          <input type="text" id="signupFamilyCode" placeholder="Create a code to share with family" required>
+        </div>
+        <div class="form-error" id="signupError"></div>
+        <button type="submit" class="btn btn-primary">Create Account</button>
+      </form>
+      <div class="form-divider">or</div>
+      <div class="form-link">
+        Already have an account? <a onclick="navigateTo('login')">Sign In</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ============ STATE MANAGEMENT ============
+const LS_KEY = "familyhub.data";
+const AUTH_KEY = "familyhub.auth";
+
+let appState = {
+  families: {},
+  users: {},
+  items: {}
+};
+
+let currentUser = null;
+let currentTheme = localStorage.getItem("familyhub.theme") || "light";
+
+// ============ STORAGE HELPERS ============
+function loadState() {
+  try {
+    const stored = localStorage.getItem(LS_KEY);
+    if (stored) appState = JSON.parse(stored);
+  } catch (e) {}
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(appState));
+  } catch (e) {}
+}
+
+function loadUser() {
+  try {
+    const stored = localStorage.getItem(AUTH_KEY);
+    if (stored) currentUser = JSON.parse(stored);
+  } catch (e) {}
+}
+
+function saveUser() {
+  try {
+    if (currentUser) {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem(AUTH_KEY);
+    }
+  } catch (e) {}
+}
+
+// ============ NAVIGATION ============
+function navigateTo(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById(page + "Page").classList.add("active");
+  window.scrollTo(0, 0);
+  clearErrors();
+}
+
+function clearErrors() {
+  document.querySelectorAll(".form-error").forEach(e => e.classList.remove("show"));
+}
+
+function showError(elementId, message) {
+  const el = document.getElementById(elementId);
+  if (el) {
+    el.textContent = message;
+    el.classList.add("show");
+  }
+}
+
+// ============ AUTHENTICATION ============
+function handleSignup(e) {
+  e.preventDefault();
+  clearErrors();
+
+  const name = document.getElementById("signupName").value.trim();
+  const nickname = document.getElementById("signupNickname").value.trim();
+  const familyName = document.getElementById("signupFamilyName").value.trim();
+  const familyCode = document.getElementById("signupFamilyCode").value.trim();
+
+  if (!name || !nickname || !familyName || !familyCode) {
+    showError("signupError", "All fields are required");
+    return false;
+  }
+
+  if (nickname.length < 2) {
+    showError("signupError", "Nickname must be at least 2 characters");
+    return false;
+  }
+
+  if (familyCode.length < 4) {
+    showError("signupError", "Family code must be at least 4 characters");
+    return false;
+  }
+
+  // Check if user nickname already exists in the family
+  if (appState.users[nickname]) {
+    showError("signupError", "This nickname is already taken");
+    return false;
+  }
+
+  // Create family if it doesn't exist
+  if (!appState.families[familyCode]) {
+    appState.families[familyCode] = { name: familyName, code: familyCode, members: [] };
+  }
+
+  // Create user
+  appState.users[nickname] = { name, nickname, familyCode, createdAt: new Date().toISOString() };
+
+  // Add user to family members list
+  if (!appState.families[familyCode].members.includes(nickname)) {
+    appState.families[familyCode].members.push(nickname);
+  }
+
+  // Initialize family items list
+  if (!appState.items[familyCode]) {
+    appState.items[familyCode] = [];
+  }
+
+  saveState();
+
+  // Auto-login after signup
+  currentUser = { name, nickname, familyCode };
+  saveUser();
+
+  showMainPage();
+  return false;
+}
+
+function handleLogin(e) {
+  e.preventDefault();
+  clearErrors();
+
+  const nameInput = document.getElementById("loginName").value.trim();
+  const familyCode = document.getElementById("loginFamilyCode").value.trim();
+
+  if (!nameInput || !familyCode) {
+    showError("loginError", "Name/Nickname and Family Code are required");
+    return false;
+  }
+
+  // Find user by name or nickname
+  let user = null;
+  for (const u of Object.values(appState.users)) {
+    if ((u.name.toLowerCase() === nameInput.toLowerCase() || u.nickname.toLowerCase() === nameInput.toLowerCase()) && u.familyCode === familyCode) {
+      user = u;
+      break;
+    }
+  }
+
+  if (!user) {
+    showError("loginError", "Invalid name/nickname or family code");
+    return false;
+  }
+
+  // Verify family code exists
+  if (!appState.families[familyCode]) {
+    showError("loginError", "Family not found");
+    return false;
+  }
+
+  currentUser = user;
+  saveUser();
+  showMainPage();
+  return false;
+}
+
+function logout() {
+  if (confirm("Are you sure you want to sign out?")) {
+    currentUser = null;
+    saveUser();
+    navigateTo("main");
+    showMainPageContent();
+  }
+}
+
+// ============ MAIN PAGE UI ============
+function showMainPage() {
+  navigateTo("main");
+  showMainPageContent();
+}
+
+function showMainPageContent() {
+  const welcomeSection = document.getElementById("welcomeSection");
+  const familySection = document.getElementById("familySection");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  if (!currentUser) {
+    welcomeSection.style.display = "block";
+    familySection.classList.remove("active");
+    logoutBtn.style.display = "none";
+  } else {
+    welcomeSection.style.display = "none";
+    familySection.classList.add("active");
+    logoutBtn.style.display = "block";
+
+    // Update family info
+    const family = appState.families[currentUser.familyCode];
+    document.getElementById("familyName").textContent = family?.name || "Family";
+    document.getElementById("userGreeting").textContent = `Welcome, ${currentUser.name}!`;
+    document.getElementById("familyAvatar").textContent = (family?.name || "F").charAt(0).toUpperCase();
+    document.getElementById("memberCount").textContent = family?.members?.length || 0;
+
+    renderItemsList();
+  }
+}
+
+function addItem() {
+  const input = document.getElementById("newItemInput");
+  const text = input.value.trim();
+
+  if (!text) return;
+  if (!currentUser) return;
+
+  if (!appState.items[currentUser.familyCode]) {
+    appState.items[currentUser.familyCode] = [];
+  }
+
+  appState.items[currentUser.familyCode].push({
+    id: Date.now().toString(),
+    text,
+    checked: false,
+    addedBy: currentUser.nickname,
+    createdAt: new Date().toISOString()
+  });
+
+  saveState();
+  input.value = "";
+  renderItemsList();
+}
+
+function deleteItem(familyCode, itemId) {
+  if (!appState.items[familyCode]) return;
+  appState.items[familyCode] = appState.items[familyCode].filter(item => item.id !== itemId);
+  saveState();
+  renderItemsList();
+}
+
+function toggleItem(familyCode, itemId) {
+  if (!appState.items[familyCode]) return;
+  const item = appState.items[familyCode].find(i => i.id === itemId);
+  if (item) {
+    item.checked = !item.checked;
+    saveState();
+    renderItemsList();
+  }
+}
+
+function renderItemsList() {
+  if (!currentUser) return;
+
+  const items = appState.items[currentUser.familyCode] || [];
+  const itemsList = document.getElementById("itemsList");
+  const emptyState = document.getElementById("emptyState");
+
+  if (items.length === 0) {
+    itemsList.innerHTML = "";
+    emptyState.style.display = "block";
+    return;
+  }
+
+  emptyState.style.display = "none";
+  itemsList.innerHTML = items.map(item => {
+    const date = new Date(item.createdAt);
+    const dateStr = date.toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    return `
+      <div class="item ${item.checked ? "checked" : ""}">
+        <input type="checkbox" ${item.checked ? "checked" : ""} onchange="toggleItem('${currentUser.familyCode}', '${item.id}')">
+        <span class="item-text">${escapeHtml(item.text)}</span>
+        <span class="item-by">${escapeHtml(item.addedBy)}</span>
+        <span class="item-date">${dateStr}</span>
+        <button class="item-delete" onclick="deleteItem('${currentUser.familyCode}', '${item.id}')">✕</button>
+      </div>
+    `;
+  }).join("");
+}
+
+// ============ THEME ============
+function toggleTheme() {
+  currentTheme = currentTheme === "light" ? "dark" : "light";
+  applyTheme();
+  localStorage.setItem("familyhub.theme", currentTheme);
+}
+
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", currentTheme);
+  document.getElementById("themeBtn").textContent = currentTheme === "dark" ? "☀️" : "🌙";
+}
+
+// ============ UTILITIES ============
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ============ INITIALIZATION ============
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("logoutBtn").addEventListener("click", logout);
+
+document.getElementById("newItemInput").addEventListener("keypress", (e) => {
+  if (e.key === "Enter") addItem();
+});
+
+// Load data and check auth on startup
+loadState();
+loadUser();
+applyTheme();
+
+if (currentUser && appState.families[currentUser.familyCode]) {
+  showMainPageContent();
+} else {
+  showMainPageContent();
+}
+
+// Auto-save when window closes
+window.addEventListener("beforeunload", () => {
+  saveState();
+  saveUser();
+});
+</script>
+
+</body>
+</html>
