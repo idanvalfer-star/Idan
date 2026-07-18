@@ -99,6 +99,10 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 .tag.src{background:var(--amber-soft);color:var(--amber)}
 .del{color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:10px;flex:none;opacity:.7}
 .del:active{transform:scale(.85);background:var(--line)}
+.stock-btn{font-size:16px;width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--bg);color:var(--muted);transition:.15s;opacity:.6}
+.stock-btn.on{opacity:1;background:var(--accent-soft);color:var(--accent-2);font-weight:700}
+.stock-btn:active{transform:scale(.88)}
+.item.in-stock{opacity:.62;background:color-mix(in srgb,var(--card) 85%,var(--muted) 15%)}
 .catsel{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font-size:11px;padding:2px 4px;font-weight:700}
 
 /* empty */
@@ -267,10 +271,6 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <div class="field">
         <label data-i18n="video_link">Video link</label>
         <input id="vUrl" placeholder="https://youtube.com/…  ·  instagram.com/…  ·  tiktok.com/…" autocomplete="off">
-      </div>
-      <div class="field">
-        <label id="vCapLabel" data-i18n="caption_label">Caption / description (optional)</label>
-        <textarea id="vCap" placeholder="Optional — paste the caption to help, or as a fallback if the link can't be read." data-i18n-ph="caption_ph"></textarea>
       </div>
       <button class="btn" id="vParse" data-i18n="analyse">✨ Analyse video</button>
       <div id="vResult" class="hide" style="margin-top:16px"></div>
@@ -649,8 +649,13 @@ function addItem(name, qty, source, img){
   // merge duplicates (same name, not checked)
   const dup = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase() && !i.checked);
   if(dup){ if(qty) dup.qty = qty; if(img) dup.img = img; save(); return "dup"; }
-  state.items.unshift({id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||""});
+  state.items.unshift({id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false});
   save(); return true;
+}
+function toggleInStock(id, e){
+  e.stopPropagation();
+  const it = state.items.find(i=>i.id===id); if(!it) return;
+  it.inStock = !it.inStock; save(); renderList();
 }
 function toggleItem(id){
   const it = state.items.find(i=>i.id===id); if(!it) return;
@@ -677,6 +682,7 @@ function setCat(id,cat){ const it=state.items.find(i=>i.id===id); if(it){ it.cat
 function shufUrl(name){ return "https://www.shufersal.co.il/online/he/search?text="+encodeURIComponent(name); }
 function itemRow(it){
   const done = it.checked?"checked":"";
+  const inStockClass = it.inStock?"in-stock":"";
   const src = it.source?`<span class="tag src">🎬 ${esc(it.source)}</span>`:"";
   const sel = `<select class="catsel" onchange="setCat('${it.id}',this.value)">`+
     SECTIONS.map(s=>`<option value="${s}" ${s===it.category?"selected":""}>${SECTION_EMOJI[s]} ${esc(sectionLabel(s))}</option>`).join("")+`</select>`;
@@ -684,13 +690,14 @@ function itemRow(it){
     ? `<img class="thumb" src="${it.img}" alt="" onclick="itemPhoto('${it.id}')" title="replace photo">`
     : `<span class="cat-emoji" onclick="itemPhoto('${it.id}')" style="cursor:pointer" title="add photo">${it.emoji||"🛍️"}</span>`;
   const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
-  return `<div class="item ${done}" data-id="${it.id}">
+  const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'📦':'🏠'}</button>`;
+  return `<div class="item ${done} ${inStockClass}" data-id="${it.id}">
     <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
       <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
     ${thumb}
     <div class="body">
       <div class="nm">${esc(it.name)}${it.qty?` <span class="tag">${esc(it.qty)}</span>`:""}</div>
-      <div class="meta">${sel} ${rmPhoto} ${src}</div>
+      <div class="meta">${sel} ${stock} ${rmPhoto} ${src}</div>
     </div>
     <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
   </div>`;
@@ -849,7 +856,7 @@ function saveRecipe(){
 function saveVideoAsRecipe(){
   const v = pendingVideo; if(!v) return;
   const chosen = v.ingredients.filter(x=>x.on);
-  const name = (v.title || (v.description||"").split(/[.!?\n]/)[0] || "Video recipe").slice(0,60).trim() || "Video recipe";
+  const name = (v.name || v.title || (v.description||"").split(/[.!?\n]/)[0] || "Video recipe").slice(0,60).trim() || "Video recipe";
   state.recipes.unshift({
     id:uid(), n:name, e:"🎬", time:"",
     ing: chosen.map(g=>({name:g.name, qty:g.qty||""})),
@@ -965,7 +972,6 @@ let analysing = false;
 async function analyseVideo(){
   if(analysing) return;
   const url = document.getElementById("vUrl").value.trim();
-  const cap = document.getElementById("vCap").value.trim();
   if(!url && !cap){ toast(t("t_link_or_caption")); return; }
   // No server to watch the link, and nothing to read from: explain inline.
   if((!backend.video || !url) && !cap){
@@ -973,7 +979,6 @@ async function analyseVideo(){
     box.classList.remove("hide");
     box.innerHTML = `<div class="vplace">${platformOf(url)==='instagram'?'📸':platformOf(url)==='tiktok'?'🎵':'🎬'}</div>
       <p style="font-size:14px;line-height:1.55;margin:6px 0 0">${esc(t("t_no_server"))}</p>`;
-    document.getElementById("vCap").focus();
     return;
   }
   const btn = document.getElementById("vParse");
@@ -1002,9 +1007,11 @@ function renderVideoResult(){
         ${g.qty?`<span class="qh">${esc(g.qty)}</span>`:""}</div>`).join("")
     : `<p class="sub" style="margin:6px 0 0">${isRTL()?"לא זוהו מרכיבים — הדביקו עוד מהכיתוב, או הוסיפו ידנית בלשונית הרשימה.":"No ingredients auto-detected — paste more of the caption, or add items manually on the List tab."}</p>`;
   box.classList.remove("hide");
+  const recipeName = v.name ? `<h3 style="margin:12px 0 6px;font-size:18px;font-weight:800">${esc(v.name)}</h3>` : "";
   box.innerHTML = `${media}
+    ${recipeName}
     <div class="vc-plat">${v.platform}${v.title?` · ${esc(v.title)}`:""}</div>
-    <p style="font-size:14px;margin:6px 0 14px;line-height:1.5">${esc(v.description)}</p>
+    <p style="font-size:13.5px;margin:6px 0 14px;line-height:1.5;color:var(--muted)">${esc(v.description)}</p>
     ${v.ingredients.length?`<div class="vc-plat" style="margin-bottom:4px">🧾 ${esc(t("ingredients"))} (${v.ingredients.filter(x=>x.on).length})</div>`:""}
     ${ingHtml}
     <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
@@ -1021,10 +1028,10 @@ function commitVideo(){
   chosen.forEach(g=>{ if(addItem(g.name, g.qty, label)) n++; });
   // save the video card (with the chosen ingredients recorded)
   state.videos.unshift({id:v.id,url:v.url,platform:v.platform,title:v.title,thumb:v.thumb,
-    description:v.description, ingredients:chosen.map(c=>({name:c.name,qty:c.qty,emoji:c.emoji}))});
+    name:v.name, description:v.description, ingredients:chosen.map(c=>({name:c.name,qty:c.qty,emoji:c.emoji}))});
   save();
   pendingVideo=null;
-  document.getElementById("vUrl").value=""; document.getElementById("vCap").value="";
+  document.getElementById("vUrl").value="";
   document.getElementById("vResult").classList.add("hide");
   renderList(); renderSavedVideos();
   toast(n? t("t_added_video")(n) : t("t_saved_recipe_book"));
@@ -1038,7 +1045,9 @@ function renderSavedVideos(){
         ? `<img class="vthumb" style="margin:0" src="${v.thumb}" alt="" onerror="this.outerHTML='<div class=\\'vplace\\' style=\\'margin:0\\'>🎬</div>'">`
         : `<div class="vplace" style="margin:0">${v.platform==='instagram'?'📸':'🎬'}</div>`;
       const ing = v.ingredients.map(g=>`<span class="pill">${g.emoji||""} ${esc(g.name)}</span>`).join(" ");
+      const recipeName = v.name ? `<h4 style="margin:0 0 6px;font-size:15px;font-weight:800">${esc(v.name)}</h4>` : "";
       return `<div class="vcard">${media}<div class="vc-body">
+        ${recipeName}
         <div class="vc-plat">${v.platform}${v.title?` · ${esc(v.title)}`:""}</div>
         <div class="vc-desc">${esc(v.description)}</div>
         <div class="ing" style="margin:0 0 10px">${ing||'<span class="sub">no ingredients saved</span>'}</div>
