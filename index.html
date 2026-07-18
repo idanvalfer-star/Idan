@@ -341,7 +341,7 @@ const T = {
     shufersal:"Shufersal",
     shuf_button:"Shop at Shufersal", shuf_title:"🛒 Build your Shufersal order",
     shuf_sub:"Tap each item to find it on Shufersal and add it to your cart there. This opens Shufersal's site — there's no way to push a cart from outside.",
-    shuf_search:"Find", shuf_open_store:"Open Shufersal", shuf_empty:"Your shopping list is empty.", close:"Close",
+    shuf_search:"Find", shuf_open_store:"Open Shufersal", shuf_empty:"Your shopping list is empty.", close:"Close", added_word:"added",
   },
   he:{
     tagline:"חבר הקניות החכם שלך",
@@ -386,7 +386,7 @@ const T = {
     shufersal:"שופרסל",
     shuf_button:"קנייה בשופרסל", shuf_title:"🛒 בניית ההזמנה בשופרסל",
     shuf_sub:"הקישו על כל מוצר כדי למצוא אותו בשופרסל ולהוסיף לעגלה שם. זה פותח את אתר שופרסל — אי אפשר לשלוח עגלה מבחוץ.",
-    shuf_search:"חיפוש", shuf_open_store:"פתיחת שופרסל", shuf_empty:"רשימת הקניות ריקה.", close:"סגירה",
+    shuf_search:"חיפוש", shuf_open_store:"פתיחת שופרסל", shuf_empty:"רשימת הקניות ריקה.", close:"סגירה", added_word:"נוספו",
   },
 };
 let LANG = "en";
@@ -1216,19 +1216,25 @@ function closeStarterEditor(){ const ed=document.getElementById("starterEditor")
 document.getElementById("editStarterChip").onclick = openStarterEditor;
 
 /* ---------- Shufersal: build your order from the shopping list ---------- */
-function openShufPanel(){
-  closeStarterEditor();
-  const ed = document.getElementById("shufPanel"); ed.classList.remove("hide");
+let shufDone = new Set();     // items ticked off as "added on Shufersal" this session
+function renderShufPanel(){
+  const ed = document.getElementById("shufPanel");
   const items = state.items.filter(i=>!i.checked);
+  const done = items.filter(it=>shufDone.has(it.id)).length;
   const rows = items.length
-    ? items.map(it=>`<div class="ingrow">
-        <span class="in">${it.emoji||"🛍️"} ${esc(it.name)}${it.qty?` <span class="qh">${esc(it.qty)}</span>`:""}</span>
-        <a class="shuf" href="${shufUrl(it.name)}" target="_blank" rel="noopener">🔍 ${esc(t("shuf_search"))}</a>
-      </div>`).join("")
+    ? items.map(it=>{
+        const d = shufDone.has(it.id);
+        return `<div class="ingrow">
+          <span class="cb ${d?'on':''}" onclick="toggleShuf('${it.id}')"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>
+          <span class="in" style="${d?'text-decoration:line-through;opacity:.5':''}">${it.emoji||"🛍️"} ${esc(it.name)}${it.qty?` <span class="qh">${esc(it.qty)}</span>`:""}</span>
+          <a class="shuf" href="${shufUrl(it.name)}" target="_blank" rel="noopener">🔍 ${esc(t("shuf_search"))}</a>
+        </div>`;
+      }).join("")
     : `<p class="sub" style="margin:8px 0">${esc(t("shuf_empty"))}</p>`;
   ed.innerHTML = `<div class="card" style="border:1px solid #e2231a;box-shadow:0 0 0 3px #fdeceb">
     <div class="vc-plat" style="margin-bottom:6px">${esc(t("shuf_title"))}</div>
     <p class="sub" style="margin:0 0 10px">${esc(t("shuf_sub"))}</p>
+    ${items.length?`<div class="vc-plat" style="color:#e2231a;margin:0 0 8px">${done} / ${items.length} ${esc(t("added_word"))}</div>`:""}
     ${rows}
     <div style="display:flex;gap:8px;margin-top:14px">
       <a class="btn" href="https://www.shufersal.co.il/online/he" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none">${esc(t("shuf_open_store"))}</a>
@@ -1236,8 +1242,15 @@ function openShufPanel(){
     </div>
   </div>`;
   document.getElementById("shufClose").onclick = closeShufPanel;
-  ed.scrollIntoView({behavior:"smooth", block:"start"});
 }
+function openShufPanel(){
+  closeStarterEditor();
+  shufDone = new Set();
+  document.getElementById("shufPanel").classList.remove("hide");
+  renderShufPanel();
+  document.getElementById("shufPanel").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function toggleShuf(id){ if(shufDone.has(id)) shufDone.delete(id); else shufDone.add(id); renderShufPanel(); }
 function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; }
 document.getElementById("shufChip").onclick = ()=>{
   const ed=document.getElementById("shufPanel");
@@ -1312,7 +1325,7 @@ document.getElementById("langBtn").onclick = ()=>{
 // expose handlers used in inline HTML
 Object.assign(window,{toggleItem,delItem,setCat,addRecipeToList,editRecipe,delRecipe,
   togglePending,commitVideo,saveVideoAsRecipe,readd,delVideo,
-  itemPhoto,removeItemImg,clearPendingPhoto,moveToList,delInv,editInv});
+  itemPhoto,removeItemImg,clearPendingPhoto,moveToList,delInv,editInv,toggleShuf});
 seedRecipes(); seedStarter();
 
 // Detect the video backend and set the Video-tab copy accordingly.
