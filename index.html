@@ -192,7 +192,10 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 .foot{text-align:center;color:var(--muted);font-size:11.5px;padding:10px 0 4px;opacity:.8}
 
 /* Auth pages */
-.auth-page{display:none;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.auth-page{display:none;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:
+    radial-gradient(900px 500px at 100% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(800px 420px at -10% 8%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+    var(--bg)}
 .auth-page.active{display:flex}
 .auth-container{width:100%;max-width:420px;background:var(--card);padding:40px 30px;border-radius:24px;box-shadow:var(--shadow)}
 .auth-header{text-align:center;margin-bottom:32px}
@@ -202,26 +205,27 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 .auth-form{display:flex;flex-direction:column;gap:16px}
 .auth-field{display:flex;flex-direction:column;gap:6px}
 .auth-field label{font-size:13px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.3px}
-.auth-field input{padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-size:15px;transition:.2s}
+.auth-field input{padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-size:15px;transition:.2s;font-family:inherit}
 .auth-field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .auth-field input::placeholder{color:var(--muted)}
 .auth-error{display:none;padding:12px 14px;background:#fee;border-radius:12px;color:#c00;font-size:13px;font-weight:600;border:1px solid #fcc}
 .auth-error.show{display:block}
-.auth-submit{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;font-size:16px;padding:14px 20px;border-radius:12px;
+.auth-submit{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;font-size:16px;padding:14px 20px;border-radius:12px;border:none;cursor:pointer;
   box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);transition:transform .12s;margin-top:8px}
 .auth-submit:active{transform:scale(.98)}
 .auth-divider{text-align:center;font-size:13px;color:var(--muted);margin:20px 0;display:flex;align-items:center;gap:12px}
 .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--line)}
 .auth-link{text-align:center;font-size:14px;color:var(--muted)}
 .auth-link a{color:var(--accent);text-decoration:none;font-weight:700;cursor:pointer;transition:.2s}
-.auth-link a:active{opacity:.7}
+.auth-link a:hover{opacity:.8}
 .app-content{display:none}
 .app-content.active{display:block}
+.user-info{font-size:13px;color:var(--muted);font-weight:600}
 </style>
 
 <div class="wrap">
   <!-- LOGIN PAGE -->
-  <div id="loginPage" class="auth-page active">
+  <div id="loginPage" class="auth-page">
     <div class="auth-container">
       <div class="auth-header">
         <div class="logo">🛒</div>
@@ -291,9 +295,10 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <p data-i18n="tagline">Your smart grocery buddy</p>
     </div>
     <div class="spacer"></div>
+    <div class="user-info" id="userInfo" style="display:none;">👤 <span id="currentUserName"></span></div>
     <button class="icon-btn" id="langBtn" title="Language">עב</button>
     <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
-    <button class="icon-btn" id="logoutBtn" title="Sign out">👤</button>
+    <button class="icon-btn" id="logoutBtn" title="Sign out" style="display:none;">🚪</button>
   </header>
 
   <nav class="tabs">
@@ -1480,24 +1485,51 @@ Object.assign(window,{toggleItem,delItem,setCat,addRecipeToList,editRecipe,delRe
 seedRecipes(); seedStarter();
 
 /* ================ AUTHENTICATION ================ */
-const AUTH_LS_KEY = "cartly.auth";
+/* ================ FAMILY COLLABORATION ================ */
+const AUTH_KEY = "cartly.user";
+const USERS_KEY = "cartly.users";
+const FAMILIES_KEY = "cartly.families";
 let currentUser = null;
 
-function getAuthData(){
-  try{ return JSON.parse(localStorage.getItem(AUTH_LS_KEY)); }catch(e){ return null; }
+// Override LS key to use family code for shared lists
+function getFamilyListKey(){
+  return currentUser ? ("cartly.v1.family." + currentUser.familyCode) : "cartly.v1";
 }
 
-function saveAuthData(data){
-  try{ localStorage.setItem(AUTH_LS_KEY, JSON.stringify(data)); }catch(e){}
+// Modify load() and save() to use family code
+const originalLoad = load;
+const originalSave = save;
+
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(getFamilyListKey())); if(s&&s.items){ if(!Array.isArray(s.inventory)) s.inventory=[]; return s; } }catch(e){}
+  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null};
+}
+
+function save(){ try{ localStorage.setItem(getFamilyListKey(), JSON.stringify(state)); }catch(e){} }
+
+function getAuthData(){
+  try{
+    return {
+      users: JSON.parse(localStorage.getItem(USERS_KEY) || "{}"),
+      families: JSON.parse(localStorage.getItem(FAMILIES_KEY) || "{}")
+    };
+  }catch(e){ return { users:{}, families:{} }; }
+}
+
+function saveAuthData(users, families){
+  try{
+    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    localStorage.setItem(FAMILIES_KEY, JSON.stringify(families));
+  }catch(e){}
 }
 
 function switchPage(page){
-  document.getElementById("loginPage").classList.toggle("active", page==="login");
-  document.getElementById("signupPage").classList.toggle("active", page==="signup");
+  document.querySelectorAll(".auth-page").forEach(p=>p.classList.remove("active"));
+  document.getElementById(page+"Page").classList.add("active");
   document.getElementById("loginError").classList.remove("show");
   document.getElementById("signupError").classList.remove("show");
-  document.getElementById("loginForm").reset();
-  document.getElementById("signupForm").reset();
+  if(document.getElementById("loginForm")) document.getElementById("loginForm").reset();
+  if(document.getElementById("signupForm")) document.getElementById("signupForm").reset();
 }
 
 function handleSignup(e){
@@ -1514,17 +1546,46 @@ function handleSignup(e){
     return false;
   }
 
-  const authData = {
-    families: {
-      [familyCode]: { name:familyName, code:familyCode, members:[] }
-    },
-    users: {
-      [nickname]: { name, nickname, familyCode }
-    }
-  };
+  if(nickname.length < 2){
+    errorEl.textContent = "Nickname must be at least 2 characters";
+    errorEl.classList.add("show");
+    return false;
+  }
 
-  saveAuthData(authData);
+  if(familyCode.length < 4){
+    errorEl.textContent = "Family code must be at least 4 characters";
+    errorEl.classList.add("show");
+    return false;
+  }
+
+  const authData = getAuthData();
+
+  // Check if nickname already exists
+  if(authData.users[nickname]){
+    errorEl.textContent = "This nickname is already taken";
+    errorEl.classList.add("show");
+    return false;
+  }
+
+  // Create family if it doesn't exist
+  if(!authData.families[familyCode]){
+    authData.families[familyCode] = { name:familyName, code:familyCode, members:[] };
+  }
+
+  // Create user
+  authData.users[nickname] = { name, nickname, familyCode, createdAt:new Date().toISOString() };
+
+  // Add user to family
+  if(!authData.families[familyCode].members.includes(nickname)){
+    authData.families[familyCode].members.push(nickname);
+  }
+
+  saveAuthData(authData.users, authData.families);
+
+  // Auto-login
   currentUser = { name, nickname, familyCode };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
+
   showApp();
   return false;
 }
@@ -1542,14 +1603,10 @@ function handleLogin(e){
   }
 
   const authData = getAuthData();
-  if(!authData || !authData.users || !authData.families){
-    errorEl.textContent = "Invalid credentials";
-    errorEl.classList.add("show");
-    return false;
-  }
 
+  // Find user
   let user = null;
-  for(const u of Object.values(authData.users||{})){
+  for(const u of Object.values(authData.users)){
     if((u.name.toLowerCase()===nameInput.toLowerCase() || u.nickname.toLowerCase()===nameInput.toLowerCase()) && u.familyCode===familyCode){
       user = u;
       break;
@@ -1557,49 +1614,74 @@ function handleLogin(e){
   }
 
   if(!user){
-    errorEl.textContent = "Invalid credentials. Please check your name and family code.";
-    errorEl.classList.add("show");
-    return false;
-  }
-
-  if(!authData.families || !authData.families[familyCode]){
-    errorEl.textContent = "Family code not found";
+    errorEl.textContent = "Invalid name/nickname or family code";
     errorEl.classList.add("show");
     return false;
   }
 
   currentUser = user;
+  localStorage.setItem(AUTH_KEY, JSON.stringify(currentUser));
+
   showApp();
   return false;
 }
 
 function showApp(){
-  document.getElementById("loginPage").classList.remove("active");
-  document.getElementById("signupPage").classList.remove("active");
+  document.querySelectorAll(".auth-page").forEach(p=>p.classList.remove("active"));
   document.getElementById("appContent").classList.add("active");
+  document.getElementById("logoutBtn").style.display = "block";
+  document.getElementById("userInfo").style.display = "flex";
+  document.getElementById("currentUserName").textContent = currentUser.nickname;
+
+  // Reload state with family code key
+  state = load();
 
   seedRecipes(); seedStarter();
-  // Detect the video backend and set the Video-tab copy accordingly.
   (async function initBackend(){
     try{
       const r = await fetch("/api/config");
       if(r.ok){ const c = await r.json(); backend.video = !!c.videoBackend; backend.whisper = !!c.whisper; }
-    }catch(e){/* opened as a file — no backend */}
+    }catch(e){}
     setVideoSub();
   })();
 
   applyLang();
+  window.scrollTo(0,0);
 }
 
-function checkAuth(){
-  const authData = getAuthData();
-  if(authData && authData.users && Object.keys(authData.users).length>0){
-    const firstUser = Object.values(authData.users)[0];
-    currentUser = firstUser;
-    showApp();
+function logout(){
+  if(confirm("Sign out from Cartly?")){
+    currentUser = null;
+    localStorage.removeItem(AUTH_KEY);
+    document.getElementById("logoutBtn").style.display = "none";
+    document.getElementById("userInfo").style.display = "none";
+    document.getElementById("appContent").classList.remove("active");
+    document.getElementById("loginPage").classList.add("active");
+    document.getElementById("loginForm").reset();
+    document.getElementById("loginError").classList.remove("show");
+    window.scrollTo(0,0);
   }
 }
 
-// Initialize auth check
+function checkAuth(){
+  try{
+    const stored = localStorage.getItem(AUTH_KEY);
+    if(stored){
+      currentUser = JSON.parse(stored);
+      const authData = getAuthData();
+      if(authData.users[currentUser.nickname] && authData.families[currentUser.familyCode]){
+        showApp();
+        return;
+      }
+    }
+  }catch(e){}
+
+  // Not logged in - show login page
+  document.getElementById("loginPage").classList.add("active");
+}
+
+document.getElementById("logoutBtn").onclick = logout;
+
+// Initialize
 checkAuth();
 </script>
