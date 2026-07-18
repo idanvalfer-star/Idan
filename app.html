@@ -1,0 +1,1458 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#22c55e">
+<title>Cartly — Grocery List</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"Cartly","short_name":"Cartly","start_url":".","display":"standalone","background_color":"%23fbfdf7","theme_color":"%2322c55e","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E","sizes":"any","type":"image/svg+xml"}]}'>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%92%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#fbfdf7; --card:#ffffff; --ink:#15271c; --muted:#6b7d72;
+  --line:#e7efe6; --accent:#22c55e; --accent-2:#16a34a; --accent-soft:#e9fbef;
+  --amber:#f59e0b; --amber-soft:#fff5e0; --blue:#3b82f6; --pink:#ec4899;
+  --shadow:0 8px 30px rgba(20,60,35,.08); --shadow-sm:0 2px 10px rgba(20,60,35,.06);
+  --radius:20px;
+}
+[data-theme="dark"]{
+  --bg:#0e1512; --card:#16201b; --ink:#e8f2ea; --muted:#9db3a6;
+  --line:#24322b; --accent:#34d399; --accent-2:#22c55e; --accent-soft:#12241b;
+  --amber:#fbbf24; --amber-soft:#241d0e; --blue:#60a5fa; --pink:#f472b6;
+  --shadow:0 10px 34px rgba(0,0,0,.45); --shadow-sm:0 2px 12px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif;
+  background:
+    radial-gradient(900px 500px at 100% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(800px 420px at -10% 8%, color-mix(in srgb, var(--pink) 10%, transparent), transparent 55%),
+    var(--bg);
+  color:var(--ink); -webkit-tap-highlight-color:transparent;
+  padding-bottom:env(safe-area-inset-bottom);
+  transition:background .3s,color .3s;
+}
+.wrap{max-width:760px;margin:0 auto;padding:16px 16px 120px}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select{font-family:inherit}
+
+/* header */
+header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
+.logo{font-size:30px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.12))}
+.brand h1{margin:0;font-size:24px;letter-spacing:-.5px;font-weight:800}
+.brand p{margin:1px 0 0;font-size:12.5px;color:var(--muted)}
+.spacer{flex:1}
+.icon-btn{width:42px;height:42px;border-radius:14px;background:var(--card);box-shadow:var(--shadow-sm);
+  display:grid;place-items:center;font-size:19px;transition:transform .15s,background .2s}
+.icon-btn:active{transform:scale(.9)}
+
+/* tabs */
+.tabs{display:flex;gap:6px;background:var(--card);padding:6px;border-radius:16px;box-shadow:var(--shadow-sm);margin-bottom:16px;position:sticky;top:8px;z-index:20}
+.tab{flex:1;padding:10px 6px;border-radius:11px;font-weight:700;font-size:13px;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:3px;transition:.18s;white-space:nowrap}
+.tab .ei{font-size:17px}
+.tab.active{background:var(--accent-soft);color:var(--accent-2)}
+
+/* add bar */
+.addbar{display:flex;gap:8px;background:var(--card);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);margin-bottom:14px}
+.addbar input{flex:1;min-width:0;border:none;background:transparent;font-size:16px;padding:12px 8px 12px 14px;color:var(--ink);outline:none}
+.addbar input::placeholder{color:var(--muted)}
+.qtybox{display:flex;align-items:center;flex:none;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+.qbtn{width:32px;align-self:stretch;font-size:20px;font-weight:800;color:var(--muted);background:transparent;line-height:1}
+.qbtn:active{background:var(--line)}
+.qtybox .qty{width:40px;border:none;background:transparent;text-align:center;font-size:15px;font-weight:700;padding:12px 0;color:var(--ink);outline:none}
+.qtybox .qty::-webkit-outer-spin-button,.qtybox .qty::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.add-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;font-size:22px;
+  width:52px;border-radius:14px;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);transition:transform .12s}
+.add-btn:active{transform:scale(.92)}
+
+/* toolbar row */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+  padding:8px 13px;border-radius:999px;font-size:13px;font-weight:700;color:var(--ink);box-shadow:var(--shadow-sm);transition:.15s}
+.chip:active{transform:scale(.95)}
+.chip.on{background:var(--accent);color:#fff;border-color:transparent}
+.chip.ghost{color:var(--muted)}
+.count-pill{margin-inline-start:auto;font-size:12.5px;color:var(--muted);align-self:center;font-weight:700}
+
+/* list */
+.section-head{display:flex;align-items:center;gap:8px;margin:16px 4px 8px;font-size:13px;font-weight:800;
+  letter-spacing:.3px;color:var(--muted);text-transform:uppercase}
+.section-head .ln{flex:1;height:1px;background:var(--line)}
+.item{display:flex;align-items:center;gap:12px;background:var(--card);padding:13px 14px;border-radius:16px;
+  box-shadow:var(--shadow-sm);margin-bottom:9px;animation:pop .28s ease}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+.check{width:26px;height:26px;border-radius:9px;border:2.5px solid var(--line);flex:none;display:grid;place-items:center;
+  transition:.18s;position:relative}
+.check.done{background:var(--accent);border-color:var(--accent)}
+.check svg{width:15px;height:15px;stroke:#fff;stroke-width:3.4;fill:none;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:20;stroke-dashoffset:20;transition:stroke-dashoffset .22s ease}
+.check.done svg{stroke-dashoffset:0}
+@keyframes checkpop{0%{transform:scale(1)}45%{transform:scale(1.28)}100%{transform:scale(1)}}
+.check.pop{animation:checkpop .32s cubic-bezier(.34,1.56,.64,1)}
+@keyframes rowflash{0%{background:var(--accent-soft)}100%{background:var(--card)}}
+.item.flash{animation:rowflash .55s ease}
+.item .body{flex:1;min-width:0}
+.item .nm{font-size:15.5px;font-weight:650;line-height:1.25;word-break:break-word}
+.item.checked .nm{text-decoration:line-through;color:var(--muted)}
+.item .meta{font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.cat-emoji{font-size:20px;flex:none}
+.tag{background:var(--accent-soft);color:var(--accent-2);padding:1px 8px;border-radius:999px;font-weight:700;font-size:11px}
+.tag.src{background:var(--amber-soft);color:var(--amber)}
+.del{color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:10px;flex:none;opacity:.7}
+.del:active{transform:scale(.85);background:var(--line)}
+.stock-btn{font-size:16px;width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;background:var(--bg);color:var(--muted);transition:.15s;opacity:.6}
+.stock-btn.on{opacity:1;background:transparent;color:var(--accent);font-size:18px}
+.stock-btn:active{transform:scale(.88)}
+.item.in-stock{background:color-mix(in srgb,var(--accent-soft) 60%,var(--card) 40%);border-inline-start:4px solid var(--accent-2)}
+.item.in-stock .nm{color:var(--accent-2);font-weight:700}
+.catsel{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font-size:11px;padding:2px 4px;font-weight:700}
+
+/* empty */
+.empty{text-align:center;padding:46px 20px;color:var(--muted)}
+.empty .big{font-size:56px;margin-bottom:10px;filter:drop-shadow(0 8px 16px rgba(0,0,0,.1))}
+.empty h3{margin:0 0 6px;color:var(--ink);font-size:18px}
+.empty p{margin:0;font-size:14px;line-height:1.5}
+
+/* cards / panels */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 4px;font-size:17px;letter-spacing:-.3px}
+.card .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:12.5px;font-weight:800;color:var(--muted);margin:0 0 6px 3px;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field textarea{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);
+  border-radius:13px;padding:12px 14px;font-size:15px;outline:none;transition:border .15s}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{min-height:96px;resize:vertical;line-height:1.5}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#fff;font-weight:800;font-size:15px;padding:13px 18px;border-radius:14px;width:100%;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 40%,transparent);transition:transform .12s}
+.btn:active{transform:scale(.98)}
+.btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.btn.sm{width:auto;padding:9px 14px;font-size:13.5px;border-radius:11px}
+
+/* tips */
+.tip{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.tip:last-child{border-bottom:none}
+.tip .ic{font-size:24px;flex:none}
+.tip .t{font-weight:750;font-size:14.5px;margin-bottom:2px}
+.tip .d{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* recipe */
+.recipe{border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:11px;background:var(--bg)}
+.recipe.match{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.recipe .rhead{display:flex;align-items:center;gap:11px}
+.recipe .rem{font-size:30px}
+.recipe .rt{font-weight:800;font-size:16px}
+.recipe .rmeta{font-size:12px;color:var(--muted);margin-top:1px}
+.badge{font-size:10.5px;font-weight:800;background:var(--accent);color:#fff;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
+.recipe .ing{display:flex;flex-wrap:wrap;gap:6px;margin:11px 0}
+.pill{font-size:12px;background:var(--card);border:1px solid var(--line);padding:4px 10px;border-radius:999px;color:var(--muted)}
+.pill.have{background:var(--accent-soft);color:var(--accent-2);border-color:transparent;font-weight:700}
+.steps{font-size:13px;color:var(--muted);line-height:1.6;margin:8px 0 12px;padding-left:18px}
+.steps li{margin-bottom:3px}
+details.recipe-more summary{cursor:pointer;color:var(--accent-2);font-weight:700;font-size:13px;list-style:none}
+details.recipe-more summary::-webkit-details-marker{display:none}
+
+/* video */
+.vthumb{width:100%;aspect-ratio:16/9;border-radius:14px;object-fit:cover;background:var(--line);display:block;margin-bottom:12px}
+.vplace{width:100%;aspect-ratio:16/9;border-radius:14px;display:grid;place-items:center;font-size:46px;margin-bottom:12px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--pink) 22%,var(--card)),color-mix(in srgb,var(--blue) 22%,var(--card)))}
+.ingrow{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ingrow:last-child{border-bottom:none}
+.ingrow .cb{width:23px;height:23px;border-radius:7px;border:2.5px solid var(--line);flex:none;display:grid;place-items:center;transition:.15s}
+.ingrow .cb.on{background:var(--accent);border-color:var(--accent)}
+.ingrow .cb svg{width:13px;height:13px;stroke:#fff;stroke-width:3.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ingrow .in{flex:1;font-size:14.5px;font-weight:600}
+.ingrow .qh{font-size:12px;color:var(--muted)}
+.vcard{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:12px;background:var(--bg)}
+.vcard .vc-body{padding:13px}
+.vcard .vc-plat{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.vcard .vc-desc{font-size:13.5px;color:var(--muted);margin:5px 0 10px;line-height:1.5}
+.linkline{font-size:12px;word-break:break-all}
+.linkline a{color:var(--blue);text-decoration:none}
+
+/* language + photo + inventory */
+#langBtn{font-size:14px;font-weight:800}
+.photo-btn{background:var(--card);box-shadow:var(--shadow-sm);font-size:18px;flex:none}
+#photoPreview{display:flex;align-items:center;gap:10px;background:var(--accent-soft);border-radius:14px;padding:8px 12px;margin:0 0 12px;font-size:13px;font-weight:700;color:var(--accent-2)}
+#photoPreview img{width:40px;height:40px;border-radius:10px;object-fit:cover}
+#photoPreview .rm{margin-inline-start:auto;color:var(--muted);font-size:18px;width:30px;height:30px;border-radius:9px}
+.item .thumb{width:34px;height:34px;border-radius:9px;object-fit:cover;flex:none;cursor:pointer;box-shadow:var(--shadow-sm)}
+.unitsel{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;font-size:13px;font-weight:700;padding:0 6px;flex:none;max-width:96px}
+.item.inv{border-inline-start:3px solid var(--blue)}
+.item .exp{font-size:11px;font-weight:800;color:var(--amber)}
+.item .exp.soon{color:#ef4444}
+.item .mv{color:var(--accent-2);font-size:12px;font-weight:800;background:var(--accent-soft);padding:5px 9px;border-radius:9px;flex:none}
+.shuf{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#e2231a;background:#fdeceb;padding:3px 8px;border-radius:999px;text-decoration:none;flex:none}
+[data-theme="dark"] .shuf{background:#2a1514}
+.hide{display:none!important}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.28s;z-index:100;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.foot{text-align:center;color:var(--muted);font-size:11.5px;padding:10px 0 4px;opacity:.8}
+
+.user-info{font-size:13px;color:var(--muted);font-weight:600}
+</style>
+
+<div class="wrap">
+<header>
+    <div class="logo">🛒</div>
+    <div class="brand">
+      <h1>Cartly</h1>
+      <p data-i18n="tagline">Your smart grocery buddy</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="user-info" id="userInfo" style="display:none;">👤 <span id="currentUserName"></span></div>
+    <button class="icon-btn" id="langBtn" title="Language">עב</button>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
+    <button class="icon-btn" id="logoutBtn" title="Sign out" style="display:none;">🚪</button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="list"><span class="ei">📝</span><span data-i18n="tab_list">List</span></button>
+    <button class="tab" data-tab="home"><span class="ei">🏠</span><span data-i18n="tab_home">Home</span></button>
+    <button class="tab" data-tab="recipes"><span class="ei">🍳</span><span data-i18n="tab_recipes">Recipes</span></button>
+    <button class="tab" data-tab="video"><span class="ei">🎬</span><span data-i18n="tab_video">Video</span></button>
+  </nav>
+
+  <!-- LIST -->
+  <section id="tab-list">
+    <div class="addbar">
+      <input id="addInput" placeholder="Add a grocery…" data-i18n-ph="add_placeholder" autocomplete="off" enterkeyhint="done">
+      <div class="qtybox" title="How many?">
+        <button class="qbtn" id="qMinus" type="button" aria-label="less">−</button>
+        <input id="addQty" class="qty" value="1" placeholder="How many?" data-i18n-ph="qty_placeholder" inputmode="numeric" autocomplete="off" aria-label="How many?">
+        <button class="qbtn" id="qPlus" type="button" aria-label="more">+</button>
+      </div>
+      <button class="icon-btn photo-btn" id="photoBtn" type="button" title="Photo" aria-label="photo">📷</button>
+      <button class="add-btn" id="addBtn" aria-label="Add">+</button>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" class="hide">
+    <div id="photoPreview" class="hide"></div>
+    <div class="toolbar">
+      <button class="chip" id="sortChip"><span>🏪</span> <span data-i18n="sort_aisle">Sort by aisle</span></button>
+      <button class="chip ghost" id="defaultChip"><span>📋</span> <span data-i18n="starter_list">Starter list</span></button>
+      <button class="chip ghost" id="editStarterChip"><span>✎</span> <span data-i18n="edit_starter">Edit starter</span></button>
+      <button class="chip ghost" id="clearAllChip"><span>🗑️</span> <span data-i18n="clear_all">Clear all</span></button>
+      <button class="chip ghost" id="shufChip"><span>🛒</span> <span data-i18n="shuf_button">Shop at Shufersal</span></button>
+      <span class="count-pill" id="countPill"></span>
+    </div>
+    <div id="starterEditor" class="hide"></div>
+    <div id="shufPanel" class="hide"></div>
+    <div id="listBox"></div>
+  </section>
+
+  <!-- HOME INVENTORY -->
+  <section id="tab-home" class="hide">
+    <div class="addbar">
+      <input id="invInput" placeholder="Add to home inventory…" data-i18n-ph="inv_placeholder" autocomplete="off" enterkeyhint="done">
+      <input id="invQty" class="qty" value="1" inputmode="numeric" autocomplete="off" aria-label="qty" style="border:1px solid var(--line);border-radius:12px">
+      <select id="invUnit" class="unitsel"></select>
+      <button class="add-btn" id="invAddBtn" aria-label="Add">+</button>
+    </div>
+    <p class="sub" id="invSub" data-i18n="home_sub" style="margin:2px 4px 12px">What's in your kitchen right now. Move things to your shopping list when they run low.</p>
+    <div id="invEditor" class="hide"></div>
+    <div id="invBox"></div>
+  </section>
+
+  <!-- RECIPES -->
+  <section id="tab-recipes" class="hide">
+    <div class="card">
+      <h2 data-i18n="recipes_title">🍳 My recipes</h2>
+      <p class="sub" data-i18n="recipes_sub">Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.</p>
+      <div class="toolbar" style="margin-bottom:4px">
+        <button class="chip on" id="newRecipeChip"><span>➕</span> <span data-i18n="new_recipe">New recipe</span></button>
+      </div>
+      <div id="recipeEditor" class="hide"></div>
+      <div id="recipeBox"></div>
+    </div>
+  </section>
+
+  <!-- VIDEO -->
+  <section id="tab-video" class="hide">
+    <div class="card">
+      <h2 data-i18n="video_title">🎬 Add from a video</h2>
+      <p class="sub" id="vSub">Paste an Instagram, YouTube or TikTok link. Cartly watches the video, writes a quick summary, and pulls out the ingredients for you.</p>
+      <div class="field">
+        <label data-i18n="video_link">Video link</label>
+        <input id="vUrl" placeholder="https://youtube.com/…  ·  instagram.com/…  ·  tiktok.com/…" autocomplete="off">
+      </div>
+      <button class="btn" id="vParse" data-i18n="analyse">✨ Analyse video</button>
+      <div id="vResult" class="hide" style="margin-top:16px"></div>
+    </div>
+    <div id="savedVideos"></div>
+  </section>
+
+  <div class="foot" data-i18n="foot">Cartly · saved on this device · works offline</div>
+  </div><!-- end appContent -->
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ---------------- Store sections in walk order ---------------- */
+const SECTIONS = ["Produce","Bakery","Deli","Meat & Seafood","Dairy & Eggs","Frozen",
+  "Pantry & Dry Goods","Canned & Jarred","Condiments & Spices","Snacks","Beverages","Household","Other"];
+const SECTION_EMOJI = {"Produce":"🥬","Bakery":"🥖","Deli":"🧀","Meat & Seafood":"🥩","Dairy & Eggs":"🥛",
+  "Frozen":"🧊","Pantry & Dry Goods":"🌾","Canned & Jarred":"🥫","Condiments & Spices":"🧂","Snacks":"🍿",
+  "Beverages":"🥤","Household":"🧻","Other":"🛍️"};
+const SECTION_HE = {"Produce":"פירות וירקות","Bakery":"מאפייה","Deli":"מעדנייה","Meat & Seafood":"בשר ודגים",
+  "Dairy & Eggs":"חלב וביצים","Frozen":"קפואים","Pantry & Dry Goods":"מזווה ויבשים","Canned & Jarred":"שימורים",
+  "Condiments & Spices":"רטבים ותבלינים","Snacks":"חטיפים","Beverages":"משקאות","Household":"מוצרי בית","Other":"אחר"};
+
+/* ---------------- i18n (English / Hebrew) ---------------- */
+const T = {
+  en:{
+    tagline:"Your smart grocery buddy",
+    tab_list:"List", tab_home:"Home", tab_recipes:"Recipes", tab_video:"Video",
+    add_placeholder:"Add a grocery…", qty_placeholder:"How many?",
+    sort_aisle:"Sort by aisle", starter_list:"Starter list", edit_starter:"Edit starter", clear_all:"Clear all",
+    to_get:"to get", ticked:"ticked",
+    empty_title:"Your cart is empty", empty_body:"Add something above, or tap Starter list for the essentials.",
+    recipes_title:"🍳 My recipes",
+    recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
+    new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
+    save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
+    ing_lines:"Ingredients — one per line", steps_lines:"Steps — one per line", no_ingredients:"no ingredients yet",
+    on_your_list:"on your list", view_steps:"View steps",
+    video_title:"🎬 Add from a video", video_link:"Video link",
+    caption_label:"Caption / description (optional)",
+    caption_ph:"Optional — paste the caption to help, or as a fallback if the link can't be read.",
+    analyse:"✨ Analyse video", add_selected:"🛒 Add selected to list", save_as_recipe:"📖 Save as recipe",
+    watching:"🍳 Watching the video…", reading:"🍳 Reading…", ingredients:"Ingredients",
+    tab_home_title:"🏠 What we have",
+    home_sub:"What's in your kitchen right now. Move things to your shopping list when they run low.",
+    inv_placeholder:"Add to home inventory…", inv_empty_title:"Nothing at home yet",
+    inv_empty_body:"Add what you have in the kitchen, with a quantity and unit.",
+    move_to_list:"To list", expiry:"Expiry", starter_editor_title:"✎ Edit your starter list",
+    starter_editor_sub:"One item per line. Tapping “Starter list” adds all of these.",
+    save_starter:"💾 Save starter list", photo_added:"Photo attached — add an item to keep it",
+    foot:"Cartly · saved on this device · works offline",
+    // toasts
+    t_added_essentials:(n)=>`Added ${n} essential${n>1?"s":""} 📋`,
+    t_essentials_have:"Essentials already on your list",
+    t_starter_empty:"Your starter list is empty — tap ✎ Edit starter",
+    t_list_cleared:"List cleared 🗑️", t_undo:"Undo", t_restored:"Restored",
+    t_list_empty:"List is already empty", t_starter_saved:"Starter list saved 📋",
+    t_recipe_saved:"Recipe saved 📖", t_recipe_removed:"Recipe removed",
+    t_added_ings:(n)=>`Added ${n} ingredient${n>1?"s":""} 🛒`, t_already:"Already on your list",
+    t_dup:"Already on your list — updated", t_sorted:"Sorted by supermarket aisle 🏪", t_unsorted:"Back to newest first",
+    t_added_video:(n)=>`Added ${n} ingredient${n>1?"s":""} from video 🎬`, t_saved_recipe_book:"Saved to your recipes 📖",
+    t_no_ings:"No ingredients found — try pasting the caption", t_paste_caption:"Paste the video's caption to pull out ingredients",
+    t_link_or_caption:"Paste a link or the caption first", t_moved_to_list:"Moved to your shopping list 🛒",
+    t_added_inv:"Added to home inventory 🏠", t_removed:"Removed", t_photo_removed:"Photo removed",
+    t_no_server:"To read a link automatically, Cartly needs its own server running (with an API key) — a plain web page can't watch a video. Paste the caption below and I'll pull out the ingredients.",
+    units:["pcs","kg","g","L","ml","pack","bottle","can","box","bag"],
+    shufersal:"Shufersal",
+    shuf_button:"Shop at Shufersal", shuf_title:"🛒 Build your Shufersal order",
+    shuf_sub:"Tap each item to find it on Shufersal and add it to your cart there. This opens Shufersal's site — there's no way to push a cart from outside.",
+    shuf_search:"Find", shuf_open_store:"Open Shufersal", shuf_empty:"Your shopping list is empty.", close:"Close", added_word:"added",
+  },
+  he:{
+    tagline:"חבר הקניות החכם שלך",
+    tab_list:"רשימה", tab_home:"בבית", tab_recipes:"מתכונים", tab_video:"וידאו",
+    add_placeholder:"הוספת מוצר…", qty_placeholder:"כמות",
+    sort_aisle:"מיון לפי מדף", starter_list:"רשימת בסיס", edit_starter:"עריכת בסיס", clear_all:"ניקוי הכל",
+    to_get:"לקנייה", ticked:"סומנו",
+    empty_title:"העגלה ריקה", empty_body:"הוסיפו מוצר למעלה, או הקישו על רשימת בסיס למוצרים הבסיסיים.",
+    recipes_title:"🍳 המתכונים שלי",
+    recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
+    new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
+    save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
+    ing_lines:"מרכיבים — אחד בכל שורה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
+    video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
+    caption_label:"כיתוב / תיאור (רשות)",
+    caption_ph:"רשות — הדביקו את הכיתוב כדי לעזור, או כגיבוי אם אי אפשר לקרוא את הקישור.",
+    analyse:"✨ ניתוח הסרטון", add_selected:"🛒 הוספת הנבחרים לרשימה", save_as_recipe:"📖 שמירה כמתכון",
+    watching:"🍳 צופה בסרטון…", reading:"🍳 קורא…", ingredients:"מרכיבים",
+    tab_home_title:"🏠 מה יש בבית",
+    home_sub:"מה שיש במטבח שלכם עכשיו. העבירו לרשימת הקניות מה שנגמר.",
+    inv_placeholder:"הוספה למלאי הבית…", inv_empty_title:"עדיין אין כלום בבית",
+    inv_empty_body:"הוסיפו את מה שיש במטבח, עם כמות ויחידה.",
+    move_to_list:"לרשימה", expiry:"תוקף", starter_editor_title:"✎ עריכת רשימת הבסיס",
+    starter_editor_sub:"מוצר אחד בכל שורה. הקשה על “רשימת בסיס” תוסיף את כולם.",
+    save_starter:"💾 שמירת רשימת בסיס", photo_added:"תמונה צורפה — הוסיפו מוצר כדי לשמור אותה",
+    foot:"Cartly · נשמר במכשיר הזה · עובד גם ללא אינטרנט",
+    t_added_essentials:(n)=>`נוספו ${n} מוצרי בסיס 📋`,
+    t_essentials_have:"מוצרי הבסיס כבר ברשימה",
+    t_starter_empty:"רשימת הבסיס ריקה — הקישו ✎ עריכת בסיס",
+    t_list_cleared:"הרשימה נוקתה 🗑️", t_undo:"ביטול", t_restored:"שוחזר",
+    t_list_empty:"הרשימה כבר ריקה", t_starter_saved:"רשימת הבסיס נשמרה 📋",
+    t_recipe_saved:"המתכון נשמר 📖", t_recipe_removed:"המתכון נמחק",
+    t_added_ings:(n)=>`נוספו ${n} מרכיבים 🛒`, t_already:"כבר ברשימה",
+    t_dup:"כבר ברשימה — עודכן", t_sorted:"מוין לפי מדף בסופר 🏪", t_unsorted:"חזרה לפי סדר ההוספה",
+    t_added_video:(n)=>`נוספו ${n} מרכיבים מהסרטון 🎬`, t_saved_recipe_book:"נשמר למתכונים שלך 📖",
+    t_no_ings:"לא נמצאו מרכיבים — נסו להדביק את הכיתוב", t_paste_caption:"הדביקו את כיתוב הסרטון כדי לחלץ מרכיבים",
+    t_link_or_caption:"הדביקו קישור או כיתוב", t_moved_to_list:"הועבר לרשימת הקניות 🛒",
+    t_added_inv:"נוסף למלאי הבית 🏠", t_removed:"הוסר", t_photo_removed:"התמונה הוסרה",
+    t_no_server:"כדי לקרוא קישור אוטומטית, Cartly צריך שרת משלו עם מפתח API — דף אינטרנט רגיל לא יכול לצפות בסרטון. הדביקו את הכיתוב למטה ואחלץ את המרכיבים.",
+    units:["יח׳","ק\"ג","גרם","ליטר","מ\"ל","חבילה","בקבוק","פחית","קופסה","שקית"],
+    shufersal:"שופרסל",
+    shuf_button:"קנייה בשופרסל", shuf_title:"🛒 בניית ההזמנה בשופרסל",
+    shuf_sub:"הקישו על כל מוצר כדי למצוא אותו בשופרסל ולהוסיף לעגלה שם. זה פותח את אתר שופרסל — אי אפשר לשלוח עגלה מבחוץ.",
+    shuf_search:"חיפוש", shuf_open_store:"פתיחת שופרסל", shuf_empty:"רשימת הקניות ריקה.", close:"סגירה", added_word:"נוספו",
+  },
+};
+let LANG = "en";
+function t(key, arg){ const v = (T[LANG] && T[LANG][key]) ?? (T.en[key] ?? key); return typeof v === "function" ? v(arg) : v; }
+function sectionLabel(sec){ return LANG === "he" ? (SECTION_HE[sec]||sec) : sec; }
+function isRTL(){ return LANG === "he"; }
+function ingredientName(name){
+  if(LANG !== "he") return name;
+  const key = name.toLowerCase().replace(/\s+/g," ");
+  return INGREDIENT_NAMES_HE[key] || name;
+}
+
+/* Hebrew ingredient name translations */
+const INGREDIENT_NAMES_HE = {
+  milk:"חלב", eggs:"ביצים", bread:"לחם", butter:"חמאה", cheese:"גבינה", yogurt:"יוגורט",
+  onion:"בצל", garlic:"שום", tomato:"עגבנייה", potato:"תפוח אדמה", carrot:"גזר",
+  chicken:"עוף", beef:"בשר בקר", fish:"דגים", salt:"מלח", pepper:"פלפל",
+  oil:"שמן", sugar:"סוכר", flour:"קמח", rice:"אורז", pasta:"פסטה",
+  apple:"תפוח", banana:"בננה", orange:"תפוז", lemon:"לימון", strawberry:"תות",
+  broccoli:"בדולח", spinach:"תרד", lettuce:"חסה", cucumber:"מלפפון",
+  "bell pepper":"פלפל צבעוני", "olive oil":"שמן זיתים", "soy sauce":"רוטב סויה",
+  ginger:"ג'ינג'ר", rice:"אורז", mushroom:"פטריה", avocado:"אבוקדו",
+  tomatoes:"עגבניות", potatoes:"תפוחי אדמה", carrots:"גזרים", onions:"בצלים",
+  "ground beef":"בשר טחון", shrimp:"שרימפס", salmon:"סלמון", tuna:"טונה"
+};
+
+/* ---------------- Food dictionary (keyword -> data) ---------------- */
+/* c=category, e=emoji, cut=prep/cutting tip */
+const FOODS = {
+  // Produce
+  onion:{c:"Produce",e:"🧅",cut:"Halve pole-to-pole, peel, then slice with the grain for strips or across for dice. Chill 15 min first to fight tears."},
+  garlic:{c:"Produce",e:"🧄",cut:"Smash a clove with the flat of your knife — the skin slips right off, then mince."},
+  tomato:{c:"Produce",e:"🍅",cut:"Use a serrated knife so you don't crush it. Score the base for easy peeling in hot water."},
+  potato:{c:"Produce",e:"🥔",cut:"Cut a flat side first so it won't roll, then plank and dice evenly for even cooking."},
+  carrot:{c:"Produce",e:"🥕",cut:"Slice on a long diagonal for more surface area, or roll-cut for stir-fries."},
+  "bell pepper":{c:"Produce",e:"🫑",cut:"Slice off top & bottom, stand it up, and cut down the walls to skip the seedy core."},
+  pepper:{c:"Produce",e:"🫑"},
+  avocado:{c:"Produce",e:"🥑",cut:"Halve around the pit, twist, then dice the flesh in the skin and scoop with a spoon."},
+  mango:{c:"Produce",e:"🥭",cut:"Slice down either side of the flat pit, score a grid, and push the skin inside-out."},
+  lettuce:{c:"Produce",e:"🥬",cut:"Tear by hand instead of cutting to keep edges from browning."},
+  spinach:{c:"Produce",e:"🥬"},
+  broccoli:{c:"Produce",e:"🥦",cut:"Cut florets from the stalk, then peel and slice the stalk — it's sweet and edible."},
+  cucumber:{c:"Produce",e:"🥒"},
+  lemon:{c:"Produce",e:"🍋",cut:"Roll it firmly before juicing to break the pulp and get more juice."},
+  lime:{c:"Produce",e:"🍋"},
+  apple:{c:"Produce",e:"🍎"},
+  banana:{c:"Produce",e:"🍌"},
+  orange:{c:"Produce",e:"🍊"},
+  strawberry:{c:"Produce",e:"🍓"},strawberries:{c:"Produce",e:"🍓"},
+  grape:{c:"Produce",e:"🍇"},grapes:{c:"Produce",e:"🍇"},
+  mushroom:{c:"Produce",e:"🍄",cut:"Wipe clean with a towel — don't soak, they drink water like a sponge."},
+  mushrooms:{c:"Produce",e:"🍄"},
+  ginger:{c:"Produce",e:"🫚",cut:"Scrape the skin off with a spoon edge to reach into the knobs without waste."},
+  celery:{c:"Produce",e:"🥬"},
+  zucchini:{c:"Produce",e:"🥒"},
+  eggplant:{c:"Produce",e:"🍆",cut:"Salt the cut slices 20 min and pat dry to pull out bitterness and excess water."},
+  corn:{c:"Produce",e:"🌽"},
+  cabbage:{c:"Produce",e:"🥬",cut:"Quarter through the core, cut the core out, then shred across the leaves."},
+  cauliflower:{c:"Produce",e:"🥦"},
+  chili:{c:"Produce",e:"🌶️",cut:"Wear gloves and remove the white ribs — that's where most of the heat lives."},
+  herbs:{c:"Produce",e:"🌿",cut:"Pile leaves, roll tight, and chiffonade — chop just once so they don't bruise."},
+  parsley:{c:"Produce",e:"🌿"},cilantro:{c:"Produce",e:"🌿"},basil:{c:"Produce",e:"🌿"},mint:{c:"Produce",e:"🌿"},
+  scallion:{c:"Produce",e:"🌿"},"green onion":{c:"Produce",e:"🌿"},
+  // Bakery
+  bread:{c:"Bakery",e:"🍞"},
+  bagel:{c:"Bakery",e:"🥯"},bagels:{c:"Bakery",e:"🥯"},
+  baguette:{c:"Bakery",e:"🥖"},
+  croissant:{c:"Bakery",e:"🥐"},
+  tortilla:{c:"Bakery",e:"🫓"},tortillas:{c:"Bakery",e:"🫓"},
+  bun:{c:"Bakery",e:"🍔"},buns:{c:"Bakery",e:"🍔"},
+  muffin:{c:"Bakery",e:"🧁"},
+  pita:{c:"Bakery",e:"🫓"},
+  // Deli
+  cheese:{c:"Deli",e:"🧀"},
+  ham:{c:"Deli",e:"🍖"},
+  turkey:{c:"Deli",e:"🦃"},
+  salami:{c:"Deli",e:"🍖"},
+  hummus:{c:"Deli",e:"🥣"},
+  olives:{c:"Deli",e:"🫒"},
+  // Meat & Seafood
+  chicken:{c:"Meat & Seafood",e:"🍗",cut:"Slice against the grain and freeze 15 min first for cleaner, even strips."},
+  beef:{c:"Meat & Seafood",e:"🥩",cut:"Rest after cooking and slice against the grain to keep it tender."},
+  steak:{c:"Meat & Seafood",e:"🥩"},
+  pork:{c:"Meat & Seafood",e:"🥓"},
+  bacon:{c:"Meat & Seafood",e:"🥓"},
+  sausage:{c:"Meat & Seafood",e:"🌭"},
+  "ground beef":{c:"Meat & Seafood",e:"🥩"},
+  mince:{c:"Meat & Seafood",e:"🥩"},
+  fish:{c:"Meat & Seafood",e:"🐟"},
+  salmon:{c:"Meat & Seafood",e:"🐟"},
+  shrimp:{c:"Meat & Seafood",e:"🦐",cut:"Devein along the back with a shallow slit; leave the tail on for a handle."},
+  tuna:{c:"Meat & Seafood",e:"🐟"},
+  // Dairy & Eggs
+  milk:{c:"Dairy & Eggs",e:"🥛"},
+  egg:{c:"Dairy & Eggs",e:"🥚"},eggs:{c:"Dairy & Eggs",e:"🥚"},
+  butter:{c:"Dairy & Eggs",e:"🧈"},
+  yogurt:{c:"Dairy & Eggs",e:"🥛"},yoghurt:{c:"Dairy & Eggs",e:"🥛"},
+  cream:{c:"Dairy & Eggs",e:"🥛"},
+  "cream cheese":{c:"Dairy & Eggs",e:"🧀"},
+  "sour cream":{c:"Dairy & Eggs",e:"🥛"},
+  mozzarella:{c:"Dairy & Eggs",e:"🧀"},
+  parmesan:{c:"Dairy & Eggs",e:"🧀"},
+  cheddar:{c:"Dairy & Eggs",e:"🧀"},
+  feta:{c:"Dairy & Eggs",e:"🧀"},
+  // Frozen
+  "ice cream":{c:"Frozen",e:"🍨"},
+  "frozen pizza":{c:"Frozen",e:"🍕"},
+  peas:{c:"Frozen",e:"🟢"},
+  "frozen berries":{c:"Frozen",e:"🫐"},
+  fries:{c:"Frozen",e:"🍟"},
+  // Pantry & Dry Goods
+  flour:{c:"Pantry & Dry Goods",e:"🌾"},
+  sugar:{c:"Pantry & Dry Goods",e:"🍚"},
+  rice:{c:"Pantry & Dry Goods",e:"🍚"},
+  pasta:{c:"Pantry & Dry Goods",e:"🍝"},
+  spaghetti:{c:"Pantry & Dry Goods",e:"🍝"},
+  noodles:{c:"Pantry & Dry Goods",e:"🍜"},
+  oats:{c:"Pantry & Dry Goods",e:"🥣"},
+  cereal:{c:"Pantry & Dry Goods",e:"🥣"},
+  lentils:{c:"Pantry & Dry Goods",e:"🫘"},
+  quinoa:{c:"Pantry & Dry Goods",e:"🌾"},
+  "baking soda":{c:"Pantry & Dry Goods",e:"🧂"},
+  "baking powder":{c:"Pantry & Dry Goods",e:"🧂"},
+  yeast:{c:"Pantry & Dry Goods",e:"🍞"},
+  "peanut butter":{c:"Pantry & Dry Goods",e:"🥜"},
+  honey:{c:"Pantry & Dry Goods",e:"🍯"},
+  "coconut milk":{c:"Pantry & Dry Goods",e:"🥥"},
+  // Canned & Jarred
+  "canned tomatoes":{c:"Canned & Jarred",e:"🥫"},
+  "tomato paste":{c:"Canned & Jarred",e:"🥫"},
+  beans:{c:"Canned & Jarred",e:"🫘"},
+  chickpeas:{c:"Canned & Jarred",e:"🫘"},
+  "coconut cream":{c:"Canned & Jarred",e:"🥥"},
+  broth:{c:"Canned & Jarred",e:"🥣"},stock:{c:"Canned & Jarred",e:"🥣"},
+  // Condiments & Spices
+  salt:{c:"Condiments & Spices",e:"🧂"},
+  "black pepper":{c:"Condiments & Spices",e:"🧂"},
+  "olive oil":{c:"Condiments & Spices",e:"🫒"},
+  oil:{c:"Condiments & Spices",e:"🫒"},
+  vinegar:{c:"Condiments & Spices",e:"🧴"},
+  "soy sauce":{c:"Condiments & Spices",e:"🍶"},
+  ketchup:{c:"Condiments & Spices",e:"🍅"},
+  mustard:{c:"Condiments & Spices",e:"🌭"},
+  mayo:{c:"Condiments & Spices",e:"🥚"},mayonnaise:{c:"Condiments & Spices",e:"🥚"},
+  cumin:{c:"Condiments & Spices",e:"🧂"},paprika:{c:"Condiments & Spices",e:"🌶️"},cinnamon:{c:"Condiments & Spices",e:"🧂"},
+  oregano:{c:"Condiments & Spices",e:"🌿"},"chili flakes":{c:"Condiments & Spices",e:"🌶️"},
+  vanilla:{c:"Condiments & Spices",e:"🍶"},"curry paste":{c:"Condiments & Spices",e:"🍛"},turmeric:{c:"Condiments & Spices",e:"🧂"},
+  // Snacks
+  chips:{c:"Snacks",e:"🍟"},
+  crackers:{c:"Snacks",e:"🍘"},
+  chocolate:{c:"Snacks",e:"🍫"},
+  cookies:{c:"Snacks",e:"🍪"},
+  nuts:{c:"Snacks",e:"🥜"},
+  popcorn:{c:"Snacks",e:"🍿"},
+  // Beverages
+  water:{c:"Beverages",e:"💧"},
+  coffee:{c:"Beverages",e:"☕"},
+  tea:{c:"Beverages",e:"🍵"},
+  juice:{c:"Beverages",e:"🧃"},
+  soda:{c:"Beverages",e:"🥤"},
+  wine:{c:"Beverages",e:"🍷"},
+  beer:{c:"Beverages",e:"🍺"},
+  // Household
+  "toilet paper":{c:"Household",e:"🧻"},
+  "paper towels":{c:"Household",e:"🧻"},
+  soap:{c:"Household",e:"🧼"},
+  detergent:{c:"Household",e:"🧴"},
+  "dish soap":{c:"Household",e:"🧼"},
+  "trash bags":{c:"Household",e:"🗑️"},
+  foil:{c:"Household",e:"🧻"},
+  sponge:{c:"Household",e:"🧽"},
+};
+/* keyword list sorted longest-first so multi-word matches win */
+const FOOD_KEYS = Object.keys(FOODS).sort((a,b)=>b.length-a.length);
+
+/* ---------------- Classify a free-text item ---------------- */
+function classify(name){
+  const n = " "+name.toLowerCase().trim()+" ";
+  for(const k of FOOD_KEYS){
+    const kk = " "+k+" ";
+    if(n.includes(kk) || n.includes(" "+k) && n.trim().toLowerCase().endsWith(k)) {
+      return {category:FOODS[k].c, emoji:FOODS[k].e, key:k};
+    }
+  }
+  // looser contains for single tokens
+  const raw = name.toLowerCase();
+  for(const k of FOOD_KEYS){ if(raw.includes(k)) return {category:FOODS[k].c, emoji:FOODS[k].e, key:k}; }
+  return {category:"Other", emoji:"🛍️", key:null};
+}
+
+/* ---------------- Default / starter list ---------------- */
+const DEFAULTS = ["Milk","Eggs","Bread","Butter","Bananas","Apples","Chicken","Rice",
+  "Pasta","Tomatoes","Onions","Cheese","Yogurt","Coffee","Olive oil","Toilet paper"];
+
+/* ---------------- Recipes ---------------- */
+const RECIPES = [
+  {n:"Weeknight Pasta Pomodoro",e:"🍝",time:"20 min",ing:["pasta","canned tomatoes","garlic","olive oil","basil","parmesan"],
+   steps:["Boil pasta in salted water.","Sizzle sliced garlic in olive oil, add tomatoes, simmer 10 min.","Toss pasta with sauce, top with basil & parmesan."]},
+  {n:"Crispy Chicken Stir-Fry",e:"🍗",time:"25 min",ing:["chicken","bell pepper","broccoli","soy sauce","ginger","garlic","rice"],
+   steps:["Slice chicken thin, sear hot.","Add veg, ginger & garlic, stir 4 min.","Splash soy sauce; serve over rice."]},
+  {n:"Loaded Avocado Toast",e:"🥑",time:"8 min",ing:["bread","avocado","egg","lemon","chili flakes"],
+   steps:["Toast bread.","Mash avocado with lemon & salt.","Top with a fried egg and chili flakes."]},
+  {n:"Creamy Tomato Soup",e:"🍅",time:"30 min",ing:["canned tomatoes","onion","garlic","cream","broth","butter"],
+   steps:["Soften onion & garlic in butter.","Add tomatoes & broth, simmer 15 min.","Blend, stir in cream."]},
+  {n:"Chickpea Coconut Curry",e:"🍛",time:"25 min",ing:["chickpeas","coconut milk","onion","garlic","ginger","curry paste","rice"],
+   steps:["Fry onion, garlic, ginger & curry paste.","Add chickpeas + coconut milk, simmer 12 min.","Serve with rice."]},
+  {n:"Fresh Garden Salad",e:"🥗",time:"10 min",ing:["lettuce","cucumber","tomato","feta","olive oil","lemon"],
+   steps:["Chop veg, crumble feta.","Whisk olive oil + lemon + salt.","Toss and serve."]},
+  {n:"Fluffy Pancakes",e:"🥞",time:"20 min",ing:["flour","milk","egg","butter","sugar","baking powder"],
+   steps:["Whisk dry, then wet, into a batter.","Rest 5 min.","Cook on buttered pan till bubbles pop; flip."]},
+  {n:"Beef Tacos",e:"🌮",time:"25 min",ing:["ground beef","tortillas","onion","cheese","tomato","cumin","paprika"],
+   steps:["Brown beef with onion, cumin & paprika.","Warm tortillas.","Fill and top with cheese & tomato."]},
+  {n:"Salmon & Roasted Veg",e:"🐟",time:"30 min",ing:["salmon","potato","broccoli","olive oil","lemon","garlic"],
+   steps:["Roast diced potato 15 min.","Add salmon, broccoli, garlic, oil.","Roast 12 min; finish with lemon."]},
+  {n:"Berry Yogurt Bowl",e:"🫐",time:"5 min",ing:["yogurt","frozen berries","honey","oats","banana"],
+   steps:["Spoon yogurt into a bowl.","Top with berries & sliced banana.","Drizzle honey, scatter oats."]},
+];
+
+/* ---------------- State ---------------- */
+const LS = "cartly.v1";
+let state = load();
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(LS)); if(s&&s.items){ if(!Array.isArray(s.inventory)) s.inventory=[]; return s; } }catch(e){}
+  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null};
+}
+function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
+const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* Starter list — seeded from the built-in essentials, then user-editable. */
+function seedStarter(){
+  if(Array.isArray(state.starter)) return;
+  state.starter = DEFAULTS.slice();
+  save();
+}
+
+/* ---------------- Recipe book (editable, persisted) ---------------- */
+/* Seed the user's recipe book from the built-ins the first time. After that
+   they own it — add, edit, delete freely. ing is [{name, qty}]. */
+function seedRecipes(){
+  if(Array.isArray(state.recipes)) return;
+  state.recipes = RECIPES.map(r=>({
+    id:uid(), e:r.e, n:r.n, time:r.time,
+    ing:r.ing.map(x=>({name:cap(x), qty:""})),
+    steps:r.steps.slice(), src:""
+  }));
+  save();
+}
+/* Parse a free-text ingredient line into {name, qty} — "2 cups flour" -> {flour, 2 cups} */
+function parseIngLine(line){
+  line = line.trim().replace(/^[-*•·]\s*/,"");
+  if(!line) return null;
+  const m = line.match(new RegExp("^((?:\\d+[\\d\\/.,½¼¾ -]*)?\\s*(?:"+UNITS+")?)\\s+(.+)$","i"));
+  if(m && m[1].trim() && m[2].trim()) return {name:m[2].trim(), qty:m[1].trim()};
+  return {name:line, qty:""};
+}
+
+/* ---------------- Toast ---------------- */
+let toastT;
+function toast(msg, action){
+  const el = document.getElementById("toast");
+  el.innerHTML = "";
+  const span = document.createElement("span"); span.textContent = msg; el.appendChild(span);
+  if(action){
+    const b = document.createElement("button");
+    b.textContent = action.label;
+    b.style.cssText = "margin-left:14px;font-weight:800;color:var(--accent);background:none;font-size:14px";
+    b.onclick = ()=>{ el.classList.remove("show"); el.style.pointerEvents="none"; action.fn(); };
+    el.appendChild(b);
+  }
+  el.style.pointerEvents = action ? "auto" : "none";
+  el.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove("show"), action?4500:1900);
+}
+
+/* ---------------- Item ops ---------------- */
+function addItem(name, qty, source, img){
+  name = (name||"").trim(); if(!name) return false;
+  const info = classify(name);
+  // merge duplicates (same name, not checked)
+  const dup = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase() && !i.checked);
+  if(dup){ if(qty) dup.qty = qty; if(img) dup.img = img; save(); return "dup"; }
+  state.items.unshift({id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false});
+  save(); return true;
+}
+function toggleInStock(id, e){
+  e.stopPropagation();
+  const it = state.items.find(i=>i.id===id); if(!it) return;
+  it.inStock = !it.inStock;
+  if(it.inStock){
+    const existing = state.inventory.find(x=>x.name.toLowerCase()===it.name.toLowerCase());
+    if(!existing){
+      const info = classify(it.name);
+      state.inventory.unshift({id:uid(), name:it.name, qty:it.qty||"1", unit:"", expiry:"", category:info.category, emoji:info.emoji, img:it.img||""});
+    }
+  } else {
+    state.inventory = state.inventory.filter(x=>x.name.toLowerCase()!==it.name.toLowerCase());
+  }
+  save(); renderList(); renderInventory();
+}
+function toggleItem(id){
+  const it = state.items.find(i=>i.id===id); if(!it) return;
+  it.checked = !it.checked; save();
+  // Animate in place — the item stays where it is, just shown checked.
+  const row = document.querySelector(`.item[data-id="${id}"]`);
+  const box = row && row.querySelector(".check");
+  if(row && box){
+    row.classList.toggle("checked", it.checked);
+    box.classList.toggle("done", it.checked);
+    if(it.checked){
+      box.classList.remove("pop"); void box.offsetWidth; box.classList.add("pop");
+      row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+    } else {
+      box.classList.remove("pop"); row.classList.remove("flash");
+    }
+    updateCount();
+  } else { renderList(); }
+}
+function delItem(id){ state.items = state.items.filter(i=>i.id!==id); save(); renderList(); }
+function setCat(id,cat){ const it=state.items.find(i=>i.id===id); if(it){ it.category=cat; it.emoji=SECTION_EMOJI[cat]||it.emoji; save(); renderList(); } }
+
+/* ---------------- Render list ---------------- */
+function shufUrl(name){ return "https://www.shufersal.co.il/online/he/search?text="+encodeURIComponent(name); }
+function itemRow(it){
+  const done = it.checked?"checked":"";
+  const inStockClass = it.inStock?"in-stock":"";
+  const src = it.source?`<span class="tag src">🎬 ${esc(it.source)}</span>`:"";
+  const sel = `<select class="catsel" onchange="setCat('${it.id}',this.value)">`+
+    SECTIONS.map(s=>`<option value="${s}" ${s===it.category?"selected":""}>${SECTION_EMOJI[s]} ${esc(sectionLabel(s))}</option>`).join("")+`</select>`;
+  const thumb = it.img
+    ? `<img class="thumb" src="${it.img}" alt="" onclick="itemPhoto('${it.id}')" title="replace photo">`
+    : `<span class="cat-emoji" onclick="itemPhoto('${it.id}')" style="cursor:pointer" title="add photo">${it.emoji||"🛍️"}</span>`;
+  const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
+  const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'🏠':'☐'}</button>`;
+  const metaParts = [stock, rmPhoto, src].filter(x=>x);
+  return `<div class="item ${done} ${inStockClass}" data-id="${it.id}" title="${it.category}">
+    <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
+      <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
+    ${thumb}
+    <div class="body">
+      <div class="nm">${esc(it.name)}${it.qty?` <span class="tag">${esc(it.qty)}</span>`:""}</div>
+      <div class="meta">${metaParts.join(' ')}</div>
+    </div>
+    <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
+  </div>`;
+}
+function updateCount(){
+  const total = state.items.length;
+  const to = state.items.filter(i=>!i.checked).length;
+  document.getElementById("countPill").textContent = total ? `${to} ${t("to_get")} · ${total-to} ${t("ticked")}` : "";
+}
+function renderList(){
+  const box = document.getElementById("listBox");
+  updateCount();
+  document.getElementById("sortChip").classList.toggle("on", state.sortAisle);
+
+  if(!state.items.length){
+    box.innerHTML = `<div class="empty"><div class="big">🧺</div><h3>${esc(t("empty_title"))}</h3>
+      <p>${esc(t("empty_body"))}</p></div>`;
+    return;
+  }
+  // Checked items stay in place, shown ticked (no separate "Got it" group).
+  let html = "";
+  if(state.sortAisle){
+    const groups = {};
+    state.items.forEach(i=>{ (groups[i.category]=groups[i.category]||[]).push(i); });
+    SECTIONS.forEach(sec=>{
+      if(!groups[sec]) return;
+      html += `<div class="section-head">${SECTION_EMOJI[sec]} ${esc(sectionLabel(sec))}<span class="ln"></span></div>`;
+      html += groups[sec].map(itemRow).join("");
+    });
+  } else {
+    html += state.items.map(itemRow).join("");
+  }
+  box.innerHTML = html;
+}
+
+/* ---------------- Photos (device camera / upload, stored locally) ---------------- */
+let pendingPhoto = "";        // staged in the add bar for the next item
+let photoTargetItem = null;   // set when replacing an existing item's photo
+function compressImage(file, max=340, quality=0.62){
+  return new Promise((resolve, reject)=>{
+    const img = new Image(); const url = URL.createObjectURL(file);
+    img.onload = ()=>{ URL.revokeObjectURL(url);
+      let w=img.width, h=img.height; const s=Math.min(1, max/Math.max(w,h));
+      w=Math.round(w*s); h=Math.round(h*s);
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      try{ resolve(c.toDataURL("image/jpeg", quality)); }catch(e){ reject(e); }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("bad image")); };
+    img.src = url;
+  });
+}
+function itemPhoto(id){ photoTargetItem = id; const inp=document.getElementById("photoInput"); inp.value=""; inp.click(); }
+function removeItemImg(id){ const it=state.items.find(i=>i.id===id); if(it){ it.img=""; save(); renderList(); toast(t("t_photo_removed")); } }
+function renderPhotoPreview(){
+  const box=document.getElementById("photoPreview");
+  if(!pendingPhoto){ box.classList.add("hide"); box.innerHTML=""; return; }
+  box.classList.remove("hide");
+  box.innerHTML = `<img src="${pendingPhoto}" alt=""><span>${esc(t("photo_added"))}</span>
+    <button class="rm" onclick="clearPendingPhoto()" aria-label="remove">✕</button>`;
+}
+function clearPendingPhoto(){ pendingPhoto=""; renderPhotoPreview(); }
+
+/* ---------------- Recipes ---------------- */
+function haveSet(){ return new Set(state.items.filter(i=>!i.checked).map(i=>{ const c=classify(i.name); return c.key||i.name.toLowerCase(); })); }
+function ingKey(name){ const c=classify(name); return c.key||name.toLowerCase(); }
+function renderRecipes(){
+  seedRecipes();
+  const have = haveSet();
+  const box = document.getElementById("recipeBox");
+  if(!state.recipes.length){
+    box.innerHTML = `<div class="empty"><div class="big">📖</div><h3>${esc(t("no_ingredients")===""?"":"")}${isRTL()?"עדיין אין מתכונים":"No recipes yet"}</h3>
+      <p>${isRTL()?"הקישו על ➕ מתכון חדש כדי לכתוב אחד.":"Tap ➕ New recipe to write one."}</p></div>`;
+    return;
+  }
+  const scored = state.recipes.map(r=>{
+    const m = (r.ing||[]).filter(x=>have.has(ingKey(x.name))).length;
+    return {r, m};
+  }).sort((a,b)=> b.m-a.m);
+  box.innerHTML = scored.map(({r,m})=>{
+    const match = m>=2;
+    const ing = (r.ing||[]).map(x=>{
+      const info = classify(x.name);
+      const has = have.has(ingKey(x.name));
+      return `<span class="pill ${has?'have':''}">${info.emoji||"•"} ${esc(ingredientName(cap(x.name)))}${x.qty?` <span style="opacity:.7">${esc(x.qty)}</span>`:""}</span>`;
+    }).join("");
+    const steps = (r.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("");
+    const srcTag = r.src?`<span class="tag src">🎬 ${esc(r.src)}</span>`:"";
+    return `<div class="recipe ${match?'match':''}">
+      <div class="rhead"><div class="rem">${r.e||"🍽️"}</div>
+        <div style="flex:1"><div class="rt">${esc(r.n)}</div>
+        <div class="rmeta">${r.time?`⏱️ ${esc(r.time)} · `:""}${(r.ing||[]).length} ${esc(t("ingredients").toLowerCase())}${match?`<span class="badge">✓ ${m} ${esc(t("on_your_list"))}</span>`:""} ${srcTag}</div></div></div>
+      <div class="ing">${ing||`<span class="pill">${esc(t("no_ingredients"))}</span>`}</div>
+      ${steps?`<details class="recipe-more"><summary>${esc(t("view_steps"))} ▾</summary><ol class="steps">${steps}</ol></details>`:""}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn sm" style="flex:1;min-width:160px" onclick='addRecipeToList(${JSON.stringify(r.id)})'>➕ ${esc(t("add_ingredients"))}</button>
+        <button class="btn sm sec" onclick='editRecipe(${JSON.stringify(r.id)})'>✏️ ${esc(t("edit"))}</button>
+        <button class="btn sm sec" onclick='delRecipe(${JSON.stringify(r.id)})'>🗑️</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function addRecipeToList(id){
+  const r = state.recipes.find(x=>x.id===id); if(!r) return;
+  let n=0; (r.ing||[]).forEach(i=>{ if(addItem(cap(i.name), i.qty||"", (r.n||"recipe").split(" ")[0])) n++; });
+  renderList(); toast(n? t("t_added_ings")(n) : t("t_already"));
+}
+function delRecipe(id){
+  state.recipes = state.recipes.filter(x=>x.id!==id); save(); renderRecipes(); toast(t("t_recipe_removed"));
+}
+
+/* ---------- Recipe editor ---------- */
+let editingRecipeId = null;
+function ingToText(ing){ return (ing||[]).map(x=> (x.qty?x.qty+" ":"")+x.name).join("\n"); }
+function textToIng(t){ return (t||"").split(/\n/).map(parseIngLine).filter(Boolean); }
+function editRecipe(id){ openRecipeEditor(id); }
+function openRecipeEditor(id){
+  editingRecipeId = id || null;
+  const r = id ? state.recipes.find(x=>x.id===id) : null;
+  const ed = document.getElementById("recipeEditor");
+  ed.classList.remove("hide");
+  ed.innerHTML = `<div class="card" style="border:1px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft)">
+    <div class="vc-plat" style="margin-bottom:8px">${r?"✏️ "+esc(t("edit")):"➕ "+esc(t("new_recipe"))}</div>
+    <div class="field"><label>${esc(t("name"))}</label><input id="reName" value="${r?esc(r.n):""}"></div>
+    <div style="display:flex;gap:8px">
+      <div class="field" style="flex:0 0 84px"><label>${esc(t("icon"))}</label><input id="reEmoji" maxlength="4" value="${r?esc(r.e||"🍽️"):"🍽️"}"></div>
+      <div class="field" style="flex:1"><label>${esc(t("time"))}</label><input id="reTime" placeholder="20 min" value="${r?esc(r.time||""):""}"></div>
+    </div>
+    <div class="field"><label>${esc(t("ing_lines"))}</label><textarea id="reIng" placeholder="2 cups flour&#10;3 eggs&#10;1 tbsp butter">${r?esc(ingToText(r.ing)):""}</textarea></div>
+    <div class="field"><label>${esc(t("steps_lines"))}</label><textarea id="reSteps">${r?esc((r.steps||[]).join("\n")):""}</textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="reSave" type="button" style="flex:1">${esc(t("save_recipe"))}</button>
+      <button class="btn sec" id="reCancel" type="button" style="flex:0 0 auto">${esc(t("cancel"))}</button>
+      ${r ? '<button class="btn sec" id="reDelete" type="button" style="flex:0 0 auto">🗑️ ' + esc(t("del")) + '</button>' : ""}
+  </div>`;
+  document.getElementById("reCancel").onclick = closeRecipeEditor;
+  document.getElementById("reSave").onclick = saveRecipe;
+  if(r && document.getElementById("reDelete")) {
+    document.getElementById("reDelete").onclick = () => { delRecipe(id); closeRecipeEditor(); };
+  }
+  ed.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeRecipeEditor(){ editingRecipeId=null; const ed=document.getElementById("recipeEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
+function saveRecipe(){
+  const name = document.getElementById("reName").value.trim() || "Untitled recipe";
+  const emoji = document.getElementById("reEmoji").value.trim() || "🍽️";
+  const time = document.getElementById("reTime").value.trim();
+  const ing = textToIng(document.getElementById("reIng").value);
+  const steps = document.getElementById("reSteps").value.split(/\n/).map(s=>s.trim()).filter(Boolean);
+  if(editingRecipeId){
+    const r = state.recipes.find(x=>x.id===editingRecipeId);
+    if(r){ Object.assign(r, {n:name, e:emoji, time, ing, steps}); }
+  } else {
+    state.recipes.unshift({id:uid(), n:name, e:emoji, time, ing, steps, src:""});
+  }
+  save(); closeRecipeEditor(); renderRecipes(); toast(t("t_recipe_saved"));
+}
+/* Save the currently-analysed video (Video tab) straight into the recipe book. */
+function saveVideoAsRecipe(){
+  const v = pendingVideo; if(!v) return;
+  const chosen = v.ingredients.filter(x=>x.on);
+  const name = (v.name || v.title || (v.description||"").split(/[.!?\n]/)[0] || "Video recipe").slice(0,60).trim() || "Video recipe";
+  state.recipes.unshift({
+    id:uid(), n:name, e:"🎬", time:"",
+    ing: chosen.map(g=>({name:g.name, qty:g.qty||""})),
+    steps: v.description ? [v.description] : [],
+    src: (v.source||"video"),
+  });
+  save(); toast(t("t_saved_recipe_book"));
+}
+
+/* ---------------- Video parsing ---------------- */
+function ytId(url){
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([\w-]{11})/);
+  return m?m[1]:null;
+}
+function platformOf(url){
+  if(/youtu\.?be/.test(url)) return "youtube";
+  if(/instagram\.com/.test(url)) return "instagram";
+  if(/tiktok\.com/.test(url)) return "tiktok";
+  return "video";
+}
+const UNITS = "cups?|cup|tbsp|tablespoons?|tsp|teaspoons?|g|grams?|kg|ml|l|litres?|liters?|oz|ounces?|lb|lbs|pounds?|cloves?|slices?|cans?|pinch|handful|bunch|pieces?|sprigs?";
+function extractIngredients(caption){
+  const orig = " "+caption.toLowerCase().replace(/\s+/g," ")+" ";
+  let mask = orig;            // matched spans get blanked so substrings/plurals don't double-match
+  const found = [];
+  // FOOD_KEYS is sorted longest-first, so "eggs" is consumed before "egg", "bell pepper" before "pepper"
+  FOOD_KEYS.forEach(k=>{
+    const idx = mask.indexOf(" "+k);
+    if(idx===-1) return;
+    // grab a quantity that appears shortly before the keyword (read from original text)
+    const pre = orig.slice(Math.max(0,idx-16), idx+1);
+    const qm = pre.match(new RegExp("(\\d+[\\d\\/.,½¼¾ -]*)\\s*("+UNITS+")?\\s*$","i"));
+    let qty = "";
+    if(qm){ qty = (qm[1]+" "+(qm[2]||"")).replace(/\s+/g," ").trim(); }
+    found.push({key:k, name:cap(k), qty, emoji:(FOODS[k].e||"•"), on:true});
+    // blank the matched word (plus a trailing plural 's') in the mask
+    const start = idx+1, len = k.length + (mask[idx+1+k.length]==="s"?1:0);
+    mask = mask.slice(0,start) + " ".repeat(len) + mask.slice(start+len);
+  });
+  // sort by store section for nicer display
+  found.sort((a,b)=> SECTIONS.indexOf(FOODS[a.key].c)-SECTIONS.indexOf(FOODS[b.key].c));
+  return found;
+}
+function makeDescription(caption, platform, ingCount){
+  const clean = caption.replace(/#[\w]+/g,"").replace(/\s+/g," ").trim();
+  let first = clean.split(/[.!?\n]/)[0].trim();
+  if(first.length>90) first = first.slice(0,90).trim()+"…";
+  const plat = platform.charAt(0).toUpperCase()+platform.slice(1);
+  if(first) return `${plat} recipe: “${first}” — ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
+  return `${plat} recipe with ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
+}
+
+// Server capabilities, filled in on load. When there's no backend (app opened
+// as a plain file), the caption paste-parser is used instead.
+const backend = { video:false, whisper:false };
+
+// Build the selectable ingredient row objects the result UI expects, from a
+// list of {name, quantity} — classifying each name for its emoji.
+function toRows(list){
+  return list.filter(g=>g && g.name).map(g=>{
+    const info = classify(g.name);
+    return { key:info.key, name:cap(g.name.trim()), qty:(g.quantity||g.qty||"").trim(),
+             emoji:info.emoji||"•", on:true };
+  });
+}
+// Local caption parser → rows (offline fallback).
+function localRows(caption){
+  return extractIngredients(caption).map(g=>({key:g.key, name:g.name, qty:g.qty, emoji:g.emoji, on:true}));
+}
+
+function niceError(e){
+  if(e && (e.code==="NO_WHISPER") || /whisper|openai/i.test(e && e.message||""))
+    return "This video needs audio transcription — add an OpenAI key on the server, or paste the caption.";
+  return (e && e.message) || "Couldn't read that. Paste the caption to try that instead.";
+}
+
+// Shared analysis used by the Video tab and the recipe editor. Returns a
+// normalized {platform, title, thumb, description, ingredients:[{name,qty}], source}.
+// Uses the server when available, otherwise (or on failure, with a caption)
+// falls back to the local caption parser so it always works standalone.
+async function analyzeSource(url, cap){
+  const platform = platformOf(url);
+  const yid = ytId(url);
+  const thumb = yid ? `https://img.youtube.com/vi/${yid}/hqdefault.jpg` : "";
+  const localResult = () => {
+    const rows = extractIngredients(cap||"");
+    return { platform, title:"", thumb,
+      description: makeDescription(cap||"", platform, rows.length),
+      ingredients: rows.map(g=>({name:g.name, qty:g.qty})),
+      source: backend.video ? "caption" : "caption (offline)" };
+  };
+  if(backend.video && url){
+    try{
+      const r = await fetch("/api/analyze", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ url, caption: cap }),
+      });
+      const data = await r.json().catch(()=>({error:"Bad response from server"}));
+      if(!r.ok) throw Object.assign(new Error(data.error||"Analysis failed"), {code:data.code});
+      return { platform:data.platform||platform, title:data.title||"", thumb:data.thumb||thumb,
+        description:data.description||"", source:data.source||"",
+        ingredients:(data.ingredients||[]).map(g=>({name:g.name, qty:g.quantity||""})) };
+    }catch(e){
+      if(cap){ const res = localResult(); res.source = "caption (fallback)"; return res; }
+      throw e;
+    }
+  }
+  return localResult();
+}
+
+let pendingVideo = null;
+let analysing = false;
+async function analyseVideo(){
+  if(analysing) return;
+  const url = document.getElementById("vUrl").value.trim();
+  if(!url && !cap){ toast(t("t_link_or_caption")); return; }
+  // No server to watch the link, and nothing to read from: explain inline.
+  if((!backend.video || !url) && !cap){
+    const box = document.getElementById("vResult");
+    box.classList.remove("hide");
+    box.innerHTML = `<div class="vplace">${platformOf(url)==='instagram'?'📸':platformOf(url)==='tiktok'?'🎵':'🎬'}</div>
+      <p style="font-size:14px;line-height:1.55;margin:6px 0 0">${esc(t("t_no_server"))}</p>`;
+    return;
+  }
+  const btn = document.getElementById("vParse");
+  const watching = backend.video && url;
+  analysing = true;
+  btn.disabled = true; btn.textContent = watching ? t("watching") : t("reading");
+  try{
+    const res = await analyzeSource(url, cap);
+    pendingVideo = { id:uid(), url, platform:res.platform, title:res.title, thumb:res.thumb,
+      description:res.description, ingredients:toRows(res.ingredients), source:res.source };
+    renderVideoResult();
+    if(!pendingVideo.ingredients.length) toast(t("t_no_ings"));
+  }catch(e){ toast(niceError(e)); }
+  finally{ analysing = false; btn.disabled = false; btn.textContent = t("analyse"); }
+}
+function renderVideoResult(){
+  const v = pendingVideo; if(!v) return;
+  const box = document.getElementById("vResult");
+  const media = v.thumb
+    ? `<img class="vthumb" src="${v.thumb}" alt="" onerror="this.outerHTML='<div class=\\'vplace\\'>${v.platform==='instagram'?'📸':'🎬'}</div>'">`
+    : `<div class="vplace">${v.platform==='instagram'?'📸':v.platform==='tiktok'?'🎵':'🎬'}</div>`;
+  const ingHtml = v.ingredients.length
+    ? v.ingredients.map((g,i)=>`<div class="ingrow" onclick="togglePending(${i})">
+        <span class="cb ${g.on?'on':''}"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>
+        <span class="in">${g.emoji} ${esc(ingredientName(g.name))}</span>
+        ${g.qty?`<span class="qh">${esc(g.qty)}</span>`:""}</div>`).join("")
+    : `<p class="sub" style="margin:6px 0 0">${isRTL()?"לא זוהו מרכיבים — הדביקו עוד מהכיתוב, או הוסיפו ידנית בלשונית הרשימה.":"No ingredients auto-detected — paste more of the caption, or add items manually on the List tab."}</p>`;
+  box.classList.remove("hide");
+  const recipeName = v.name ? `<h3 style="margin:12px 0 8px;font-size:18px;font-weight:800">${esc(v.name)}</h3>` : "";
+  box.innerHTML = `${media}
+    ${recipeName}
+    <p style="font-size:13.5px;margin:0 0 14px;line-height:1.5;color:var(--muted)">${esc(v.description)}</p>
+    ${v.ingredients.length?`<div class="vc-plat" style="margin-bottom:4px">🧾 ${esc(t("ingredients"))} (${v.ingredients.filter(x=>x.on).length})</div>`:""}
+    ${ingHtml}
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn" style="flex:1;min-width:180px" onclick="commitVideo()">${esc(t("add_selected"))}</button>
+      <button class="btn sec" onclick="saveVideoAsRecipe()">${esc(t("save_as_recipe"))}</button>
+    </div>`;
+}
+function togglePending(i){ if(!pendingVideo) return; pendingVideo.ingredients[i].on=!pendingVideo.ingredients[i].on; renderVideoResult(); }
+function commitVideo(){
+  const v = pendingVideo; if(!v) return;
+  const chosen = v.ingredients.filter(x=>x.on);
+  let n=0;
+  const label = v.platform==="instagram"?"insta":v.platform==="youtube"?"video":v.platform;
+  chosen.forEach(g=>{ if(addItem(g.name, g.qty, label)) n++; });
+  // save the video card (with the chosen ingredients recorded)
+  state.videos.unshift({id:v.id,url:v.url,platform:v.platform,title:v.title,thumb:v.thumb,
+    name:v.name, description:v.description, ingredients:chosen.map(c=>({name:c.name,qty:c.qty,emoji:c.emoji}))});
+  save();
+  pendingVideo=null;
+  document.getElementById("vUrl").value="";
+  document.getElementById("vResult").classList.add("hide");
+  renderList(); renderSavedVideos();
+  toast(n? t("t_added_video")(n) : t("t_saved_recipe_book"));
+}
+function renderSavedVideos(){
+  const box = document.getElementById("savedVideos");
+  if(!state.videos.length){ box.innerHTML=""; return; }
+  box.innerHTML = `<div class="section-head" style="margin-left:4px">🎞️ Saved videos<span class="ln"></span></div>`+
+    state.videos.map(v=>{
+      const media = v.thumb
+        ? `<img class="vthumb" style="margin:0" src="${v.thumb}" alt="" onerror="this.outerHTML='<div class=\\'vplace\\' style=\\'margin:0\\'>🎬</div>'">`
+        : `<div class="vplace" style="margin:0">${v.platform==='instagram'?'📸':'🎬'}</div>`;
+      const ing = v.ingredients.map(g=>`<span class="pill">${g.emoji||""} ${esc(ingredientName(g.name))}</span>`).join(" ");
+      const recipeName = v.name ? `<h4 style="margin:0 0 6px;font-size:15px;font-weight:800">${esc(v.name)}</h4>` : "";
+      return `<div class="vcard">${media}<div class="vc-body">
+        ${recipeName}
+        <div class="vc-plat">${v.platform}${v.title?` · ${esc(v.title)}`:""}</div>
+        <div class="vc-desc">${esc(v.description)}</div>
+        <div class="ing" style="margin:0 0 10px">${ing||'<span class="sub">no ingredients saved</span>'}</div>
+        ${v.url?`<div class="linkline">🔗 <a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.url)}</a></div>`:""}
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn sm sec" onclick='readd(${JSON.stringify(v.id)})'>➕ Re-add ingredients</button>
+          <button class="btn sm sec" onclick='delVideo(${JSON.stringify(v.id)})'>🗑️</button>
+        </div></div></div>`;
+    }).join("");
+}
+function readd(id){ const v=state.videos.find(x=>x.id===id); if(!v) return; let n=0;
+  const label=v.platform==="instagram"?"insta":"video";
+  v.ingredients.forEach(g=>{ if(addItem(g.name,g.qty,label)) n++; });
+  renderList(); toast(n? t("t_added_ings")(n) : t("t_already")); }
+function delVideo(id){ state.videos = state.videos.filter(x=>x.id!==id); save(); renderSavedVideos(); }
+
+/* ---------------- Helpers ---------------- */
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function cap(s){ return String(s).replace(/\b\w/g,c=>c.toUpperCase()); }
+
+/* ---------------- Home inventory ---------------- */
+const INV_UNITS = ["pcs","kg","g","L","ml","pack","bottle","can","box","bag"];
+function invRow(it){
+  const info = classify(it.name);
+  const emoji = it.emoji || info.emoji || "🏠";
+  let exp="";
+  if(it.expiry){
+    const days = Math.ceil((new Date(it.expiry) - Date.now())/86400000);
+    exp = `<span class="exp ${days<=3?'soon':''}">📅 ${esc(it.expiry)}${days<0?' ⚠️':''}</span>`;
+  }
+  const unitLabel = it.unit ? (isRTL() ? (T.he.units[INV_UNITS.indexOf(it.unit)]||it.unit) : it.unit) : "";
+  const qty = `${it.qty||1}${unitLabel?' '+unitLabel:''}`;
+  return `<div class="item inv" data-id="${it.id}">
+    <span class="cat-emoji">${emoji}</span>
+    <div class="body">
+      <div class="nm">${esc(it.name)} <span class="tag">${esc(qty)}</span></div>
+      <div class="meta">${exp}<button class="mv" onclick="editInv('${it.id}')">✏️</button></div>
+    </div>
+    <button class="mv" onclick="moveToList('${it.id}')">➕ ${esc(t("move_to_list"))}</button>
+    <button class="del" onclick="delInv('${it.id}')" aria-label="remove">✕</button>
+  </div>`;
+}
+function renderInventory(){
+  const box = document.getElementById("invBox");
+  if(!state.inventory.length){
+    box.innerHTML = `<div class="empty"><div class="big">🏠</div><h3>${esc(t("inv_empty_title"))}</h3><p>${esc(t("inv_empty_body"))}</p></div>`;
+    return;
+  }
+  box.innerHTML = state.inventory.map(invRow).join("");
+}
+function invUnitVal(){ return document.getElementById("invUnit").value || ""; }
+function addInv(name, qty, unit, expiry){
+  name=(name||"").trim(); if(!name) return false;
+  const info = classify(name);
+  state.inventory.unshift({id:uid(), name, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji});
+  save(); return true;
+}
+function delInv(id){
+  const inv = state.inventory.find(x=>x.id===id);
+  state.inventory = state.inventory.filter(x=>x.id!==id);
+  if(inv){
+    const item = state.items.find(i=>i.name.toLowerCase()===inv.name.toLowerCase());
+    if(item) item.inStock = false;
+  }
+  save(); renderInventory(); renderList(); toast(t("t_removed"));
+}
+function moveToList(id){
+  const it = state.inventory.find(x=>x.id===id); if(!it) return;
+  const unitLabel = it.unit ? (isRTL() ? (T.he.units[INV_UNITS.indexOf(it.unit)]||it.unit) : it.unit) : "";
+  const qtyStr = (it.qty && String(it.qty)!=="1") || unitLabel ? `${it.qty||1}${unitLabel?' '+unitLabel:''}` : "";
+  addItem(it.name, qtyStr, "", it.img||"");
+  state.inventory = state.inventory.filter(x=>x.id!==id); save();
+  renderInventory(); renderList(); toast(t("t_moved_to_list"));
+}
+let editingInvId = null;
+function editInv(id){ openInvEditor(id); }
+function openInvEditor(id){
+  editingInvId = id || null;
+  const it = id ? state.inventory.find(x=>x.id===id) : null;
+  const ed = document.getElementById("invEditor"); ed.classList.remove("hide");
+  const units = INV_UNITS.map((u,i)=>`<option value="${u}" ${it&&it.unit===u?"selected":""}>${esc(t("units")[i]||u)}</option>`).join("");
+  ed.innerHTML = `<div class="card" style="border:1px solid var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 14%,transparent)">
+    <div class="field"><label>${esc(t("name"))}</label><input id="ieName" value="${it?esc(it.name):""}"></div>
+    <div style="display:flex;gap:8px">
+      <div class="field" style="flex:0 0 80px"><label>${esc(t("qty_placeholder"))}</label><input id="ieQty" inputmode="numeric" value="${it?esc(String(it.qty||"1")):"1"}"></div>
+      <div class="field" style="flex:1"><label>${esc(t("units")[0]?"":"")}${isRTL()?"יחידה":"Unit"}</label><select id="ieUnit" class="unitsel" style="width:100%;max-width:none">${units}</select></div>
+    </div>
+    <div class="field"><label>${esc(t("expiry"))}</label><input id="ieExp" type="date" value="${it?esc(it.expiry||""):""}"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="ieSave" type="button" style="flex:1">💾</button>
+      <button class="btn sec" id="ieCancel" type="button" style="flex:0 0 auto">${esc(t("cancel"))}</button>
+    </div>
+  </div>`;
+  document.getElementById("ieCancel").onclick = closeInvEditor;
+  document.getElementById("ieSave").onclick = ()=>{
+    const name=document.getElementById("ieName").value.trim();
+    if(!name){ closeInvEditor(); return; }
+    const qty=document.getElementById("ieQty").value.trim()||"1";
+    const unit=document.getElementById("ieUnit").value;
+    const expiry=document.getElementById("ieExp").value;
+    if(editingInvId){ const r=state.inventory.find(x=>x.id===editingInvId);
+      if(r){ const info=classify(name); Object.assign(r,{name,qty,unit,expiry,category:info.category,emoji:info.emoji}); } }
+    else { addInv(name,qty,unit,expiry); }
+    save(); closeInvEditor(); renderInventory(); toast(t("t_added_inv"));
+  };
+  ed.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeInvEditor(){ editingInvId=null; const ed=document.getElementById("invEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
+
+/* ---------------- Wiring ---------------- */
+function qtyVal(){ const n = parseInt(document.getElementById("addQty").value, 10); return (isNaN(n)||n<1)?1:n; }
+function setQty(n){ document.getElementById("addQty").value = Math.max(1, n); }
+function addFromInput(){
+  const inp = document.getElementById("addInput");
+  const n = qtyVal();
+  const r = addItem(inp.value, n>1 ? String(n) : "", "", pendingPhoto);
+  if(r){ inp.value=""; setQty(1); pendingPhoto=""; renderPhotoPreview(); inp.focus(); renderList(); if(r==="dup") toast(t("t_dup")); }
+}
+document.getElementById("addBtn").onclick = addFromInput;
+document.getElementById("addInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromInput(); });
+document.getElementById("addQty").addEventListener("keydown",e=>{ if(e.key==="Enter") addFromInput(); });
+document.getElementById("qMinus").onclick = ()=> setQty(qtyVal()-1);
+document.getElementById("qPlus").onclick = ()=> setQty(qtyVal()+1);
+document.getElementById("addQty").addEventListener("blur", ()=> setQty(qtyVal()));
+
+// photos
+document.getElementById("photoBtn").onclick = ()=>{ photoTargetItem=null; const inp=document.getElementById("photoInput"); inp.value=""; inp.click(); };
+document.getElementById("photoInput").addEventListener("change", async (e)=>{
+  const f = e.target.files && e.target.files[0]; if(!f) return;
+  try{
+    const data = await compressImage(f);
+    if(photoTargetItem){ const it=state.items.find(i=>i.id===photoTargetItem); if(it){ it.img=data; save(); renderList(); } photoTargetItem=null; }
+    else { pendingPhoto = data; renderPhotoPreview(); }
+  }catch(err){ toast("Couldn't read that image"); }
+  e.target.value = "";
+});
+
+// inventory add bar
+function addInvFromInput(){
+  const inp=document.getElementById("invInput"), q=document.getElementById("invQty");
+  if(addInv(inp.value, q.value.trim()||"1", invUnitVal(), "")){ inp.value=""; q.value="1"; inp.focus(); renderInventory(); toast(t("t_added_inv")); }
+}
+document.getElementById("invAddBtn").onclick = addInvFromInput;
+document.getElementById("invInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addInvFromInput(); });
+
+document.getElementById("sortChip").onclick = ()=>{ state.sortAisle=!state.sortAisle; save(); renderList();
+  toast(state.sortAisle? t("t_sorted") : t("t_unsorted")); };
+document.getElementById("defaultChip").onclick = ()=>{
+  seedStarter();
+  if(!state.starter.length){ toast(t("t_starter_empty")); return; }
+  let n=0; state.starter.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
+  toast(n? t("t_added_essentials")(n) : t("t_essentials_have"));
+};
+document.getElementById("clearAllChip").onclick = ()=>{
+  if(!state.items.length){ toast(t("t_list_empty")); return; }
+  const backup = state.items.slice();
+  state.items = []; save(); renderList();
+  toast(t("t_list_cleared"), { label:t("t_undo"), fn:()=>{ state.items = backup; save(); renderList(); toast(t("t_restored")); } });
+};
+
+/* ---------- Starter-list editor ---------- */
+function openStarterEditor(){
+  seedStarter();
+  const ed = document.getElementById("starterEditor");
+  ed.classList.remove("hide");
+  ed.innerHTML = `<div class="card" style="border:1px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft)">
+    <div class="vc-plat" style="margin-bottom:8px">${esc(t("starter_editor_title"))}</div>
+    <p class="sub" style="margin:0 0 10px">${esc(t("starter_editor_sub"))}</p>
+    <div class="field"><textarea id="starterText" style="min-height:180px">${esc(state.starter.join("\n"))}</textarea></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="starterSave" type="button" style="flex:1">${esc(t("save_starter"))}</button>
+      <button class="btn sec" id="starterCancel" type="button" style="flex:0 0 auto">${esc(t("cancel"))}</button>
+    </div>
+  </div>`;
+  document.getElementById("starterCancel").onclick = closeStarterEditor;
+  document.getElementById("starterSave").onclick = ()=>{
+    state.starter = document.getElementById("starterText").value.split(/\n/).map(s=>s.trim()).filter(Boolean);
+    save(); closeStarterEditor(); toast(t("t_starter_saved"));
+  };
+  ed.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeStarterEditor(){ const ed=document.getElementById("starterEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
+document.getElementById("editStarterChip").onclick = openStarterEditor;
+
+/* ---------- Shufersal: build your order from the shopping list ---------- */
+let shufDone = new Set();     // items ticked off as "added on Shufersal" this session
+function renderShufPanel(){
+  const ed = document.getElementById("shufPanel");
+  const items = state.items.filter(i=>!i.checked);
+  const done = items.filter(it=>shufDone.has(it.id)).length;
+  const rows = items.length
+    ? items.map(it=>{
+        const d = shufDone.has(it.id);
+        return `<div class="ingrow">
+          <span class="cb ${d?'on':''}" onclick="toggleShuf('${it.id}')"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>
+          <span class="in" style="${d?'text-decoration:line-through;opacity:.5':''}">${it.emoji||"🛍️"} ${esc(it.name)}${it.qty?` <span class="qh">${esc(it.qty)}</span>`:""}</span>
+          <a class="shuf" href="${shufUrl(it.name)}" target="_blank" rel="noopener">🔍 ${esc(t("shuf_search"))}</a>
+        </div>`;
+      }).join("")
+    : `<p class="sub" style="margin:8px 0">${esc(t("shuf_empty"))}</p>`;
+  ed.innerHTML = `<div class="card" style="border:1px solid #e2231a;box-shadow:0 0 0 3px #fdeceb">
+    <div class="vc-plat" style="margin-bottom:6px">${esc(t("shuf_title"))}</div>
+    <p class="sub" style="margin:0 0 10px">${esc(t("shuf_sub"))}</p>
+    ${items.length?`<div class="vc-plat" style="color:#e2231a;margin:0 0 8px">${done} / ${items.length} ${esc(t("added_word"))}</div>`:""}
+    ${rows}
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <a class="btn" href="https://www.shufersal.co.il/online/he" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none">${esc(t("shuf_open_store"))}</a>
+      <button class="btn sec" id="shufClose" type="button">${esc(t("close"))}</button>
+    </div>
+  </div>`;
+  document.getElementById("shufClose").onclick = closeShufPanel;
+}
+function openShufPanel(){
+  closeStarterEditor();
+  shufDone = new Set();
+  document.getElementById("shufPanel").classList.remove("hide");
+  renderShufPanel();
+  document.getElementById("shufPanel").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function toggleShuf(id){ if(shufDone.has(id)) shufDone.delete(id); else shufDone.add(id); renderShufPanel(); }
+function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; }
+document.getElementById("shufChip").onclick = ()=>{
+  const ed=document.getElementById("shufPanel");
+  if(ed.classList.contains("hide")) openShufPanel(); else closeShufPanel();
+};
+document.getElementById("vParse").onclick = analyseVideo;
+document.getElementById("newRecipeChip").onclick = ()=>openRecipeEditor(null);
+
+// tabs
+document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  tb.classList.add("active");
+  const id = tb.dataset.tab;
+  ["list","home","recipes","video"].forEach(s=>document.getElementById("tab-"+s).classList.toggle("hide", s!==id));
+  if(id!=="recipes") closeRecipeEditor();
+  if(id!=="list"){ closeStarterEditor(); closeShufPanel(); }
+  if(id!=="home") closeInvEditor();
+  if(id==="home") renderInventory();
+  if(id==="recipes") renderRecipes();
+  if(id==="video") renderSavedVideos();
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+
+// theme
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  document.getElementById("themeBtn").textContent = t==="dark"?"☀️":"🌙";
+  document.querySelector('meta[name=theme-color]').setAttribute("content", t==="dark"?"#16201b":"#22c55e");
+}
+(function initTheme(){
+  let th = state.theme;
+  if(!th) th = matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";
+  applyTheme(th);
+})();
+document.getElementById("themeBtn").onclick = ()=>{
+  const th = document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+  state.theme=th; save(); applyTheme(th);
+};
+
+/* ---------------- Language ---------------- */
+function setVideoSub(){
+  const sub = document.getElementById("vSub");
+  if(backend.video){
+    sub.textContent = isRTL()
+      ? "הדביקו קישור מיוטיוב / אינסטגרם / טיקטוק — Cartly צופה בסרטון ומחלץ את המרכיבים."
+      : "Paste a YouTube / Instagram / TikTok link — Cartly watches the video and pulls out the ingredients.";
+  } else {
+    sub.textContent = isRTL()
+      ? "הדביקו קישור ואת כיתוב הסרטון — Cartly קורא את הכיתוב ומחלץ מרכיבים. הריצו את שרת Cartly עם מפתח API כדי שבאמת יצפה בסרטון."
+      : "Paste a link and the video's caption — Cartly reads the caption to pull out ingredients. Run the Cartly server with an API key to truly watch the video.";
+  }
+}
+function applyLang(){
+  LANG = state.lang === "he" ? "he" : "en";
+  document.documentElement.lang = LANG;
+  document.documentElement.dir = isRTL() ? "rtl" : "ltr";
+  document.getElementById("langBtn").textContent = isRTL() ? "EN" : "עב";
+  document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent = t(el.getAttribute("data-i18n")); });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{ el.placeholder = t(el.getAttribute("data-i18n-ph")); });
+  // unit selects
+  const unitSel = document.getElementById("invUnit");
+  unitSel.innerHTML = INV_UNITS.map((u,i)=>`<option value="${u}">${esc(t("units")[i]||u)}</option>`).join("");
+  setVideoSub();
+  closeShufPanel();
+  // re-render dynamic views
+  renderList(); renderInventory(); renderRecipes(); renderSavedVideos();
+}
+document.getElementById("langBtn").onclick = ()=>{
+  state.lang = isRTL() ? "en" : "he"; save(); applyLang();
+};
+
+document.getElementById("logoutBtn").onclick = ()=>{
+  if(confirm("Are you sure you want to sign out?")){
+    currentUser = null;
+    localStorage.removeItem(AUTH_LS_KEY);
+    location.reload();
+  }
+};
+
+// expose handlers used in inline HTML
+Object.assign(window,{toggleItem,delItem,setCat,addRecipeToList,editRecipe,delRecipe,
+  togglePending,commitVideo,saveVideoAsRecipe,readd,delVideo,
+  itemPhoto,removeItemImg,clearPendingPhoto,moveToList,delInv,editInv,toggleShuf});
+seedRecipes(); seedStarter();
+
+/* ================ AUTHENTICATION WITH NEW ROUTING ================ */
+import { getCurrentAuth, getListStorageKey, logout as authLogout, enforceAuthRouting } from './auth.js';
+
+// Check authentication on page load
+const auth = getCurrentAuth();
+if (!auth) {
+  window.location.href = '/login';
+}
+
+// Override load/save to use family-code-based or guest-based keys
+const originalLoad = load;
+const originalSave = save;
+
+function load(){
+  try{
+    const key = getListStorageKey();
+    const s = JSON.parse(localStorage.getItem(key) || sessionStorage.getItem(key));
+    if(s && s.items){
+      if(!Array.isArray(s.inventory)) s.inventory=[];
+      return s;
+    }
+  }catch(e){}
+  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null};
+}
+
+function save(){
+  try{
+    const key = getListStorageKey();
+    const data = JSON.stringify(state);
+    if(auth.isGuest){
+      sessionStorage.setItem(key, data);
+    } else {
+      localStorage.setItem(key, data);
+    }
+  }catch(e){}
+}
+
+// Setup logout button
+document.getElementById("logoutBtn").onclick = function(){
+  if(confirm("Sign out from Cartly?")){
+    authLogout();
+    window.location.href = '/login';
+  }
+};
+
+// Display user info
+const userInfo = document.getElementById("userInfo");
+const userNameEl = document.getElementById("currentUserName");
+if(userInfo && userNameEl){
+  userInfo.style.display = "flex";
+  userNameEl.textContent = auth.nickname;
+}
+
+// Initialize app
+seedRecipes(); seedStarter();
+(async function initBackend(){
+  try{
+    const r = await fetch("/api/config");
+    if(r.ok){ const c = await r.json(); backend.video = !!c.videoBackend; backend.whisper = !!c.whisper; }
+  }catch(e){}
+  setVideoSub();
+})();
+
+applyLang();
+</script>

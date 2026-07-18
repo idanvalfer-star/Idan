@@ -53,8 +53,14 @@ app.post("/api/analyze", async (req, res) => {
   }
 });
 
-app.get("/", (_req, res) => res.sendFile(join(__dirname, "index.html")));
-app.use(express.static(__dirname, { index: false, extensions: ["html"] }));
+// Routes
+app.get("/", (_req, res) => res.sendFile(join(__dirname, "login.html")));
+app.get("/login", (_req, res) => res.sendFile(join(__dirname, "login.html")));
+app.get("/signup", (_req, res) => res.sendFile(join(__dirname, "signup.html")));
+app.get("/app", (_req, res) => res.sendFile(join(__dirname, "app.html")));
+
+// Static files
+app.use(express.static(__dirname, { index: false, extensions: ["html", "js"] }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#22c55e">
+<title>Cartly — Sign Up</title>
+<style>
+:root{
+  --bg:#fbfdf7; --card:#ffffff; --ink:#15271c; --muted:#6b7d72;
+  --line:#e7efe6; --accent:#22c55e; --accent-2:#16a34a; --accent-soft:#e9fbef;
+  --shadow:0 8px 30px rgba(20,60,35,.08); --shadow-sm:0 2px 10px rgba(20,60,35,.06);
+  --radius:20px;
+}
+[data-theme="dark"]{
+  --bg:#0e1512; --card:#16201b; --ink:#e8f2ea; --muted:#9db3a6;
+  --line:#24322b; --accent:#34d399; --accent-2:#22c55e; --accent-soft:#12241b;
+  --shadow:0 10px 34px rgba(0,0,0,.45); --shadow-sm:0 2px 12px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:
+    radial-gradient(900px 500px at 100% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+    radial-gradient(800px 420px at -10% 8%, color-mix(in srgb, var(--pink) 10%, transparent), transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  transition:background .3s,color .3s;
+}
+.container{
+  width:100%;
+  max-width:420px;
+  background:var(--card);
+  padding:40px 30px;
+  border-radius:24px;
+  box-shadow:var(--shadow);
+}
+.header{text-align:center;margin-bottom:32px}
+.logo{font-size:48px;margin-bottom:12px;display:block}
+h1{margin:0;font-size:28px;font-weight:800;color:var(--ink);margin-bottom:4px}
+.subtitle{margin:0;font-size:14px;color:var(--muted)}
+.form{display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+label{font-size:13px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.3px}
+input{
+  padding:12px 14px;
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  background:var(--bg);
+  color:var(--ink);
+  font-size:15px;
+  transition:.2s;
+  font-family:inherit;
+}
+input:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft);
+}
+input::placeholder{color:var(--muted)}
+.error{
+  display:none;
+  padding:12px 14px;
+  background:#fee;
+  border-radius:12px;
+  color:#c00;
+  font-size:13px;
+  font-weight:600;
+  border:1px solid #fcc;
+}
+.error.show{display:block}
+.btn{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#fff;
+  font-weight:800;
+  font-size:16px;
+  padding:14px 20px;
+  border-radius:12px;
+  border:none;
+  cursor:pointer;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);
+  transition:transform .12s;
+  font-family:inherit;
+}
+.btn:active{transform:scale(.98)}
+.divider{
+  text-align:center;
+  font-size:13px;
+  color:var(--muted);
+  margin:20px 0;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.divider::before,.divider::after{
+  content:'';
+  flex:1;
+  height:1px;
+  background:var(--line);
+}
+.link-section{
+  text-align:center;
+  font-size:14px;
+  color:var(--muted);
+}
+.link-section a{
+  color:var(--accent);
+  text-decoration:none;
+  font-weight:700;
+  cursor:pointer;
+  transition:.2s;
+}
+.link-section a:hover{opacity:.8}
+.theme-btn{
+  position:fixed;
+  top:20px;
+  right:20px;
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  background:var(--card);
+  border:none;
+  cursor:pointer;
+  font-size:20px;
+  box-shadow:var(--shadow-sm);
+  transition:transform .15s;
+}
+.theme-btn:active{transform:scale(.9)}
+</style>
+
+<button class="theme-btn" id="themeBtn">🌙</button>
+
+<div class="container">
+  <div class="header">
+    <span class="logo">🛒</span>
+    <h1>Cartly</h1>
+    <p class="subtitle">Create your family account</p>
+  </div>
+
+  <form class="form" id="signupForm" onsubmit="return handleSignup(event)">
+    <div class="field">
+      <label for="signupName">Name</label>
+      <input id="signupName" type="text" placeholder="Your name" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="signupNickname">Nickname</label>
+      <input id="signupNickname" type="text" placeholder="Your nickname (for quick identification)" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="signupFamilyName">Family Name</label>
+      <input id="signupFamilyName" type="text" placeholder="Your family name" required autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="signupFamilyCode">Family Code</label>
+      <input id="signupFamilyCode" type="text" placeholder="Create a code to share with family" required autocomplete="off">
+    </div>
+    <div class="error" id="signupError"></div>
+    <button type="submit" class="btn">Create Account</button>
+  </form>
+
+  <div class="divider">or</div>
+  <div class="link-section">
+    Already have an account? <a href="/login">Sign In</a>
+  </div>
+</div>
+
+<script type="module">
+import { signup, enforceAuthRouting } from './auth.js';
+
+// Apply theme
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+}
+
+const theme = localStorage.getItem('cartly.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+applyTheme(theme);
+
+document.getElementById('themeBtn').onclick = () => {
+  const newTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('cartly.theme', newTheme);
+  applyTheme(newTheme);
+};
+
+// Check if already authenticated
+enforceAuthRouting('/signup');
+
+// Handle signup
+window.handleSignup = function(e) {
+  e.preventDefault();
+  const name = document.getElementById('signupName').value.trim();
+  const nickname = document.getElementById('signupNickname').value.trim();
+  const familyName = document.getElementById('signupFamilyName').value.trim();
+  const familyCode = document.getElementById('signupFamilyCode').value.trim();
+
+  const result = signup(name, nickname, familyName, familyCode);
+
+  if (result.success) {
+    window.location.href = '/app';
+  } else {
+    const errorEl = document.getElementById('signupError');
+    errorEl.textContent = result.error;
+    errorEl.classList.add('show');
+  }
+  return false;
+};
+</script>
