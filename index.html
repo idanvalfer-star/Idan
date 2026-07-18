@@ -675,7 +675,17 @@ function addItem(name, qty, source, img){
 function toggleInStock(id, e){
   e.stopPropagation();
   const it = state.items.find(i=>i.id===id); if(!it) return;
-  it.inStock = !it.inStock; save(); renderList();
+  it.inStock = !it.inStock;
+  if(it.inStock){
+    const existing = state.inventory.find(x=>x.name.toLowerCase()===it.name.toLowerCase());
+    if(!existing){
+      const info = classify(it.name);
+      state.inventory.unshift({id:uid(), name:it.name, qty:it.qty||"1", unit:"", expiry:"", category:info.category, emoji:info.emoji, img:it.img||""});
+    }
+  } else {
+    state.inventory = state.inventory.filter(x=>x.name.toLowerCase()!==it.name.toLowerCase());
+  }
+  save(); renderList(); renderInventory();
 }
 function toggleItem(id){
   const it = state.items.find(i=>i.id===id); if(!it) return;
@@ -1128,7 +1138,15 @@ function addInv(name, qty, unit, expiry){
   state.inventory.unshift({id:uid(), name, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji});
   save(); return true;
 }
-function delInv(id){ state.inventory = state.inventory.filter(x=>x.id!==id); save(); renderInventory(); toast(t("t_removed")); }
+function delInv(id){
+  const inv = state.inventory.find(x=>x.id===id);
+  state.inventory = state.inventory.filter(x=>x.id!==id);
+  if(inv){
+    const item = state.items.find(i=>i.name.toLowerCase()===inv.name.toLowerCase());
+    if(item) item.inStock = false;
+  }
+  save(); renderInventory(); renderList(); toast(t("t_removed"));
+}
 function moveToList(id){
   const it = state.inventory.find(x=>x.id===id); if(!it) return;
   const unitLabel = it.unit ? (isRTL() ? (T.he.units[INV_UNITS.indexOf(it.unit)]||it.unit) : it.unit) : "";
