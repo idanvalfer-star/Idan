@@ -692,13 +692,13 @@ function itemRow(it){
     : `<span class="cat-emoji" onclick="itemPhoto('${it.id}')" style="cursor:pointer" title="add photo">${it.emoji||"🛍️"}</span>`;
   const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
   const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'🏠':'☐'}</button>`;
-  return `<div class="item ${done} ${inStockClass}" data-id="${it.id}">
+  return `<div class="item ${done} ${inStockClass}" data-id="${it.id}" title="${it.category}">
     <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
       <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
     ${thumb}
     <div class="body">
       <div class="nm">${esc(it.name)}${it.qty?` <span class="tag">${esc(it.qty)}</span>`:""}</div>
-      <div class="meta">${sel} ${stock} ${rmPhoto} ${src}</div>
+      <div class="meta">${stock} ${rmPhoto} ${src}</div>
     </div>
     <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
   </div>`;
