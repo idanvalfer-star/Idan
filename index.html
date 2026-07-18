@@ -394,6 +394,25 @@ let LANG = "en";
 function t(key, arg){ const v = (T[LANG] && T[LANG][key]) ?? (T.en[key] ?? key); return typeof v === "function" ? v(arg) : v; }
 function sectionLabel(sec){ return LANG === "he" ? (SECTION_HE[sec]||sec) : sec; }
 function isRTL(){ return LANG === "he"; }
+function ingredientName(name){
+  if(LANG !== "he") return name;
+  const key = name.toLowerCase().replace(/\s+/g," ");
+  return INGREDIENT_NAMES_HE[key] || name;
+}
+
+/* Hebrew ingredient name translations */
+const INGREDIENT_NAMES_HE = {
+  milk:"חלב", eggs:"ביצים", bread:"לחם", butter:"חמאה", cheese:"גבינה", yogurt:"יוגורט",
+  onion:"בצל", garlic:"שום", tomato:"עגבנייה", potato:"תפוח אדמה", carrot:"גזר",
+  chicken:"עוף", beef:"בשר בקר", fish:"דגים", salt:"מלח", pepper:"פלפל",
+  oil:"שמן", sugar:"סוכר", flour:"קמח", rice:"אורז", pasta:"פסטה",
+  apple:"תפוח", banana:"בננה", orange:"תפוז", lemon:"לימון", strawberry:"תות",
+  broccoli:"בדולח", spinach:"תרד", lettuce:"חסה", cucumber:"מלפפון",
+  "bell pepper":"פלפל צבעוני", "olive oil":"שמן זיתים", "soy sauce":"רוטב סויה",
+  ginger:"ג'ינג'ר", rice:"אורז", mushroom:"פטריה", avocado:"אבוקדו",
+  tomatoes:"עגבניות", potatoes:"תפוחי אדמה", carrots:"גזרים", onions:"בצלים",
+  "ground beef":"בשר טחון", shrimp:"שרימפס", salmon:"סלמון", tuna:"טונה"
+};
 
 /* ---------------- Food dictionary (keyword -> data) ---------------- */
 /* c=category, e=emoji, cut=prep/cutting tip */
@@ -784,7 +803,7 @@ function renderRecipes(){
     const ing = (r.ing||[]).map(x=>{
       const info = classify(x.name);
       const has = have.has(ingKey(x.name));
-      return `<span class="pill ${has?'have':''}">${info.emoji||"•"} ${esc(cap(x.name))}${x.qty?` <span style="opacity:.7">${esc(x.qty)}</span>`:""}</span>`;
+      return `<span class="pill ${has?'have':''}">${info.emoji||"•"} ${esc(ingredientName(cap(x.name)))}${x.qty?` <span style="opacity:.7">${esc(x.qty)}</span>`:""}</span>`;
     }).join("");
     const steps = (r.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("");
     const srcTag = r.src?`<span class="tag src">🎬 ${esc(r.src)}</span>`:"";
@@ -833,10 +852,13 @@ function openRecipeEditor(id){
     <div style="display:flex;gap:8px">
       <button class="btn" id="reSave" type="button" style="flex:1">${esc(t("save_recipe"))}</button>
       <button class="btn sec" id="reCancel" type="button" style="flex:0 0 auto">${esc(t("cancel"))}</button>
-    </div>
+      ${r ? '<button class="btn sec" id="reDelete" type="button" style="flex:0 0 auto">🗑️ ' + esc(t("del")) + '</button>' : ""}
   </div>`;
   document.getElementById("reCancel").onclick = closeRecipeEditor;
   document.getElementById("reSave").onclick = saveRecipe;
+  if(r && document.getElementById("reDelete")) {
+    document.getElementById("reDelete").onclick = () => { delRecipe(id); closeRecipeEditor(); };
+  }
   ed.scrollIntoView({behavior:"smooth", block:"start"});
 }
 function closeRecipeEditor(){ editingRecipeId=null; const ed=document.getElementById("recipeEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
@@ -1005,7 +1027,7 @@ function renderVideoResult(){
   const ingHtml = v.ingredients.length
     ? v.ingredients.map((g,i)=>`<div class="ingrow" onclick="togglePending(${i})">
         <span class="cb ${g.on?'on':''}"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>
-        <span class="in">${g.emoji} ${esc(g.name)}</span>
+        <span class="in">${g.emoji} ${esc(ingredientName(g.name))}</span>
         ${g.qty?`<span class="qh">${esc(g.qty)}</span>`:""}</div>`).join("")
     : `<p class="sub" style="margin:6px 0 0">${isRTL()?"לא זוהו מרכיבים — הדביקו עוד מהכיתוב, או הוסיפו ידנית בלשונית הרשימה.":"No ingredients auto-detected — paste more of the caption, or add items manually on the List tab."}</p>`;
   box.classList.remove("hide");
@@ -1045,7 +1067,7 @@ function renderSavedVideos(){
       const media = v.thumb
         ? `<img class="vthumb" style="margin:0" src="${v.thumb}" alt="" onerror="this.outerHTML='<div class=\\'vplace\\' style=\\'margin:0\\'>🎬</div>'">`
         : `<div class="vplace" style="margin:0">${v.platform==='instagram'?'📸':'🎬'}</div>`;
-      const ing = v.ingredients.map(g=>`<span class="pill">${g.emoji||""} ${esc(g.name)}</span>`).join(" ");
+      const ing = v.ingredients.map(g=>`<span class="pill">${g.emoji||""} ${esc(ingredientName(g.name))}</span>`).join(" ");
       const recipeName = v.name ? `<h4 style="margin:0 0 6px;font-size:15px;font-weight:800">${esc(v.name)}</h4>` : "";
       return `<div class="vcard">${media}<div class="vc-body">
         ${recipeName}
