@@ -225,9 +225,11 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <button class="chip ghost" id="defaultChip"><span>📋</span> <span data-i18n="starter_list">Starter list</span></button>
       <button class="chip ghost" id="editStarterChip"><span>✎</span> <span data-i18n="edit_starter">Edit starter</span></button>
       <button class="chip ghost" id="clearAllChip"><span>🗑️</span> <span data-i18n="clear_all">Clear all</span></button>
+      <button class="chip ghost" id="shufChip"><span>🛒</span> <span data-i18n="shuf_button">Shop at Shufersal</span></button>
       <span class="count-pill" id="countPill"></span>
     </div>
     <div id="starterEditor" class="hide"></div>
+    <div id="shufPanel" class="hide"></div>
     <div id="listBox"></div>
   </section>
 
@@ -337,6 +339,9 @@ const T = {
     t_no_server:"To read a link automatically, Cartly needs its own server running (with an API key) — a plain web page can't watch a video. Paste the caption below and I'll pull out the ingredients.",
     units:["pcs","kg","g","L","ml","pack","bottle","can","box","bag"],
     shufersal:"Shufersal",
+    shuf_button:"Shop at Shufersal", shuf_title:"🛒 Build your Shufersal order",
+    shuf_sub:"Tap each item to find it on Shufersal and add it to your cart there. This opens Shufersal's site — there's no way to push a cart from outside.",
+    shuf_search:"Find", shuf_open_store:"Open Shufersal", shuf_empty:"Your shopping list is empty.", close:"Close",
   },
   he:{
     tagline:"חבר הקניות החכם שלך",
@@ -379,6 +384,9 @@ const T = {
     t_no_server:"כדי לקרוא קישור אוטומטית, Cartly צריך שרת משלו עם מפתח API — דף אינטרנט רגיל לא יכול לצפות בסרטון. הדביקו את הכיתוב למטה ואחלץ את המרכיבים.",
     units:["יח׳","ק\"ג","גרם","ליטר","מ\"ל","חבילה","בקבוק","פחית","קופסה","שקית"],
     shufersal:"שופרסל",
+    shuf_button:"קנייה בשופרסל", shuf_title:"🛒 בניית ההזמנה בשופרסל",
+    shuf_sub:"הקישו על כל מוצר כדי למצוא אותו בשופרסל ולהוסיף לעגלה שם. זה פותח את אתר שופרסל — אי אפשר לשלוח עגלה מבחוץ.",
+    shuf_search:"חיפוש", shuf_open_store:"פתיחת שופרסל", shuf_empty:"רשימת הקניות ריקה.", close:"סגירה",
   },
 };
 let LANG = "en";
@@ -675,7 +683,6 @@ function itemRow(it){
   const thumb = it.img
     ? `<img class="thumb" src="${it.img}" alt="" onclick="itemPhoto('${it.id}')" title="replace photo">`
     : `<span class="cat-emoji" onclick="itemPhoto('${it.id}')" style="cursor:pointer" title="add photo">${it.emoji||"🛍️"}</span>`;
-  const shuf = `<a class="shuf" href="${shufUrl(it.name)}" target="_blank" rel="noopener">🛒 ${t("shufersal")}</a>`;
   const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
   return `<div class="item ${done}" data-id="${it.id}">
     <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
@@ -683,7 +690,7 @@ function itemRow(it){
     ${thumb}
     <div class="body">
       <div class="nm">${esc(it.name)}${it.qty?` <span class="tag">${esc(it.qty)}</span>`:""}</div>
-      <div class="meta">${sel} ${shuf} ${rmPhoto} ${src}</div>
+      <div class="meta">${sel} ${rmPhoto} ${src}</div>
     </div>
     <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
   </div>`;
@@ -1207,6 +1214,35 @@ function openStarterEditor(){
 }
 function closeStarterEditor(){ const ed=document.getElementById("starterEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
 document.getElementById("editStarterChip").onclick = openStarterEditor;
+
+/* ---------- Shufersal: build your order from the shopping list ---------- */
+function openShufPanel(){
+  closeStarterEditor();
+  const ed = document.getElementById("shufPanel"); ed.classList.remove("hide");
+  const items = state.items.filter(i=>!i.checked);
+  const rows = items.length
+    ? items.map(it=>`<div class="ingrow">
+        <span class="in">${it.emoji||"🛍️"} ${esc(it.name)}${it.qty?` <span class="qh">${esc(it.qty)}</span>`:""}</span>
+        <a class="shuf" href="${shufUrl(it.name)}" target="_blank" rel="noopener">🔍 ${esc(t("shuf_search"))}</a>
+      </div>`).join("")
+    : `<p class="sub" style="margin:8px 0">${esc(t("shuf_empty"))}</p>`;
+  ed.innerHTML = `<div class="card" style="border:1px solid #e2231a;box-shadow:0 0 0 3px #fdeceb">
+    <div class="vc-plat" style="margin-bottom:6px">${esc(t("shuf_title"))}</div>
+    <p class="sub" style="margin:0 0 10px">${esc(t("shuf_sub"))}</p>
+    ${rows}
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <a class="btn" href="https://www.shufersal.co.il/online/he" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none">${esc(t("shuf_open_store"))}</a>
+      <button class="btn sec" id="shufClose" type="button">${esc(t("close"))}</button>
+    </div>
+  </div>`;
+  document.getElementById("shufClose").onclick = closeShufPanel;
+  ed.scrollIntoView({behavior:"smooth", block:"start"});
+}
+function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; }
+document.getElementById("shufChip").onclick = ()=>{
+  const ed=document.getElementById("shufPanel");
+  if(ed.classList.contains("hide")) openShufPanel(); else closeShufPanel();
+};
 document.getElementById("vParse").onclick = analyseVideo;
 document.getElementById("newRecipeChip").onclick = ()=>openRecipeEditor(null);
 
@@ -1217,7 +1253,7 @@ document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
   const id = tb.dataset.tab;
   ["list","home","recipes","video"].forEach(s=>document.getElementById("tab-"+s).classList.toggle("hide", s!==id));
   if(id!=="recipes") closeRecipeEditor();
-  if(id!=="list") closeStarterEditor();
+  if(id!=="list"){ closeStarterEditor(); closeShufPanel(); }
   if(id!=="home") closeInvEditor();
   if(id==="home") renderInventory();
   if(id==="recipes") renderRecipes();
@@ -1265,6 +1301,7 @@ function applyLang(){
   const unitSel = document.getElementById("invUnit");
   unitSel.innerHTML = INV_UNITS.map((u,i)=>`<option value="${u}">${esc(t("units")[i]||u)}</option>`).join("");
   setVideoSub();
+  closeShufPanel();
   // re-render dynamic views
   renderList(); renderInventory(); renderRecipes(); renderSavedVideos();
 }
