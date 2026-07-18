@@ -94,6 +94,15 @@ Instagram/TikTok downloads sometimes need your login cookies; YouTube generally 
   recipe.)
 - 🎬 **Add from a video** — see above; you can add the ingredients straight to the
   list or save the whole thing as a recipe
+- 🏠 **Home Inventory** — a "What we have" tab tracking what's in your kitchen with
+  quantities, units (pcs/kg/g/L/ml/…) and optional expiry dates; move things to the
+  shopping list when they run low, edit or delete freely
+- 📷 **Photos** — snap or upload a picture for any item (device camera supported);
+  thumbnails show next to items, and you can replace or remove them. Stored on-device.
+- 🌐 **English & Hebrew** — full UI translation with a header toggle and proper
+  right-to-left (RTL) layout for Hebrew; your choice is remembered
+- 🛒 **Shufersal links** — every item gets a button that opens Shufersal's site
+  searching for that product (their site has no public "add to cart" API)
 - 🌙 Light/dark mode, mobile-first design
 
 ## Files
