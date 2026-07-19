@@ -43,8 +43,8 @@ function saveUsersDb(users) {
   }
 }
 
-// Setup email transporter (uses test account by default, override with env vars)
-async function getEmailTransporter() {
+// Setup email transporter (uses environment variables or mock for development)
+function getEmailTransporter() {
   // Check for SMTP configuration in environment
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
     return nodemailer.createTransport({
@@ -58,17 +58,10 @@ async function getEmailTransporter() {
     });
   }
 
-  // For development: use Ethereal test account
-  console.warn("⚠️  Using test email transporter (Ethereal). Set SMTP_HOST, SMTP_USER, SMTP_PASS for production.");
-  const testAccount = await nodemailer.createTestAccount();
+  // For development: use mock transporter
+  console.warn("⚠️  Using mock email transporter for development. Set SMTP_HOST, SMTP_USER, SMTP_PASS for production emails.");
   return nodemailer.createTransport({
-    host: "smtp.ethereal.email",
-    port: 587,
-    secure: false,
-    auth: {
-      user: testAccount.user,
-      pass: testAccount.pass,
-    },
+    streamTransport: true,
   });
 }
 
@@ -158,7 +151,7 @@ app.post("/api/send-family-code", async (req, res) => {
   }
 
   try {
-    const transporter = await getEmailTransporter();
+    const transporter = getEmailTransporter();
 
     const mailOptions = {
       from: process.env.SMTP_FROM || "cartly@example.com",
@@ -180,12 +173,8 @@ app.post("/api/send-family-code", async (req, res) => {
 
     const info = await transporter.sendMail(mailOptions);
 
-    console.log("✉️  Email sent:", info.response);
-
-    // If using test account, log the preview URL
-    if (!process.env.SMTP_HOST) {
-      console.log("Preview URL:", nodemailer.getTestMessageUrl(info));
-    }
+    // Log email details for development
+    console.log(`✉️  Email sent to ${email} (Family code: ${user.familyCode})`);
 
     res.json({
       success: true,
