@@ -58,9 +58,13 @@ function saveAuthData(users, families) {
 }
 
 // Handle user signup
-export function signup(name, nickname, familyName, familyCode) {
-  if (!name || !nickname || !familyName || !familyCode) {
+export function signup(name, email, nickname, familyName, familyCode) {
+  if (!name || !email || !nickname || !familyName || !familyCode) {
     return { success: false, error: "All fields are required" };
+  }
+
+  if (!isValidEmail(email)) {
+    return { success: false, error: "Please enter a valid email address" };
   }
 
   if (nickname.length < 2) {
@@ -78,6 +82,13 @@ export function signup(name, nickname, familyName, familyCode) {
     return { success: false, error: "This nickname is already taken" };
   }
 
+  // Check if email already exists
+  for (const u of Object.values(authData.users)) {
+    if (u.email && u.email.toLowerCase() === email.toLowerCase()) {
+      return { success: false, error: "This email is already registered" };
+    }
+  }
+
   // Create family if it doesn't exist
   if (!authData.families[familyCode]) {
     authData.families[familyCode] = {
@@ -90,6 +101,7 @@ export function signup(name, nickname, familyName, familyCode) {
   // Create user
   authData.users[nickname] = {
     name,
+    email,
     nickname,
     familyCode,
     createdAt: new Date().toISOString(),
@@ -103,10 +115,15 @@ export function signup(name, nickname, familyName, familyCode) {
   saveAuthData(authData.users, authData.families);
 
   // Auto-login
-  const user = { name, nickname, familyCode };
+  const user = { name, email, nickname, familyCode };
   localStorage.setItem(AUTH_KEY, JSON.stringify(user));
 
   return { success: true, user };
+}
+
+// Email validation helper
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 // Handle user login

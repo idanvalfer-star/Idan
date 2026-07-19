@@ -11,11 +11,66 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import nodemailer from "nodemailer";
 import { analyzeVideo } from "./lib/analyze.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json({ limit: "1mb" }));
+
+// User database file path
+const usersDbPath = join(__dirname, "users-db.json");
+
+// Load users database
+function loadUsersDb() {
+  try {
+    if (existsSync(usersDbPath)) {
+      return JSON.parse(readFileSync(usersDbPath, "utf8"));
+    }
+  } catch (e) {
+    console.error("Error loading users database:", e);
+  }
+  return {};
+}
+
+// Save users database
+function saveUsersDb(users) {
+  try {
+    writeFileSync(usersDbPath, JSON.stringify(users, null, 2));
+  } catch (e) {
+    console.error("Error saving users database:", e);
+  }
+}
+
+// Setup email transporter (uses test account by default, override with env vars)
+async function getEmailTransporter() {
+  // Check for SMTP configuration in environment
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT || 587,
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+
+  // For development: use Ethereal test account
+  console.warn("⚠️  Using test email transporter (Ethereal). Set SMTP_HOST, SMTP_USER, SMTP_PASS for production.");
+  const testAccount = await nodemailer.createTestAccount();
+  return nodemailer.createTransport({
+    host: "smtp.ethereal.email",
+    port: 587,
+    secure: false,
+    auth: {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    },
+  });
+}
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
@@ -50,6 +105,97 @@ app.post("/api/analyze", async (req, res) => {
       code === "NO_AI_KEY" || code === "NO_YTDLP" ? 503 :
       code === "NO_CONTENT" || code === "FETCH_FAILED" ? 422 : 500;
     res.status(status).json({ error: e.message || "Analysis failed.", code });
+  }
+});
+
+// Register user on server (called during signup)
+app.post("/api/register-user", (req, res) => {
+  const { email, nickname, familyCode, name } = req.body || {};
+
+  if (!email || !nickname || !familyCode) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  const users = loadUsersDb();
+
+  // Check if email already exists
+  for (const user of Object.values(users)) {
+    if (user.email.toLowerCase() === email.toLowerCase()) {
+      return res.status(400).json({ error: "Email already registered" });
+    }
+  }
+
+  // Store user (key by email for easy lookup)
+  users[email.toLowerCase()] = {
+    email,
+    nickname,
+    familyCode,
+    name,
+    registeredAt: new Date().toISOString(),
+  };
+
+  saveUsersDb(users);
+  res.json({ success: true, message: "User registered on server" });
+});
+
+// Send family code via email
+app.post("/api/send-family-code", async (req, res) => {
+  const email = (req.body && req.body.email ? String(req.body.email) : "").trim();
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  const users = loadUsersDb();
+  const user = users[email.toLowerCase()];
+
+  if (!user) {
+    // Don't reveal whether email exists for security
+    return res.status(200).json({
+      success: true,
+      message: "If an account with this email exists, a recovery email has been sent",
+    });
+  }
+
+  try {
+    const transporter = await getEmailTransporter();
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || "cartly@example.com",
+      to: email,
+      subject: "Cartly - Your Family Code",
+      html: `
+        <h2>Cartly Family Code Recovery</h2>
+        <p>Hello ${user.name || user.nickname},</p>
+        <p>Your family code is:</p>
+        <h3 style="background-color: #f0f0f0; padding: 10px; border-radius: 5px; font-family: monospace;">
+          ${user.familyCode}
+        </h3>
+        <p>Use this code along with your email to sign in to Cartly.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+        <p>— Cartly Team</p>
+      `,
+      text: `Your Cartly family code is: ${user.familyCode}`,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log("✉️  Email sent:", info.response);
+
+    // If using test account, log the preview URL
+    if (!process.env.SMTP_HOST) {
+      console.log("Preview URL:", nodemailer.getTestMessageUrl(info));
+    }
+
+    res.json({
+      success: true,
+      message: "Family code sent to your email",
+    });
+  } catch (err) {
+    console.error("Email send error:", err);
+    res.status(500).json({
+      error: "Failed to send email. Please try again later.",
+    });
   }
 });
 

@@ -147,6 +147,10 @@ input::placeholder{color:var(--muted)}
       <input id="signupName" type="text" placeholder="Your name" required autocomplete="off">
     </div>
     <div class="field">
+      <label for="signupEmail">Email</label>
+      <input id="signupEmail" type="email" placeholder="Your email address" required autocomplete="email">
+    </div>
+    <div class="field">
       <label for="signupNickname">Nickname</label>
       <input id="signupNickname" type="text" placeholder="Your nickname (for quick identification)" required autocomplete="off">
     </div>
@@ -190,16 +194,31 @@ document.getElementById('themeBtn').onclick = () => {
 enforceAuthRouting('/signup');
 
 // Handle signup
-window.handleSignup = function(e) {
+window.handleSignup = async function(e) {
   e.preventDefault();
   const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
   const nickname = document.getElementById('signupNickname').value.trim();
   const familyName = document.getElementById('signupFamilyName').value.trim();
   const familyCode = document.getElementById('signupFamilyCode').value.trim();
 
-  const result = signup(name, nickname, familyName, familyCode);
+  const result = signup(name, email, nickname, familyName, familyCode);
 
   if (result.success) {
+    // Also register user on server for password recovery
+    try {
+      const response = await fetch('/api/register-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, nickname, familyCode, name })
+      });
+      if (!response.ok) {
+        console.error('Failed to register user on server');
+      }
+    } catch (err) {
+      console.error('Error registering user on server:', err);
+    }
+
     window.location.href = '/app';
   } else {
     const errorEl = document.getElementById('signupError');
