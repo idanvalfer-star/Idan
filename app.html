@@ -570,6 +570,27 @@ const FOODS = {
   foil:{c:"Household",e:"🧻"},
   sponge:{c:"Household",e:"🧽"},
 };
+/* Hebrew translations for Shufersal search */
+const FOOD_HE = {
+  onion:"בצל",garlic:"שום",tomato:"עגבנייה",potato:"תפוח אדמה",carrot:"גזר",
+  "bell pepper":"פלפל צבעוני",pepper:"פלפל",avocado:"אבוקדו",mango:"מנגו",
+  lettuce:"חסה",spinach:"תרד",broccoli:"ברוקולי",cucumber:"מלפפון",
+  lemon:"לימון",lime:"לימון ירוק",apple:"תפוח",banana:"בננה",orange:"תפוז",
+  strawberry:"תות",grape:"ענבים",mushroom:"פטריה",ginger:"ג'ינג'ר",
+  bread:"לחם",bagel:"בייגל",baguette:"חמישייה",croissant:"קרואסון",
+  cheese:"גבינה",ham:"בשר חזיר",turkey:"הודו",salami:"סלאמי",
+  chicken:"עוף",beef:"בקר",steak:"סטייק",pork:"חזיר",bacon:"בייקון",
+  fish:"דג",salmon:"סלמון",shrimp:"שרימפ",
+  milk:"חלב",egg:"ביצה",butter:"חמאה",yogurt:"יוגורט",cream:"שמנת",
+  "ice cream":"גלידה",peas:"אפונה",
+  flour:"קמח",sugar:"סוכר",rice:"אורז",pasta:"פסטה",oats:"שיבולת שועל",
+  lentils:"עדשים",honey:"דבש",
+  "canned tomatoes":"עגבניות שימורים",beans:"שעועית",chickpeas:"חומוס",
+  salt:"מלח",vinegar:"חומץ","olive oil":"שמן זית",oil:"שמן",
+  "soy sauce":"רוטב סויה",ketchup:"קטשופ",mustard:"חרדל",
+  coffee:"קפה",tea:"תה",juice:"מיץ",water:"מים",
+  "toilet paper":"נייר טואלט","paper towels":"מגבות נייר",soap:"סבון"
+};
 /* keyword list sorted longest-first so multi-word matches win */
 const FOOD_KEYS = Object.keys(FOODS).sort((a,b)=>b.length-a.length);
 
@@ -731,7 +752,11 @@ function delItem(id){ state.items = state.items.filter(i=>i.id!==id); save(); re
 function setCat(id,cat){ const it=state.items.find(i=>i.id===id); if(it){ it.category=cat; it.emoji=SECTION_EMOJI[cat]||it.emoji; save(); renderList(); } }
 
 /* ---------------- Render list ---------------- */
-function shufUrl(name){ return "https://www.shufersal.co.il/online/he/search?text="+encodeURIComponent(name); }
+function shufUrl(name){
+  const key = name.toLowerCase().trim();
+  const hebrewName = FOOD_HE[key] || name;
+  return "https://www.shufersal.co.il/online/he/search?text="+encodeURIComponent(hebrewName);
+}
 function itemRow(it){
   const done = it.checked?"checked":"";
   const inStockClass = it.inStock?"in-stock":"";
