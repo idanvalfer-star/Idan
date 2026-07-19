@@ -1326,13 +1326,13 @@ function openShufPanel(){
   document.getElementById("shufPanel").scrollIntoView({behavior:"smooth", block:"start"});
 }
 function openShufPopup(){
-  window.open("https://www.shufersal.co.il/online/he", "_blank", "noopener");
   const items = state.items.filter(i=>!i.checked);
-  const listHtml = items.map(it=>`<div style="margin:8px 0"><label><input type="checkbox"> ${it.emoji||"🛍️"} ${esc(it.name)}${it.qty?` <span style="color:#666">${esc(it.qty)}</span>`:""}</label></div>`).join("");
-  const popupContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Shopping List</title><style>body{font-family:system-ui,sans-serif;padding:16px;max-width:400px;background:#f5f5f5}label{display:flex;align-items:center;gap:8px;cursor:pointer;margin:8px 0}input{cursor:pointer}.header{font-size:18px;font-weight:bold;margin-bottom:16px;color:#333}</style></head><body><div class="header">🛒 Shopping List</div>${listHtml}</body></html>`;
+  const listHtml = items.map(it=>`<div style="margin:8px 0;padding:8px;border-radius:6px;background:#fff"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0"><input type="checkbox" style="cursor:pointer"> <span>${it.emoji||"🛍️"}</span> <span>${esc(it.name)}</span>${it.qty?` <span style="color:#666;font-size:12px">${esc(it.qty)}</span>`:""}</label></div>`).join("");
+  const popupContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>🛒 Shopping List</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{font-family:system-ui,-apple-system,sans-serif;background:#f9f9f9;height:100%}body{display:flex;flex-direction:column}.header{background:#e2231a;color:white;padding:12px 16px;font-weight:bold;font-size:16px;position:sticky;top:0;z-index:100}.list{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px}.footer{padding:12px 16px;background:#fff;border-top:1px solid #eee;text-align:center;font-size:12px;color:#666}</style></head><body><div class="header">🛒 ${items.length} Item${items.length!==1?'s':''}</div><div class="list">${listHtml}</div><div class="footer">Keep this list open while shopping at Shufersal</div></body></html>`;
   const blob = new Blob([popupContent], {type: 'text/html'});
   const url = URL.createObjectURL(blob);
-  window.open(url, "shoppingList", "width=450,height=600");
+  window.open(url, "shoppingList", "width=420,height=700,left=0,top=0");
+  setTimeout(()=>window.open("https://www.shufersal.co.il/online/he", "_blank", "noopener"), 200);
 }
 function toggleShuf(id){ if(shufDone.has(id)) shufDone.delete(id); else shufDone.add(id); renderShufPanel(); }
 function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; }
