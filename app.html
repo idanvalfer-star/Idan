@@ -1182,6 +1182,8 @@ function moveToList(id){
   const unitLabel = it.unit ? (isRTL() ? (T.he.units[INV_UNITS.indexOf(it.unit)]||it.unit) : it.unit) : "";
   const qtyStr = (it.qty && String(it.qty)!=="1") || unitLabel ? `${it.qty||1}${unitLabel?' '+unitLabel:''}` : "";
   addItem(it.name, qtyStr, "", it.img||"");
+  const addedItem = state.items.find(i=>i.name.toLowerCase()===it.name.toLowerCase());
+  if(addedItem) addedItem.inStock = true;
   state.inventory = state.inventory.filter(x=>x.id!==id); save();
   renderInventory(); renderList(); toast(t("t_moved_to_list"));
 }
