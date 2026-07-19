@@ -594,25 +594,25 @@ const DEFAULTS = ["Milk","Eggs","Bread","Butter","Bananas","Apples","Chicken","R
 
 /* ---------------- Recipes ---------------- */
 const RECIPES = [
-  {n:"Weeknight Pasta Pomodoro",e:"🍝",time:"20 min",ing:["pasta","canned tomatoes","garlic","olive oil","basil","parmesan"],
+  {n:"Pasta",e:"🍝",time:"20 min",ing:["pasta","canned tomatoes","garlic","olive oil","basil","parmesan"],
    steps:["Boil pasta in salted water.","Sizzle sliced garlic in olive oil, add tomatoes, simmer 10 min.","Toss pasta with sauce, top with basil & parmesan."]},
-  {n:"Crispy Chicken Stir-Fry",e:"🍗",time:"25 min",ing:["chicken","bell pepper","broccoli","soy sauce","ginger","garlic","rice"],
+  {n:"Stir-Fry",e:"🍗",time:"25 min",ing:["chicken","bell pepper","broccoli","soy sauce","ginger","garlic","rice"],
    steps:["Slice chicken thin, sear hot.","Add veg, ginger & garlic, stir 4 min.","Splash soy sauce; serve over rice."]},
-  {n:"Loaded Avocado Toast",e:"🥑",time:"8 min",ing:["bread","avocado","egg","lemon","chili flakes"],
+  {n:"Avocado Toast",e:"🥑",time:"8 min",ing:["bread","avocado","egg","lemon","chili flakes"],
    steps:["Toast bread.","Mash avocado with lemon & salt.","Top with a fried egg and chili flakes."]},
-  {n:"Creamy Tomato Soup",e:"🍅",time:"30 min",ing:["canned tomatoes","onion","garlic","cream","broth","butter"],
+  {n:"Tomato Soup",e:"🍅",time:"30 min",ing:["canned tomatoes","onion","garlic","cream","broth","butter"],
    steps:["Soften onion & garlic in butter.","Add tomatoes & broth, simmer 15 min.","Blend, stir in cream."]},
-  {n:"Chickpea Coconut Curry",e:"🍛",time:"25 min",ing:["chickpeas","coconut milk","onion","garlic","ginger","curry paste","rice"],
+  {n:"Curry",e:"🍛",time:"25 min",ing:["chickpeas","coconut milk","onion","garlic","ginger","curry paste","rice"],
    steps:["Fry onion, garlic, ginger & curry paste.","Add chickpeas + coconut milk, simmer 12 min.","Serve with rice."]},
-  {n:"Fresh Garden Salad",e:"🥗",time:"10 min",ing:["lettuce","cucumber","tomato","feta","olive oil","lemon"],
+  {n:"Salad",e:"🥗",time:"10 min",ing:["lettuce","cucumber","tomato","feta","olive oil","lemon"],
    steps:["Chop veg, crumble feta.","Whisk olive oil + lemon + salt.","Toss and serve."]},
-  {n:"Fluffy Pancakes",e:"🥞",time:"20 min",ing:["flour","milk","egg","butter","sugar","baking powder"],
+  {n:"Pancakes",e:"🥞",time:"20 min",ing:["flour","milk","egg","butter","sugar","baking powder"],
    steps:["Whisk dry, then wet, into a batter.","Rest 5 min.","Cook on buttered pan till bubbles pop; flip."]},
-  {n:"Beef Tacos",e:"🌮",time:"25 min",ing:["ground beef","tortillas","onion","cheese","tomato","cumin","paprika"],
+  {n:"Tacos",e:"🌮",time:"25 min",ing:["ground beef","tortillas","onion","cheese","tomato","cumin","paprika"],
    steps:["Brown beef with onion, cumin & paprika.","Warm tortillas.","Fill and top with cheese & tomato."]},
-  {n:"Salmon & Roasted Veg",e:"🐟",time:"30 min",ing:["salmon","potato","broccoli","olive oil","lemon","garlic"],
+  {n:"Salmon",e:"🐟",time:"30 min",ing:["salmon","potato","broccoli","olive oil","lemon","garlic"],
    steps:["Roast diced potato 15 min.","Add salmon, broccoli, garlic, oil.","Roast 12 min; finish with lemon."]},
-  {n:"Berry Yogurt Bowl",e:"🫐",time:"5 min",ing:["yogurt","frozen berries","honey","oats","banana"],
+  {n:"Yogurt Bowl",e:"🫐",time:"5 min",ing:["yogurt","frozen berries","honey","oats","banana"],
    steps:["Spoon yogurt into a bowl.","Top with berries & sliced banana.","Drizzle honey, scatter oats."]},
 ];
 
@@ -896,11 +896,20 @@ function saveRecipe(){
   }
   save(); closeRecipeEditor(); renderRecipes(); toast(t("t_recipe_saved"));
 }
+function simplifyRecipeName(title){
+  if(!title) return "Recipe";
+  const adjectives = /^(crispy|loaded|creamy|fresh|fluffy|easy|quick|simple|best|homemade|classic|slow|quick|spicy|mild|sweet|savory|hearty|light|healthy|traditional|modern|asian|italian|mexican|indian|thai|grilled|roasted|baked|fried|poached|steamed|boiled|sautéed|seared|charred)\s+/i;
+  let simplified = title.replace(adjectives, "").trim();
+  const words = simplified.split(/\s+/);
+  if(words.length > 2) simplified = words.slice(-2).join(" ");
+  return simplified.slice(0, 30).trim() || "Recipe";
+}
 /* Save the currently-analysed video (Video tab) straight into the recipe book. */
 function saveVideoAsRecipe(){
   const v = pendingVideo; if(!v) return;
   const chosen = v.ingredients.filter(x=>x.on);
-  const name = (v.name || v.title || (v.description||"").split(/[.!?\n]/)[0] || "Video recipe").slice(0,60).trim() || "Video recipe";
+  const rawName = (v.name || v.title || (v.description||"").split(/[.!?\n]/)[0] || "Video recipe").slice(0,60).trim();
+  const name = simplifyRecipeName(rawName) || "Video recipe";
   state.recipes.unshift({
     id:uid(), n:name, e:"🎬", time:"",
     ing: chosen.map(g=>({name:g.name, qty:g.qty||""})),
