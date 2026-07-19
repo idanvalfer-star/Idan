@@ -645,6 +645,17 @@ function seedRecipes(){
   }));
   save();
 }
+function cleanupOldSourceTags(){
+  const mapping = {"Weeknight":"Pasta","Crispy":"Stir-Fry","Loaded":"Avocado Toast","Creamy":"Tomato Soup","Chickpea":"Curry","Fresh":"Salad","Fluffy":"Pancakes","Beef":"Tacos","Salmon":"Salmon","Berry":"Yogurt Bowl"};
+  let updated = false;
+  (state.items||[]).forEach(item=>{
+    if(item.source && mapping[item.source]){
+      item.source = mapping[item.source];
+      updated = true;
+    }
+  });
+  if(updated) save();
+}
 /* Parse a free-text ingredient line into {name, qty} — "2 cups flour" -> {flour, 2 cups} */
 function parseIngLine(line){
   line = line.trim().replace(/^[-*•·]\s*/,"");
@@ -1522,6 +1533,7 @@ if(userInfo && userNameEl){
 // Initialize app
 seedRecipes();
 seedStarter();
+cleanupOldSourceTags();
 (async function initBackend(){
   try{
     const r = await fetch("/api/config");
