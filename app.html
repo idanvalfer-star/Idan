@@ -1323,6 +1323,8 @@ function openShufPanel(){
   document.getElementById("shufPanel").classList.remove("hide");
   renderShufPanel();
   document.getElementById("shufPanel").scrollIntoView({behavior:"smooth", block:"start"});
+  // Open Shufersal website in new tab
+  window.open("https://www.shufersal.co.il/online/he", "_blank", "noopener");
 }
 function toggleShuf(id){ if(shufDone.has(id)) shufDone.delete(id); else shufDone.add(id); renderShufPanel(); }
 function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; }
