@@ -238,6 +238,7 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <button class="chip ghost" id="defaultChip"><span>📋</span> <span data-i18n="starter_list">Starter list</span></button>
       <button class="chip ghost" id="editStarterChip"><span>✎</span> <span data-i18n="edit_starter">Edit starter</span></button>
       <button class="chip ghost" id="clearAllChip"><span>🗑️</span> <span data-i18n="clear_all">Clear all</span></button>
+      <button class="chip ghost" id="copyListChip"><span>📋</span> <span data-i18n="copy_list">Copy list</span></button>
       <button class="chip ghost" id="shufChip"><span>🛒</span> <span data-i18n="shuf_button">Shop at Shufersal</span></button>
       <span class="count-pill" id="countPill"></span>
     </div>
@@ -311,7 +312,7 @@ const T = {
     tagline:"Your smart grocery buddy",
     tab_list:"List", tab_home:"Home", tab_recipes:"Recipes", tab_video:"Video",
     add_placeholder:"Add a grocery…", qty_placeholder:"How many?",
-    sort_aisle:"Sort by aisle", starter_list:"Starter list", edit_starter:"Edit starter", clear_all:"Clear all",
+    sort_aisle:"Sort by aisle", starter_list:"Starter list", edit_starter:"Edit starter", clear_all:"Clear all", copy_list:"Copy list",
     to_get:"to get", ticked:"ticked",
     empty_title:"Your cart is empty", empty_body:"Add something above, or tap Starter list for the essentials.",
     recipes_title:"🍳 My recipes",
@@ -357,7 +358,7 @@ const T = {
     tagline:"חבר הקניות החכם שלך",
     tab_list:"רשימה", tab_home:"בבית", tab_recipes:"מתכונים", tab_video:"וידאו",
     add_placeholder:"הוספת מוצר…", qty_placeholder:"כמות",
-    sort_aisle:"מיון לפי מדף", starter_list:"רשימת בסיס", edit_starter:"עריכת בסיס", clear_all:"ניקוי הכל",
+    sort_aisle:"מיון לפי מדף", starter_list:"רשימת בסיס", edit_starter:"עריכת בסיס", clear_all:"ניקוי הכל", copy_list:"העתקת רשימה",
     to_get:"לקנייה", ticked:"סומנו",
     empty_title:"העגלה ריקה", empty_body:"הוסיפו מוצר למעלה, או הקישו על רשימת בסיס למוצרים הבסיסיים.",
     recipes_title:"🍳 המתכונים שלי",
@@ -1249,6 +1250,20 @@ document.getElementById("clearAllChip").onclick = ()=>{
   state.items = []; save(); renderList();
   toast(t("t_list_cleared"), { label:t("t_undo"), fn:()=>{ state.items = backup; save(); renderList(); toast(t("t_restored")); } });
 };
+
+/* Copy list to clipboard */
+function copyListToClipboard(){
+  if(!state.items.length){ toast(t("t_list_empty")); return; }
+  const listText = state.items
+    .map(it => `${it.emoji||"🛍️"} ${it.name}${it.qty ? " ("+it.qty+")" : ""}`)
+    .join("\n");
+  navigator.clipboard.writeText(listText).then(()=>{
+    toast("📋 Copied to clipboard!");
+  }).catch(()=>{
+    toast("Failed to copy");
+  });
+}
+document.getElementById("copyListChip").onclick = copyListToClipboard;
 
 /* ---------- Starter-list editor ---------- */
 function openStarterEditor(){
