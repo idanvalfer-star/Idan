@@ -123,6 +123,120 @@ input::placeholder{color:var(--muted)}
   transition:.2s;
 }
 .link-section a:hover{opacity:.8}
+.forgot-link{
+  text-align:center;
+  margin-top:12px;
+  font-size:13px;
+}
+.forgot-link a{
+  color:var(--muted);
+  text-decoration:none;
+  font-weight:600;
+  cursor:pointer;
+  transition:.2s;
+}
+.forgot-link a:hover{color:var(--accent)}
+.modal{
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:rgba(0,0,0,.5);
+  z-index:1000;
+  align-items:center;
+  justify-content:center;
+}
+.modal.show{display:flex}
+.modal-content{
+  background:var(--card);
+  padding:40px 30px;
+  border-radius:24px;
+  box-shadow:var(--shadow);
+  width:100%;
+  max-width:400px;
+  margin:20px;
+}
+.modal-header{
+  font-size:20px;
+  font-weight:800;
+  margin-bottom:16px;
+  color:var(--ink);
+}
+.modal-text{
+  font-size:14px;
+  color:var(--muted);
+  margin-bottom:20px;
+  line-height:1.5;
+}
+.modal-field{
+  margin-bottom:16px;
+}
+.modal-field label{
+  display:block;
+  font-size:13px;
+  font-weight:700;
+  color:var(--ink);
+  margin-bottom:6px;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
+.modal-field input{
+  width:100%;
+  padding:12px 14px;
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  background:var(--bg);
+  color:var(--ink);
+  font-size:15px;
+  font-family:inherit;
+  transition:.2s;
+}
+.modal-field input:focus{
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px var(--accent-soft);
+}
+.modal-buttons{
+  display:flex;
+  gap:12px;
+}
+.modal-buttons button{
+  flex:1;
+  padding:12px 16px;
+  border-radius:12px;
+  border:none;
+  font-weight:800;
+  font-size:15px;
+  cursor:pointer;
+  transition:transform .12s;
+  font-family:inherit;
+}
+.modal-buttons .primary{
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#fff;
+  box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);
+}
+.modal-buttons .primary:active{transform:scale(.98)}
+.modal-buttons .secondary{
+  background:var(--bg);
+  color:var(--ink);
+  border:1px solid var(--line);
+}
+.modal-buttons .secondary:active{transform:scale(.98)}
+.success-message{
+  display:none;
+  padding:12px 14px;
+  background:#efe;
+  border-radius:12px;
+  color:#060;
+  font-size:13px;
+  font-weight:600;
+  border:1px solid #cfc;
+  margin-bottom:16px;
+}
+.success-message.show{display:block}
 .theme-btn{
   position:fixed;
   top:20px;
@@ -149,10 +263,12 @@ input::placeholder{color:var(--muted)}
     <p class="subtitle">Sign in to your family account</p>
   </div>
 
+  <div class="success-message" id="successMessage"></div>
+
   <form class="form" id="loginForm" onsubmit="return handleLogin(event)">
     <div class="field">
-      <label for="loginName">Name or Nickname</label>
-      <input id="loginName" type="text" placeholder="Enter your name or nickname" required autocomplete="off">
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" placeholder="Enter your email" required autocomplete="email">
     </div>
     <div class="field">
       <label for="loginFamilyCode">Family Code</label>
@@ -162,11 +278,34 @@ input::placeholder{color:var(--muted)}
     <button type="submit" class="btn">Sign In</button>
   </form>
 
+  <div class="forgot-link">
+    <a onclick="openForgotModal()">Forgot Family Code?</a>
+  </div>
+
   <button type="button" class="btn secondary" onclick="guestLogin()">Continue as Guest</button>
 
   <div class="divider">or</div>
   <div class="link-section">
     Don't have an account? <a href="/signup">Sign Up</a>
+  </div>
+</div>
+
+<!-- Forgot Family Code Modal -->
+<div class="modal" id="forgotModal">
+  <div class="modal-content">
+    <div class="modal-header">Recover Family Code</div>
+    <div class="modal-text">
+      Enter your email address and we'll send your family code to you.
+    </div>
+    <div class="modal-field">
+      <label for="forgotEmail">Email Address</label>
+      <input id="forgotEmail" type="email" placeholder="Enter your email" required autocomplete="email">
+    </div>
+    <div class="error" id="forgotError"></div>
+    <div class="modal-buttons">
+      <button type="button" class="primary" onclick="sendFamilyCode()">Send Code</button>
+      <button type="button" class="secondary" onclick="closeForgotModal()">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -191,21 +330,128 @@ document.getElementById('themeBtn').onclick = () => {
 // Check if already authenticated
 enforceAuthRouting('/login');
 
-// Handle login
+// Handle login with email
 window.handleLogin = function(e) {
   e.preventDefault();
-  const name = document.getElementById('loginName').value.trim();
+  const email = document.getElementById('loginEmail').value.trim();
   const familyCode = document.getElementById('loginFamilyCode').value.trim();
-  const result = login(name, familyCode);
+  const errorEl = document.getElementById('loginError');
+
+  // Validate email format
+  if (!isValidEmail(email)) {
+    errorEl.textContent = 'Please enter a valid email address';
+    errorEl.classList.add('show');
+    return false;
+  }
+
+  // Try login with email and family code
+  const result = loginWithEmail(email, familyCode);
 
   if (result.success) {
     window.location.href = '/app';
   } else {
-    const errorEl = document.getElementById('loginError');
     errorEl.textContent = result.error;
     errorEl.classList.add('show');
   }
   return false;
+};
+
+// Email validation helper
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// Login with email and family code
+function loginWithEmail(email, familyCode) {
+  const authData = getAuthData();
+
+  // Find user by email
+  let user = null;
+  for (const u of Object.values(authData.users)) {
+    if (u.email && u.email.toLowerCase() === email.toLowerCase() && u.familyCode === familyCode) {
+      user = u;
+      break;
+    }
+  }
+
+  if (!user) {
+    return { success: false, error: 'Invalid email or family code' };
+  }
+
+  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+  return { success: true, user };
+}
+
+// Get auth data
+function getAuthData() {
+  try {
+    return {
+      users: JSON.parse(localStorage.getItem(USERS_KEY) || "{}"),
+      families: JSON.parse(localStorage.getItem(FAMILIES_KEY) || "{}")
+    };
+  } catch (e) {
+    return { users: {}, families: {} };
+  }
+}
+
+const AUTH_KEY = "cartly.auth";
+const USERS_KEY = "cartly.users";
+const FAMILIES_KEY = "cartly.families";
+
+// Forgot family code modal
+window.openForgotModal = function() {
+  document.getElementById('forgotModal').classList.add('show');
+  document.getElementById('forgotEmail').value = '';
+  document.getElementById('forgotError').classList.remove('show');
+};
+
+window.closeForgotModal = function() {
+  document.getElementById('forgotModal').classList.remove('show');
+};
+
+window.sendFamilyCode = async function() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  const errorEl = document.getElementById('forgotError');
+  errorEl.classList.remove('show');
+
+  if (!isValidEmail(email)) {
+    errorEl.textContent = 'Please enter a valid email address';
+    errorEl.classList.add('show');
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/send-family-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      closeForgotModal();
+      const successMsg = document.getElementById('successMessage');
+      successMsg.textContent = 'Family code sent to your email!';
+      successMsg.classList.add('show');
+      setTimeout(() => {
+        successMsg.classList.remove('show');
+      }, 5000);
+    } else {
+      errorEl.textContent = data.error || 'Failed to send family code';
+      errorEl.classList.add('show');
+    }
+  } catch (err) {
+    errorEl.textContent = 'Network error. Please try again.';
+    errorEl.classList.add('show');
+  }
+};
+
+// Close modal when clicking outside
+document.getElementById('forgotModal').onclick = function(e) {
+  if (e.target === this) {
+    closeForgotModal();
+  }
 };
 
 // Handle guest login
