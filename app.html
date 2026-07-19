@@ -1166,6 +1166,8 @@ function addInv(name, qty, unit, expiry){
   name=(name||"").trim(); if(!name) return false;
   const info = classify(name);
   state.inventory.unshift({id:uid(), name, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji});
+  const matchingItem = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase());
+  if(matchingItem) matchingItem.inStock = true;
   save(); return true;
 }
 function delInv(id){
@@ -1253,7 +1255,7 @@ document.getElementById("photoInput").addEventListener("change", async (e)=>{
 // inventory add bar
 function addInvFromInput(){
   const inp=document.getElementById("invInput"), q=document.getElementById("invQty");
-  if(addInv(inp.value, q.value.trim()||"1", invUnitVal(), "")){ inp.value=""; q.value="1"; inp.focus(); renderInventory(); toast(t("t_added_inv")); }
+  if(addInv(inp.value, q.value.trim()||"1", invUnitVal(), "")){ inp.value=""; q.value="1"; inp.focus(); renderInventory(); renderList(); toast(t("t_added_inv")); }
 }
 document.getElementById("invAddBtn").onclick = addInvFromInput;
 document.getElementById("invInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addInvFromInput(); });
