@@ -1001,14 +1001,14 @@ function extractIngredients(caption){
   return found;
 }
 function makeDescription(caption, platform, ingCount){
-  if(!caption || typeof caption !== “string”) return `${platform.charAt(0).toUpperCase()+platform.slice(1)} recipe with ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
+  if(!caption || typeof caption !== 'string') return `${platform.charAt(0).toUpperCase()+platform.slice(1)} recipe with ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
   const dishName = extractDishName(caption);
   const plat = platform.charAt(0).toUpperCase()+platform.slice(1);
-  if(dishName) return `${plat} · ${dishName}`;
-  const clean = caption.replace(/#[\w]+/g,””).replace(/\s+/g,” “).trim();
+  if(dishName) return `${plat} - ${dishName}`;
+  const clean = caption.replace(/#[\w]+/g,"").replace(/\s+/g," ").trim();
   let first = clean.split(/[.!?\n]/)[0].trim();
-  if(first.length>90) first = first.slice(0,90).trim()+”…”;
-  if(first) return `${plat} recipe: “${first}”`;
+  if(first.length>90) first = first.slice(0,90).trim()+"...";
+  if(first) return `${plat} recipe: "${first}"`;
   return `${plat} recipe`;
 }
 
