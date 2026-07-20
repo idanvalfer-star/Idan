@@ -969,6 +969,7 @@ function platformOf(url){
 }
 const UNITS = "cups?|cup|tbsp|tablespoons?|tsp|teaspoons?|g|grams?|kg|ml|l|litres?|liters?|oz|ounces?|lb|lbs|pounds?|cloves?|slices?|cans?|pinch|handful|bunch|pieces?|sprigs?";
 function extractIngredients(caption){
+  if(!caption || typeof caption !== "string") return [];
   const orig = " "+caption.toLowerCase().replace(/\s+/g," ")+" ";
   let mask = orig;            // matched spans get blanked so substrings/plurals don't double-match
   const found = [];
@@ -991,6 +992,7 @@ function extractIngredients(caption){
   return found;
 }
 function makeDescription(caption, platform, ingCount){
+  if(!caption || typeof caption !== "string") return `${platform.charAt(0).toUpperCase()+platform.slice(1)} recipe with ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
   const clean = caption.replace(/#[\w]+/g,"").replace(/\s+/g," ").trim();
   let first = clean.split(/[.!?\n]/)[0].trim();
   if(first.length>90) first = first.slice(0,90).trim()+"…";
