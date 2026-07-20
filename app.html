@@ -1000,15 +1000,6 @@ function extractIngredients(caption){
   found.sort((a,b)=> SECTIONS.indexOf(FOODS[a.key].c)-SECTIONS.indexOf(FOODS[b.key].c));
   return found;
 }
-function extractDishName(caption){
-  if(!caption || typeof caption !== “string”) return “”;
-  const lower = caption.toLowerCase();
-  for(const key of FOOD_KEYS){
-    const idx = lower.indexOf(key);
-    if(idx !== -1) return cap(key);
-  }
-  return “”;
-}
 function makeDescription(caption, platform, ingCount){
   if(!caption || typeof caption !== “string”) return `${platform.charAt(0).toUpperCase()+platform.slice(1)} recipe with ${ingCount} ingredient${ingCount!==1?'s':''} detected.`;
   const dishName = extractDishName(caption);
@@ -1176,6 +1167,15 @@ function delVideo(id){ state.videos = state.videos.filter(x=>x.id!==id); save();
 /* ---------------- Helpers ---------------- */
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function cap(s){ return String(s).replace(/\b\w/g,c=>c.toUpperCase()); }
+function extractDishName(caption){
+  if(!caption || typeof caption !== "string") return "";
+  const lower = caption.toLowerCase();
+  for(const key of FOOD_KEYS){
+    const idx = lower.indexOf(key);
+    if(idx !== -1) return cap(key);
+  }
+  return "";
+}
 
 /* ---------------- Home inventory ---------------- */
 const INV_UNITS = ["pcs","kg","g","L","ml","pack","bottle","can","box","bag"];
