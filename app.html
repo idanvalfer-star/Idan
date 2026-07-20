@@ -282,10 +282,6 @@ details.recipe-more summary::-webkit-details-marker{display:none}
         <label data-i18n="video_link">Video link</label>
         <input id="vUrl" placeholder="https://youtube.com/…  ·  instagram.com/…  ·  tiktok.com/…" autocomplete="off">
       </div>
-      <div class="field">
-        <label data-i18n="t_paste_caption">Caption (optional)</label>
-        <textarea id="vCaption" placeholder="Paste the video's caption here…" style="min-height:60px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-size:15px;resize:vertical;width:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif"></textarea>
-      </div>
       <button class="btn" id="vParse" data-i18n="analyse">✨ Analyse video</button>
       <div id="vResult" class="hide" style="margin-top:16px"></div>
     </div>
@@ -960,7 +956,6 @@ function saveVideoAsRecipe(){
   save();
   pendingVideo = null;
   document.getElementById("vUrl").value = "";
-  document.getElementById("vCaption").value = "";
   document.getElementById("vResult").classList.add("hide");
   toast(t("t_saved_recipe_book"));
 }
@@ -1075,10 +1070,9 @@ let analysing = false;
 async function analyseVideo(){
   if(analysing) return;
   const url = document.getElementById("vUrl").value.trim();
-  const cap = document.getElementById("vCaption").value.trim();
-  if(!url && !cap){ toast(t("t_link_or_caption")); return; }
-  // No server to watch the link, and nothing to read from: explain inline.
-  if((!backend.video || !url) && !cap){
+  if(!url){ toast(t("t_link_or_caption")); return; }
+  // No server available: explain inline.
+  if(!backend.video){
     const box = document.getElementById("vResult");
     box.classList.remove("hide");
     box.innerHTML = `<div class="vplace">${platformOf(url)==='instagram'?'📸':platformOf(url)==='tiktok'?'🎵':'🎬'}</div>
@@ -1090,7 +1084,7 @@ async function analyseVideo(){
   analysing = true;
   btn.disabled = true; btn.textContent = watching ? t("watching") : t("reading");
   try{
-    const res = await analyzeSource(url, cap);
+    const res = await analyzeSource(url, "");
     pendingVideo = { id:uid(), url, platform:res.platform, title:res.title, thumb:res.thumb,
       description:res.description, ingredients:toRows(res.ingredients), source:res.source };
     renderVideoResult();
