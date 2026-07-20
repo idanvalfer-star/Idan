@@ -1026,9 +1026,26 @@ function localRows(caption){
 }
 
 function niceError(e){
-  if(e && (e.code==="NO_WHISPER") || /whisper|openai/i.test(e && e.message||""))
-    return "This video needs audio transcription — add an OpenAI key on the server, or paste the caption.";
-  return (e && e.message) || "Couldn't read that. Paste the caption to try that instead.";
+  const msg = (e && e.message) || "";
+  const status = e && e.status;
+
+  // HTTP status codes for rate limiting / high demand
+  if(status === 429 || status === 503 || /high demand|rate limit|quota|overloaded|busy/i.test(msg)){
+    return "Video analysis server is busy. Please try again in a few minutes.";
+  }
+
+  // Server connection issues
+  if(status === 0 || /network|connection|fetch|timeout|failed to fetch/i.test(msg)){
+    return "Couldn't connect to video analysis server. Please check your connection and try again.";
+  }
+
+  // Whisper/transcription issues
+  if((e && e.code==="NO_WHISPER") || /whisper|openai/i.test(msg)){
+    return "This video needs audio transcription — the server isn't configured for it.";
+  }
+
+  // Generic fallback for any other error
+  return "Couldn't analyze this video. The server might be unavailable. Please try again later.";
 }
 
 // Shared analysis used by the Video tab and the recipe editor. Returns a
@@ -1053,7 +1070,12 @@ async function analyzeSource(url, cap){
         body: JSON.stringify({ url, caption: cap }),
       });
       const data = await r.json().catch(()=>({error:"Bad response from server"}));
-      if(!r.ok) throw Object.assign(new Error(data.error||"Analysis failed"), {code:data.code});
+      if(!r.ok) {
+        const err = new Error(data.error || data.message || "Analysis failed");
+        err.code = data.code;
+        err.status = r.status;
+        throw err;
+      }
       return { platform:data.platform||platform, title:data.title||"", thumb:data.thumb||thumb,
         description:data.description||"", source:data.source||"",
         ingredients:(data.ingredients||[]).map(g=>({name:g.name, qty:g.quantity||""})) };
