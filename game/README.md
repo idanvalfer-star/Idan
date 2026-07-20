@@ -43,6 +43,30 @@ fragment → exit through the portal that unlocks. Collect all three fragments t
 reveal the legendary treasure. Progress (level, health, weapons, ammo,
 fragments) auto-saves to localStorage at each level transition.
 
+## Visuals & movement (realism pass)
+
+- **Lighting**: ACES tone mapping, image-based lighting (`RoomEnvironment`
+  PMREM), per-biome directional sun set by azimuth/elevation, hemisphere
+  bounce, exponential fog, layered god-ray shafts.
+- **Post**: GTAO ambient occlusion (auto-skipped on platforms that can't run
+  it), tuned bloom (cores + sun only), per-biome color grade + vignette +
+  film grain in one pass, FXAA. All values in `RENDER` / `BIOMES`
+  (`theme.config.js`).
+- **Materials**: procedural tileable PBR texture sets (albedo/normal/rough)
+  generated at boot in `fx/Textures.js` — grass, sand, bark, stone, planks —
+  on a noise-displaced terrain. Trees are `InstancedMesh` trunks with
+  alpha-tested foliage cards; grass blades and rocks are instanced too.
+- **Character**: rigged glTF (`public/models/Soldier.glb`, Mixamo skeleton)
+  driven by an `AnimationMixer` blend tree — idle/walk/run selected and
+  speed-scaled by *actual* velocity (foot-lock, no skating), reversed walk
+  for backpedal, cross-fades everywhere, procedural roll/air poses. Weapon
+  and torch ride the hand/spine bones. Drop richer Mixamo clips into
+  `CharacterRig` by adding entries to its actions map.
+- **Feel**: acceleration/deceleration ramps, turn-lag with lean into turns,
+  spring-damped camera with walk sway, aim tighten, landing dip, subtle
+  head-bob; footstep audio + dust particles per surface (grass/sand/wood).
+  All tunables in `LOCOMOTION` (`theme.config.js`).
+
 ## Project structure
 
 ```

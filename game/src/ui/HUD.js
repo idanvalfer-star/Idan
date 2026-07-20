@@ -68,8 +68,6 @@ export class HUD {
         #hud .bossbar .pips { display:flex; gap:6px; justify-content:center; margin-top:5px; }
         #hud .bossbar .pip { width:34px; height:5px; border-radius:3px; background:rgba(255,255,255,.25); }
         #hud .bossbar .pip.active { background:${C.uiHot}; box-shadow:0 0 6px ${C.uiHot}; }
-        #hud .vignette { position:absolute; inset:0; pointer-events:none;
-                         background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,${THEME.post.vignette}) 100%); }
         #hud .painflash { position:absolute; inset:0; pointer-events:none; opacity:0;
                           background:radial-gradient(ellipse at center, transparent 40%, rgba(200,30,10,.55) 100%);
                           transition:opacity .35s; }
@@ -77,7 +75,6 @@ export class HUD {
                       font-size:18px; color:${C.uiWarm}; text-shadow:0 2px 5px #000; opacity:0;
                       transition:opacity .4s; letter-spacing:1px; }
       </style>
-      <div class="vignette"></div>
       <div class="painflash" id="painflash"></div>
       <div class="objective"><div class="head">OBJECTIVE</div><div id="objective-text">—</div></div>
       <div class="wave" id="wave-banner"></div>

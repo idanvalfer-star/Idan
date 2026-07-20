@@ -1,15 +1,58 @@
 /**
- * biomes.js — procedural prop builders ("scatter kinds") used by Level.
+ * biomes.js — terrain + procedural prop builders ("scatter kinds").
  *
- * Each builder receives (ctx, opts) where ctx = {scene, physics, size,
- * exclude(p, r), blockers, updatables} and adds meshes + static physics.
+ * Realism pass: textured noise-displaced terrain, InstancedMesh trees with
+ * alpha-tested foliage cards, instanced grass and rocks, PBR-textured ruins,
+ * wrecks and docks. Gameplay contracts are unchanged: builders still push
+ * LOS/bullet blockers into ctx.blockers, physics colliders into the physics
+ * world, and animated props into ctx.updatables.
+ *
  * To support a new biome, add a builder here and reference its kind from
- * levels.config.js. Builders push LOS/bullet blockers into ctx.blockers
- * and per-frame animated objects into ctx.updatables.
+ * levels.config.js.
  */
 import * as THREE from 'three';
+import { Tex } from '../fx/Textures.js';
 
 const rand = (a, b) => a + Math.random() * (b - a);
+
+// deterministic 2D fbm for terrain relief (shared by all levels)
+function terrainNoise(x, z) {
+  const n = Math.sin(x * 0.043 + z * 0.071) * 0.5
+    + Math.sin(x * 0.11 - z * 0.052 + 1.7) * 0.3
+    + Math.sin((x + z) * 0.021 + 4.2) * 0.2;
+  return n * 0.5 + 0.5; // 0..1
+}
+
+/**
+ * Textured, gently displaced ground. Bumps rise only (never dip below the
+ * y=0 physics plane) and stay < ~0.5 m so collision and enemy grounding
+ * remain honest. The normal-mapped texture carries the small-scale detail.
+ */
+export function buildTerrain(cfg, biome) {
+  const span = cfg.size * 2.5;
+  const geo = new THREE.PlaneGeometry(span, span, 96, 96);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    // smooth ramp above the flat floor — no derivative kink, so vertex
+    // normals stay clean (a hard max() here reads as a crack in the ground)
+    const t = Math.max(0, (terrainNoise(x, z) - 0.35) / 0.65);
+    pos.setY(i, t * t * (3 - 2 * t) * 0.75);
+  }
+  geo.computeVertexNormals();
+  const set = Tex[biome.ground]();
+  // the texture already carries the base color — only a light tint on top,
+  // otherwise the double multiply over-saturates (mars-red desert syndrome)
+  const tint = new THREE.Color(biome.groundTint).lerp(new THREE.Color('#ffffff'), 0.55);
+  const mat = new THREE.MeshStandardMaterial({
+    color: tint,
+    map: set.map, normalMap: set.normalMap, roughnessMap: set.roughnessMap,
+    normalScale: new THREE.Vector2(0.55, 0.55),
+    metalness: 0,
+  });
+  return new THREE.Mesh(geo, mat);
+}
 
 /** Scatter helper: random point in the level square, away from excluded spots.
  *  `clearance` widens the exclusion for large props (dunes, wrecks). */
@@ -23,83 +66,169 @@ function scatterPoint(ctx, margin = 5, clearance = 0) {
   return null;
 }
 
+/** Shared instanced-mesh scatter: places `count` copies via `place(i, dummy)`. */
+function instanced(ctx, geo, mat, count, place, { shadow = true, blocker = false } = {}) {
+  const mesh = new THREE.InstancedMesh(geo, mat, count);
+  const dummy = new THREE.Object3D();
+  let placed = 0;
+  for (let i = 0; i < count; i++) {
+    if (place(i, dummy) === false) continue;
+    dummy.updateMatrix();
+    mesh.setMatrixAt(placed++, dummy.matrix);
+  }
+  mesh.count = placed;
+  mesh.castShadow = shadow;
+  mesh.receiveShadow = true;
+  ctx.scene.add(mesh);
+  if (blocker) ctx.blockers.push(mesh);
+  return mesh;
+}
+
 export const SCATTER_BUILDERS = {
   // ---- Forest ------------------------------------------------------------
   trees(ctx, opts) {
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3826, roughness: 0.95 });
-    const canopyMats = [0x2e5d34, 0x25502c, 0x387042].map(
-      (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 })
-    );
+    const bark = Tex.bark();
+    const trunkMat = new THREE.MeshStandardMaterial({
+      map: bark.map, normalMap: bark.normalMap, roughnessMap: bark.roughnessMap,
+      color: '#8a7355',
+    });
+    // choose spots first so trunk + canopy + physics agree
+    const spots = [];
     for (let i = 0; i < opts.count; i++) {
       const p = scatterPoint(ctx);
       if (!p) continue;
-      const h = rand(6, 11);
-      const r = rand(0.25, 0.5);
-      const tree = new THREE.Group();
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.8, r, h, 7), trunkMat);
-      trunk.position.y = h / 2;
-      trunk.castShadow = true;
-      tree.add(trunk);
-      // layered cones read as dense canopy
-      const layers = 2 + Math.floor(Math.random() * 2);
-      for (let l = 0; l < layers; l++) {
-        const cr = rand(1.8, 3) * (1 - l * 0.25);
-        const canopy = new THREE.Mesh(
-          new THREE.ConeGeometry(cr, rand(2.5, 4), 8),
-          canopyMats[Math.floor(Math.random() * canopyMats.length)]
-        );
-        canopy.position.y = h * 0.65 + l * 1.8;
-        canopy.castShadow = true;
-        tree.add(canopy);
-      }
-      tree.position.set(p[0], 0, p[1]);
-      ctx.scene.add(tree);
-      ctx.blockers.push(trunk);
-      ctx.physics.addStaticCylinder([p[0], h / 2, p[1]], r, h);
+      spots.push({ x: p[0], z: p[1], h: rand(6, 11), r: rand(0.28, 0.5), rot: Math.random() * Math.PI * 2 });
     }
+    instanced(ctx,
+      new THREE.CylinderGeometry(0.75, 1, 1, 7),
+      trunkMat, spots.length,
+      (i, d) => {
+        const s = spots[i];
+        d.position.set(s.x, s.h / 2, s.z);
+        d.scale.set(s.r, s.h, s.r);
+        d.rotation.set(0, s.rot, 0);
+      }, { blocker: true });
+    // layered foliage cards — crossed alpha-tested planes read as canopy depth
+    const leafTints = ['#2e5d34', '#25502c', '#387042'];
+    for (let layer = 0; layer < 3; layer++) {
+      const mat = new THREE.MeshStandardMaterial({
+        map: Tex.leafCard(leafTints[layer]),
+        alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.9, metalness: 0,
+      });
+      instanced(ctx, new THREE.PlaneGeometry(1, 1), mat, spots.length * 2,
+        (i, d) => {
+          const s = spots[i >> 1];
+          const size = rand(3.6, 5.6) * (1 - layer * 0.16);
+          d.position.set(
+            s.x + rand(-0.5, 0.5),
+            s.h * 0.62 + layer * 1.7 + rand(-0.3, 0.3),
+            s.z + rand(-0.5, 0.5)
+          );
+          d.rotation.set(rand(-0.25, 0.25), (i % 2) * Math.PI / 2 + s.rot + layer * 0.7, rand(-0.15, 0.15));
+          d.scale.set(size, size * 0.8, 1);
+        }, { shadow: layer === 0 }); // only densest layer casts — keeps shadows cheap
+    }
+    for (const s of spots) ctx.physics.addStaticCylinder([s.x, s.h / 2, s.z], s.r, s.h);
+  },
+
+  /** Instanced grass blades — pure ground detail, no collision. */
+  grass(ctx, opts) {
+    // bent-quad blade: two triangles, tinted per instance
+    const geo = new THREE.PlaneGeometry(0.09, 0.55, 1, 2);
+    geo.translate(0, 0.27, 0);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) { // slight arc
+      const y = p.getY(i);
+      p.setX(i, p.getX(i) + y * y * 0.35);
+    }
+    const mat = new THREE.MeshStandardMaterial({
+      color: '#517a3d', roughness: 0.95, side: THREE.DoubleSide,
+    });
+    const half = ctx.size / 2 - 3;
+    const mesh = instanced(ctx, geo, mat, opts.count, (i, d) => {
+      d.position.set(rand(-half, half), 0, rand(-half, half));
+      d.rotation.set(rand(-0.15, 0.15), Math.random() * Math.PI, rand(-0.15, 0.15));
+      const s = rand(0.7, 1.6);
+      d.scale.set(s, s, s);
+    }, { shadow: false });
+    // per-instance green variation
+    const color = new THREE.Color();
+    for (let i = 0; i < mesh.count; i++) {
+      color.setHSL(0.26 + Math.random() * 0.05, 0.45, 0.3 + Math.random() * 0.14);
+      mesh.setColorAt(i, color);
+    }
+    mesh.instanceColor.needsUpdate = true;
   },
 
   rocks(ctx, opts) {
-    const mat = new THREE.MeshStandardMaterial({ color: 0x77726a, roughness: 0.95 });
+    const stone = Tex.stone();
+    const mat = new THREE.MeshStandardMaterial({
+      map: stone.map, normalMap: stone.normalMap, roughnessMap: stone.roughnessMap,
+      color: '#b8b2a6',
+    });
+    const spots = [];
     for (let i = 0; i < opts.count; i++) {
       const p = scatterPoint(ctx);
       if (!p) continue;
-      const s = rand(0.8, 2.4);
-      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), mat);
-      rock.position.set(p[0], s * 0.4, p[1]);
-      rock.rotation.set(Math.random(), Math.random() * Math.PI, Math.random());
-      rock.castShadow = true;
-      rock.receiveShadow = true;
-      ctx.scene.add(rock);
-      ctx.blockers.push(rock);
-      ctx.physics.addStaticBox([p[0], s * 0.4, p[1]], [s * 1.4, s, s * 1.4]);
+      spots.push({ x: p[0], z: p[1], s: rand(0.8, 2.4) });
     }
+    instanced(ctx, new THREE.DodecahedronGeometry(1, 0), mat, spots.length, (i, d) => {
+      const s = spots[i];
+      d.position.set(s.x, s.s * 0.4, s.z);
+      d.rotation.set(Math.random(), Math.random() * Math.PI, Math.random());
+      d.scale.setScalar(s.s);
+    }, { blocker: true });
+    for (const s of spots) ctx.physics.addStaticBox([s.x, s.s * 0.4, s.z], [s.s * 1.4, s.s, s.s * 1.4]);
   },
 
-  /** Fake volumetric god-rays: tilted additive translucent shafts. */
+  /** Fake volumetric god-rays: layered additive translucent shafts along the sun. */
   godrays(ctx, opts) {
+    // vertical alpha gradient — bright aloft, dissolving before the ground,
+    // so no hard rim where a shaft meets the floor
+    const gradCanvas = document.createElement('canvas');
+    gradCanvas.width = 4; gradCanvas.height = 128;
+    const gctx = gradCanvas.getContext('2d');
+    // canvas y=0 maps to texture v=1 (flipY) = the shaft TOP
+    const grad = gctx.createLinearGradient(0, 0, 0, 128);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');    // top of shaft
+    grad.addColorStop(0.55, 'rgba(255,255,255,0.7)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');    // fades out at the ground
+    gctx.fillStyle = grad;
+    gctx.fillRect(0, 0, 4, 128);
+    const alphaTex = new THREE.CanvasTexture(gradCanvas);
     const mat = new THREE.MeshBasicMaterial({
-      color: 0xffeebb, transparent: true, opacity: 0.05,
+      color: 0xffeebb, transparent: true, opacity: 0.05, alphaMap: alphaTex,
       blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+      fog: false,
     });
+    const inner = mat.clone();
+    inner.opacity = 0.08;
     for (let i = 0; i < opts.count; i++) {
       const p = scatterPoint(ctx, 15);
       if (!p) continue;
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(rand(1.5, 3), rand(3, 6), 30, 8, 1, true), mat);
-      shaft.position.set(p[0], 15, p[1]);
-      shaft.rotation.z = 0.25; // lean along the sun
-      ctx.scene.add(shaft);
+      const g = new THREE.Group();
+      const r1 = rand(1.5, 3);
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(r1 * 1.4, r1 * 2.6, 34, 24, 1, true), mat));
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(r1 * 0.7, r1 * 1.4, 34, 24, 1, true), inner));
+      g.position.set(p[0], 16, p[1]);
+      g.rotation.z = 0.28; // lean along the sun
+      g.rotation.y = Math.random() * Math.PI;
+      ctx.scene.add(g);
     }
   },
 
   // ---- Desert ------------------------------------------------------------
   dunes(ctx, opts) {
-    const mat = new THREE.MeshStandardMaterial({ color: 0xd4ad64, roughness: 1 });
+    const sand = Tex.sand();
+    const mat = new THREE.MeshStandardMaterial({
+      map: sand.map, normalMap: sand.normalMap, roughnessMap: sand.roughnessMap,
+      color: new THREE.Color('#d4ad64').lerp(new THREE.Color('#ffffff'), 0.55),
+    });
     for (let i = 0; i < opts.count; i++) {
       const r = rand(10, 20);
       const p = scatterPoint(ctx, 10, r); // keep whole dune clear of key spots
       if (!p) continue;
-      const dune = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 10), mat);
+      const dune = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 12), mat);
       dune.scale.y = rand(0.05, 0.08); // low rolling mounds, visual only
       dune.position.set(p[0], -r * dune.scale.y * 0.35, p[1]);
       dune.receiveShadow = true;
@@ -108,12 +237,14 @@ export const SCATTER_BUILDERS = {
   },
 
   ruins(ctx, opts) {
-    const stone = new THREE.MeshStandardMaterial({ color: 0xc0a97e, roughness: 0.9 });
+    const t = Tex.sandstone();
+    const stone = new THREE.MeshStandardMaterial({
+      map: t.map, normalMap: t.normalMap, roughnessMap: t.roughnessMap, color: '#d8c49a',
+    });
     for (let i = 0; i < opts.count; i++) {
       const p = scatterPoint(ctx, 8);
       if (!p) continue;
       if (Math.random() < 0.5) {
-        // broken wall
         const w = rand(4, 9), h = rand(1.5, 3.5);
         const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.8), stone);
         wall.position.set(p[0], h / 2, p[1]);
@@ -125,9 +256,8 @@ export const SCATTER_BUILDERS = {
         const b = ctx.physics.addStaticBox([p[0], h / 2, p[1]], [w, h, 0.8]);
         b.quaternion.setFromEuler(0, wall.rotation.y, 0);
       } else {
-        // pillar (sometimes toppled)
         const h = rand(3, 6);
-        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, h, 10), stone);
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, h, 12), stone);
         const fallen = Math.random() < 0.3;
         if (fallen) {
           pillar.rotation.z = Math.PI / 2;
@@ -149,7 +279,7 @@ export const SCATTER_BUILDERS = {
   },
 
   // ---- Sea / Coast -------------------------------------------------------
-  /** Animated water sheet with simple vertex waves + fresnel-ish tint. */
+  /** Animated water sheet with vertex waves + crest sparkle. */
   water(ctx) {
     const geo = new THREE.PlaneGeometry(ctx.size * 2, ctx.size, 60, 40);
     const mat = new THREE.ShaderMaterial({
@@ -162,7 +292,6 @@ export const SCATTER_BUILDERS = {
       vertexShader: /* glsl */`
         uniform float uTime;
         varying float vWave;
-        varying vec3 vPos;
         void main() {
           vec3 p = position;
           float w = sin(p.x * 0.15 + uTime * 1.2) * 0.35
@@ -170,7 +299,6 @@ export const SCATTER_BUILDERS = {
                   + sin((p.x + p.y) * 0.08 + uTime * 1.7) * 0.2;
           p.z += w;
           vWave = w;
-          vPos = p;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
         }`,
       fragmentShader: /* glsl */`
@@ -179,7 +307,6 @@ export const SCATTER_BUILDERS = {
         varying float vWave;
         void main() {
           vec3 c = mix(uColorDeep, uColorShallow, vWave * 0.6 + 0.5);
-          // sparkle crests
           c += smoothstep(0.55, 0.8, vWave) * vec3(0.35);
           gl_FragColor = vec4(c, 0.88);
         }`,
@@ -194,7 +321,10 @@ export const SCATTER_BUILDERS = {
   },
 
   shipwrecks(ctx, opts) {
-    const hullMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2c, roughness: 0.95 });
+    const planks = Tex.planks();
+    const hullMat = new THREE.MeshStandardMaterial({
+      map: planks.map, normalMap: planks.normalMap, roughnessMap: planks.roughnessMap, color: '#7a6248',
+    });
     const rotMat = new THREE.MeshStandardMaterial({ color: 0x354143, roughness: 0.9, metalness: 0.3 });
     for (let i = 0; i < opts.count; i++) {
       const p = scatterPoint(ctx, 12, 8);
@@ -223,7 +353,10 @@ export const SCATTER_BUILDERS = {
    * reward pickups on the far platform (see the sea level's dock pickups).
    */
   docks(ctx) {
-    const plankMat = new THREE.MeshStandardMaterial({ color: 0x5c4630, roughness: 0.9 });
+    const planks = Tex.planks();
+    const plankMat = new THREE.MeshStandardMaterial({
+      map: planks.map, normalMap: planks.normalMap, roughnessMap: planks.roughnessMap, color: '#8a6f50',
+    });
     const postMat = new THREE.MeshStandardMaterial({ color: 0x3f2f20, roughness: 0.95 });
     const x = 14, w = 4, d = 4, y = 1.0, gap = 2;
     for (let i = 0; i < 8; i++) {

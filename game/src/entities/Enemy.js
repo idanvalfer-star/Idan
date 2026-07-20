@@ -252,7 +252,8 @@ export class Enemy {
       this.mesh.position.y = 0;
     }
     // core pulse — menace you can read at a distance
-    const pulse = 2.2 + Math.sin(performance.now() * 0.004 + this.home.x) * 0.6;
+    const base = THEME.materials.enemyCore.emissiveIntensity;
+    const pulse = base * (0.8 + Math.sin(performance.now() * 0.004 + this.home.x) * 0.2);
     if (this.flashTimer <= 0 && this.dying <= 0) this.setCoreIntensity(pulse);
     return true;
   }

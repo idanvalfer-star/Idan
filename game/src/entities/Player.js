@@ -1,34 +1,25 @@
 /**
  * Player — treasure hunter controller.
  *
- * Movement: camera-relative WASD on a dynamic physics sphere (velocity set
- * directly, gravity handled by cannon). Sprint drains stamina, Space jumps
- * (ground-checked via downward ray), Ctrl dodge-rolls with brief i-frames.
+ * Locomotion (all tunables in LOCOMOTION, theme.config.js):
+ *   · velocity ramps with accel/decel — no instant starts or stops
+ *   · body turns toward travel direction over turnResponse seconds and
+ *     leans into turns and sprint
+ *   · jump has takeoff → airborne → landing (camera dip, dust, thud)
+ *   · dodge-roll with i-frames; sprint drains stamina
  *
- * Camera: over-the-shoulder orbit driven by mouse (pointer lock). Right
- * mouse = aim mode → shoulder tightens + FOV narrows for precision.
+ * Camera: spring-damped over-the-shoulder follow with walk sway, subtle
+ * head-bob, aim tighten (FOV + shoulder), and a landing dip.
  *
- * Visual: placeholder "tribal-tech adventurer" built from primitives —
- * gold-armored capsule, layered plates, braid, torch with warm point light.
- * Swap buildMesh() for a glTF rig later; the controller doesn't care.
+ * Visuals live in CharacterRig (rigged glTF + animation blend tree, or a
+ * primitive fallback) — this class never touches clips directly, it just
+ * reports {speed, backpedal, grounded, airborne, rolling} each frame.
  */
 import * as THREE from 'three';
-import { THEME } from '../config/theme.config.js';
+import { THEME, LOCOMOTION } from '../config/theme.config.js';
+import { CharacterRig } from './CharacterRig.js';
 
-const WALK_SPEED = 6.2;
-const SPRINT_SPEED = 9.5;
-const AIM_SPEED = 3.4;
-const JUMP_VEL = 8.5;
-const ROLL_SPEED = 13;
-const ROLL_TIME = 0.42;
-const ROLL_STAMINA = 25;
-const SPRINT_DRAIN = 18;    // per second
-const STAMINA_REGEN = 22;   // per second
-
-const CAM_OFFSET = new THREE.Vector3(0.85, 1.75, 4.1);   // over right shoulder
-const CAM_OFFSET_AIM = new THREE.Vector3(0.65, 1.55, 1.9);
-const FOV_NORMAL = 62;
-const FOV_AIM = 44;
+const L = LOCOMOTION;
 
 export class Player {
   constructor({ scene, physics, input, camera, audio }) {
@@ -37,6 +28,8 @@ export class Player {
     this.input = input;
     this.camera = camera;
     this.audio = audio;
+    this.particles = null;    // injected by GameManager
+    this.surface = 'grass';   // per-level footstep surface
 
     this.maxHealth = 100;
     this.health = 100;
@@ -45,21 +38,31 @@ export class Player {
     this.fragments = 0;
     this.score = 0;
 
-    this.yaw = 0;           // camera yaw (radians)
-    this.pitch = -0.12;     // camera pitch
+    this.yaw = 0;
+    this.pitch = -0.12;
     this.aiming = false;
     this.onGround = false;
+    this.wasGround = true;
     this.rollTimer = 0;
     this.rollDir = new THREE.Vector3();
     this.invulnTimer = 0;
-    this.hurtCallback = null; // HUD hooks in for damage flash
+    this.hurtCallback = null;
     this.dead = false;
+
+    this.vel = new THREE.Vector3();      // smoothed horizontal velocity
+    this.facing = 0;                      // current body yaw
+    this.lean = 0;
+    this.dipTimer = 0;                    // landing camera dip
+    this.bobPhase = 0;
+    this.lastGait = 0;
 
     this.body = physics.createPlayerBody([0, 2, 0]);
     this.mesh = this.buildMesh();
     scene.add(this.mesh);
 
     this._camTarget = new THREE.Vector3();
+    this._camPos = null;
+    this._lookPos = null;
     this._fwd = new THREE.Vector3();
     this._right = new THREE.Vector3();
     this._move = new THREE.Vector3();
@@ -68,54 +71,15 @@ export class Player {
 
   buildMesh() {
     const g = new THREE.Group();
-    const gold = new THREE.MeshStandardMaterial({
-      color: THEME.colors.playerGold, ...THEME.materials.playerArmor,
-    });
-    const leather = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.9 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xc98e63, roughness: 0.8 });
-    const hair = new THREE.MeshStandardMaterial({ color: 0x3a2417, roughness: 0.95 });
 
-    // torso (capsule) with layered chest plates
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.6, 4, 12), leather);
-    torso.position.y = 1.0;
-    torso.castShadow = true;
-    g.add(torso);
-    for (let i = 0; i < 3; i++) {
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.52 - i * 0.06, 0.14, 0.36), gold);
-      plate.position.set(0, 1.25 - i * 0.16, 0.06);
-      plate.castShadow = true;
-      g.add(plate);
-    }
-    // shoulder pads
-    for (const s of [-1, 1]) {
-      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), gold);
-      pad.position.set(s * 0.38, 1.42, 0);
-      pad.castShadow = true;
-      g.add(pad);
-    }
-    // head + braid down the back
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 12), skin);
-    head.position.y = 1.75;
-    head.castShadow = true;
-    g.add(head);
-    const braid = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.02, 0.55, 6), hair);
-    braid.position.set(0, 1.5, -0.22);
-    braid.rotation.x = 0.35;
-    g.add(braid);
-    // legs
-    for (const s of [-1, 1]) {
-      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.42, 4, 8), leather);
-      leg.position.set(s * 0.15, 0.4, 0);
-      leg.castShadow = true;
-      g.add(leg);
-    }
-    // weapon anchor (right hand) — Weapon attaches its mesh here
+    // weapon anchor — re-parented onto the rig's hand bone once it loads
     this.weaponAnchor = new THREE.Group();
     this.weaponAnchor.position.set(0.42, 1.15, 0.25);
     g.add(this.weaponAnchor);
 
-    // torch on the back — warm friendly light source per art direction
+    // torch — warm friendly light, rides the spine bone when available
     const torch = new THREE.Group();
+    const leather = new THREE.MeshStandardMaterial({ color: 0x6b4a2f, roughness: 0.9 });
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6), leather);
     const flame = new THREE.Mesh(
       new THREE.SphereGeometry(0.07, 8, 6),
@@ -129,19 +93,38 @@ export class Player {
     torch.add(stick, flame, this.torchLight);
     torch.position.set(-0.52, 1.0, -0.35);
     torch.rotation.z = 0.35;
+    this.torch = torch;
     g.add(torch);
 
+    // Mixamo armatures are cm-scaled (bone world scale ≈ 0.01) — attachments
+    // must invert that or they render at 1% size.
+    const attach = (bone, obj, posMeters) => {
+      bone.add(obj);
+      const inv = 1 / bone.getWorldScale(new THREE.Vector3()).x;
+      obj.scale.setScalar(inv);
+      obj.position.copy(posMeters).multiplyScalar(inv);
+    };
+    this.rig = new CharacterRig(g, {
+      onHandBone: (bone) => {
+        attach(bone, this.weaponAnchor, new THREE.Vector3(0.03, 0.12, 0.02));
+        this.weaponAnchor.rotation.set(Math.PI / 2, 0, 0);
+      },
+      onSpineBone: (bone) => {
+        attach(bone, this.torch, new THREE.Vector3(-0.22, 0.1, -0.14));
+      },
+    });
     return g;
   }
 
   setSpawn(x, z) {
     this.body.position.set(x, 1.5, z);
     this.body.velocity.set(0, 0, 0);
+    this.vel.set(0, 0, 0);
     this.mesh.position.set(x, 1.05, z);
     this.dead = false;
   }
 
-  /** @param {Array<THREE.Object3D>} groundMeshes meshes the jump-check ray may hit */
+  /** @param {Array<THREE.Object3D>} groundMeshes platform meshes for the jump-check ray */
   update(dt, groundMeshes) {
     if (this.dead) return;
     const input = this.input;
@@ -153,14 +136,24 @@ export class Player {
     this.pitch = Math.max(-1.2, Math.min(0.9, this.pitch));
     this.aiming = input.aim;
 
-    // ---- ground check (short ray from feet) ----
+    // ---- ground check (platforms via ray, terrain via height) ----
     this._ray.set(
       new THREE.Vector3(this.body.position.x, this.body.position.y + 0.1, this.body.position.z),
       new THREE.Vector3(0, -1, 0)
     );
     this._ray.far = 0.75;
-    this.onGround = this.body.position.y < 1.0 ||
-      (groundMeshes?.length ? this._ray.intersectObjects(groundMeshes, true).length > 0 : false);
+    const platformHit = groundMeshes?.length
+      ? this._ray.intersectObjects(groundMeshes, true).length > 0 : false;
+    this.onGround = this.body.position.y < 1.0 || platformHit;
+    this.groundSurface = platformHit ? 'wood' : this.surface;
+
+    // ---- landing ----
+    if (this.onGround && !this.wasGround && this.body.velocity.y <= 0.5) {
+      this.dipTimer = L.camera.landDip;
+      this.audio?.play('land', 0.7);
+      this.particles?.burst(this.feetPos(), this.groundSurface, 5, 0.8);
+    }
+    this.wasGround = this.onGround;
 
     // ---- movement basis (camera-relative, flattened) ----
     this._fwd.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -170,96 +163,171 @@ export class Player {
     if (input.back) this._move.sub(this._fwd);
     if (input.right) this._move.add(this._right);
     if (input.left) this._move.sub(this._right);
-    const moving = this._move.lengthSq() > 0;
-    if (moving) this._move.normalize();
+    const hasInput = this._move.lengthSq() > 0;
+    if (hasInput) this._move.normalize();
 
     // ---- dodge roll ----
     if (this.rollTimer > 0) {
       this.rollTimer -= dt;
-      this.body.velocity.x = this.rollDir.x * ROLL_SPEED;
-      this.body.velocity.z = this.rollDir.z * ROLL_SPEED;
+      this.vel.copy(this.rollDir).multiplyScalar(L.rollSpeed);
+      if (this.rollTimer <= 0) this.particles?.burst(this.feetPos(), this.groundSurface, 3, 0.6);
     } else {
-      if (input.dodge && this.stamina >= ROLL_STAMINA && this.onGround) {
-        this.rollTimer = ROLL_TIME;
-        this.invulnTimer = ROLL_TIME + 0.1;
-        this.stamina -= ROLL_STAMINA;
-        this.rollDir.copy(moving ? this._move : this._fwd);
+      if (input.dodge && this.stamina >= L.rollStamina && this.onGround) {
+        this.rollTimer = L.rollTime;
+        this.invulnTimer = L.rollTime + 0.1;
+        this.stamina -= L.rollStamina;
+        this.rollDir.copy(hasInput ? this._move : this._fwd);
         this.audio?.play('roll');
+        this.particles?.burst(this.feetPos(), this.groundSurface, 4, 0.7);
       }
-      // ---- walk / sprint ----
-      const sprinting = input.sprint && moving && this.stamina > 1 && !this.aiming;
-      const speed = this.aiming ? AIM_SPEED : (sprinting ? SPRINT_SPEED : WALK_SPEED);
-      if (sprinting) this.stamina = Math.max(0, this.stamina - SPRINT_DRAIN * dt);
-      else this.stamina = Math.min(this.maxStamina, this.stamina + STAMINA_REGEN * dt);
 
-      this.body.velocity.x = this._move.x * speed;
-      this.body.velocity.z = this._move.z * speed;
+      // ---- accelerate / decelerate toward the wish velocity ----
+      const sprinting = input.sprint && hasInput && this.stamina > 1 && !this.aiming;
+      const targetSpeed = !hasInput ? 0 : this.aiming ? L.aimSpeed : (sprinting ? L.sprintSpeed : L.runSpeed);
+      if (sprinting) this.stamina = Math.max(0, this.stamina - L.sprintDrain * dt);
+      else this.stamina = Math.min(this.maxStamina, this.stamina + L.staminaRegen * dt);
+
+      const target = this._move.clone().multiplyScalar(targetSpeed);
+      const rate = hasInput ? L.accel : L.decel;
+      const delta = target.sub(this.vel);
+      const maxStep = rate * dt;
+      if (delta.length() > maxStep) delta.setLength(maxStep);
+      this.vel.add(delta);
+      if (!hasInput && this.vel.length() < 0.05) this.vel.set(0, 0, 0);
 
       if (input.jump && this.onGround) {
-        this.body.velocity.y = JUMP_VEL;
+        this.body.velocity.y = L.jumpVelocity;
         this.audio?.play('jump');
       }
     }
 
-    if (this.invulnTimer > 0) this.invulnTimer -= dt;
+    this.body.velocity.x = this.vel.x;
+    this.body.velocity.z = this.vel.z;
 
-    // fell off the world → clamp back
+    if (this.invulnTimer > 0) this.invulnTimer -= dt;
     if (this.body.position.y < -20) this.setSpawn(this.mesh.position.x, this.mesh.position.z);
 
-    // ---- sync visual ----
+    // ---- sync visual root ----
     this.mesh.position.set(this.body.position.x, this.body.position.y - 0.45, this.body.position.z);
-    // face move direction; face camera direction when aiming
+
+    // ---- facing with turn-lag + lean into turns/sprint ----
+    const speed = Math.hypot(this.vel.x, this.vel.z);
+    let wantFacing = this.facing;
     if (this.aiming) {
-      this.mesh.rotation.y = this.yaw;
-    } else if (moving || this.rollTimer > 0) {
-      const dir = this.rollTimer > 0 ? this.rollDir : this._move;
-      const target = Math.atan2(dir.x, dir.z);
-      let d = target - this.mesh.rotation.y;
-      while (d > Math.PI) d -= Math.PI * 2;
-      while (d < -Math.PI) d += Math.PI * 2;
-      this.mesh.rotation.y += d * Math.min(1, dt * 12);
+      wantFacing = this.yaw;
+    } else if (this.rollTimer > 0) {
+      wantFacing = Math.atan2(this.rollDir.x, this.rollDir.z);
+    } else if (speed > 0.3) {
+      wantFacing = Math.atan2(this.vel.x, this.vel.z);
     }
-    // roll tuck animation
-    this.mesh.rotation.x = this.rollTimer > 0 ? (1 - this.rollTimer / ROLL_TIME) * Math.PI * 2 : 0;
+    let dYaw = wantFacing - this.facing;
+    while (dYaw > Math.PI) dYaw -= Math.PI * 2;
+    while (dYaw < -Math.PI) dYaw += Math.PI * 2;
+    const turnStep = dYaw * Math.min(1, dt / L.turnResponse);
+    this.facing += turnStep;
+    this.mesh.rotation.y = this.facing;
+
+    // lean: into turns (roll axis) proportional to turn rate + speed
+    const turnRate = dt > 0 ? turnStep / dt : 0;
+    const leanTarget = THREE.MathUtils.clamp(
+      -turnRate * (speed / L.sprintSpeed) * 0.12, -1, 1
+    ) * THREE.MathUtils.degToRad(L.leanAmount);
+    this.lean += (leanTarget - this.lean) * Math.min(1, dt * 10);
+    this.mesh.rotation.z = this.lean;
+    // slight forward pitch at sprint
+    const pitchTarget = speed > L.runSpeed + 0.5 && this.onGround ? -0.06 : 0;
+    this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, pitchTarget, Math.min(1, dt * 6));
+
+    // ---- animation state ----
+    const backpedal = this.aiming && hasInput && this._move.dot(this._fwd) < -0.5;
+    this.rig.update(dt, {
+      speed,
+      backpedal,
+      grounded: this.onGround,
+      airborne: !this.onGround,
+      rolling: this.rollTimer > 0 ? 1 - this.rollTimer / L.rollTime : 0,
+    });
+
+    // ---- footsteps from gait phase (falls back to bob phase) ----
+    if (this.onGround && speed > 0.5 && this.rollTimer <= 0) {
+      let phase = this.rig.gaitPhase();
+      if (phase === null) {
+        this.bobPhase += dt * (speed / L.runSpeed) * L.headBob.freq;
+        phase = this.bobPhase % 1;
+      }
+      // two footfalls per cycle
+      const crossed = (a, b, mark) => (a < mark && b >= mark) || (a > b && (b >= mark || a < mark));
+      if (crossed(this.lastGait, phase, 0.05) || crossed(this.lastGait, phase, 0.55)) {
+        const stepSound = { grass: 'stepGrass', sand: 'stepSand', wood: 'stepWood' }[this.groundSurface];
+        this.audio?.play(stepSound, speed > L.runSpeed ? 0.8 : 0.45);
+        if (speed > L.runSpeed) this.particles?.dust(this.feetPos(), this.groundSurface, 0.45);
+      }
+      this.lastGait = phase;
+    }
 
     // torch flicker
     this.torchLight.intensity = 1.0 + Math.sin(performance.now() * 0.02) * 0.2 + Math.random() * 0.15;
 
-    this.updateCamera(dt);
+    if (this.dipTimer > 0) this.dipTimer -= dt;
+    this.updateCamera(dt, speed);
   }
 
-  updateCamera(dt) {
+  feetPos() {
+    return new THREE.Vector3(this.mesh.position.x, this.mesh.position.y + 0.05, this.mesh.position.z);
+  }
+
+  updateCamera(dt, speed = 0) {
+    const CAM_OFFSET = this._off1 ||= new THREE.Vector3(0.85, 1.75, 4.1);
+    const CAM_OFFSET_AIM = this._off2 ||= new THREE.Vector3(0.65, 1.55, 1.9);
     const wanted = this.aiming ? CAM_OFFSET_AIM : CAM_OFFSET;
     this._camOffset ||= CAM_OFFSET.clone();
     this._camOffset.lerp(wanted, Math.min(1, dt * 10));
 
-    const fovWanted = this.aiming ? FOV_AIM : FOV_NORMAL;
+    const fovWanted = this.aiming ? L.camera.aimFov : L.camera.hipFov;
     if (Math.abs(this.camera.fov - fovWanted) > 0.1) {
       this.camera.fov += (fovWanted - this.camera.fov) * Math.min(1, dt * 10);
       this.camera.updateProjectionMatrix();
     }
 
-    // orbit around a point at chest height
     const pivot = this._camTarget.set(
       this.body.position.x, this.body.position.y + 0.9, this.body.position.z
     );
     const off = new THREE.Vector3(this._camOffset.x, 0, this._camOffset.z)
       .applyAxisAngle(new THREE.Vector3(1, 0, 0), this.pitch)
       .applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
-    this.camera.position.copy(pivot).add(off).add(new THREE.Vector3(0, this._camOffset.y - 0.9, 0));
-    // keep camera above ground
+    const desired = pivot.clone().add(off).add(new THREE.Vector3(0, this._camOffset.y - 0.9, 0));
+
+    // landing dip + subtle head-bob/walk sway
+    if (this.dipTimer > 0) {
+      desired.y -= Math.sin((1 - this.dipTimer / L.camera.landDip) * Math.PI) * 0.22;
+    }
+    if (this.onGround && speed > 0.5) {
+      this.bobPhase += dt * (speed / L.runSpeed) * L.headBob.freq;
+      const b = this.bobPhase * Math.PI * 2;
+      desired.y += Math.sin(b * 2) * L.headBob.amp * Math.min(1, speed / L.runSpeed);
+      desired.x += Math.cos(b) * L.headBob.amp * 0.5;
+    }
+
+    // spring-damped follow (frame-rate independent)
+    const followK = 1 - Math.pow(1 - L.camera.followLerp, dt * 60);
+    this._camPos ||= desired.clone();
+    this._camPos.lerp(desired, this.aiming ? Math.min(1, followK * 2.5) : followK);
+    this.camera.position.copy(this._camPos);
     if (this.camera.position.y < 0.3) this.camera.position.y = 0.3;
 
-    const lookAt = pivot.clone()
+    const lookDesired = pivot.clone()
       .add(new THREE.Vector3(0, Math.sin(this.pitch) * 2, 0))
       .add(new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)).multiplyScalar(6));
-    this.camera.lookAt(lookAt);
+    const lookK = 1 - Math.pow(1 - L.camera.lookLerp, dt * 60);
+    this._lookPos ||= lookDesired.clone();
+    this._lookPos.lerp(lookDesired, this.aiming ? 1 : lookK);
+    this.camera.lookAt(this._lookPos);
   }
 
   takeDamage(amount) {
     if (this.dead || this.invulnTimer > 0) return;
     this.health = Math.max(0, this.health - amount);
-    this.invulnTimer = Math.max(this.invulnTimer, 0.15); // tiny grace vs. bursts
+    this.invulnTimer = Math.max(this.invulnTimer, 0.15);
     this.audio?.play('hurt');
     this.hurtCallback?.(amount);
     if (this.health <= 0) this.dead = true;

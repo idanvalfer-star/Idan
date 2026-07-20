@@ -50,6 +50,11 @@ const SOUND_DEFS = {
   explode: { duration: 0.6,  gen: (t, p) => noise() * env(p, 3.5) * 0.9 + Math.sin(t * 2 * Math.PI * 60) * env(p, 4) * 0.6 },
   portal:  { duration: 1.0,  gen: (t, p) => Math.sin(t * 2 * Math.PI * (200 + p * 700)) * env(p, 2) * 0.3 },
   click:   { duration: 0.05, gen: (t, p) => Math.sin(t * 2 * Math.PI * 900) * env(p, 25) * 0.4 },
+  // footsteps — soft filtered thuds per surface, kept quiet under the mix
+  stepGrass: { duration: 0.09, gen: (t, p) => (noise() * 0.4 + Math.sin(t * 2 * Math.PI * 95) * 0.6) * env(p, 22) * 0.28 },
+  stepSand:  { duration: 0.12, gen: (t, p) => noise() * env(p, 16) * 0.2 },
+  stepWood:  { duration: 0.08, gen: (t, p) => (Math.sin(t * 2 * Math.PI * 160) * 0.7 + noise() * 0.3) * env(p, 26) * 0.34 },
+  land:    { duration: 0.22, gen: (t, p) => (Math.sin(t * 2 * Math.PI * 70) * 0.7 + noise() * 0.35) * env(p, 9) * 0.6 },
 };
 
 export class AudioManager {

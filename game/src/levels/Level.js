@@ -10,8 +10,8 @@
  * orchestrates enemy spawns out of shared pools (GameManager owns pools).
  */
 import * as THREE from 'three';
-import { THEME } from '../config/theme.config.js';
-import { SCATTER_BUILDERS } from './biomes.js';
+import { THEME, BIOMES, sunPosition } from '../config/theme.config.js';
+import { SCATTER_BUILDERS, buildTerrain } from './biomes.js';
 import { Pickup } from '../entities/Pickup.js';
 
 export class Level {
@@ -46,28 +46,27 @@ export class Level {
 
   build() {
     const { scene, physics, cfg } = this;
-    const biome = THEME.biomes[cfg.biome];
+    const biome = BIOMES[cfg.biome];
     scene.background = new THREE.Color(biome.sky);
-    scene.fog = new THREE.Fog(biome.fogColor, biome.fogNear, biome.fogFar);
+    // exponential fog reads as real atmospheric depth
+    scene.fog = new THREE.FogExp2(biome.fogColor, biome.fogDensity);
 
-    // ---- lights ----
-    this.sun = new THREE.DirectionalLight(biome.sunColor, biome.sunIntensity);
-    this.sun.position.set(...biome.sunPos);
+    // ---- lighting rig: strong directional sun + low sky/ground bounce ----
+    this.sun = new THREE.DirectionalLight(biome.sun.color, biome.sun.intensity);
+    this.sun.position.set(...sunPosition(biome.sun));
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.03;
     const s = cfg.size * 0.6;
-    Object.assign(this.sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s, far: 250 });
-    this.hemi = new THREE.HemisphereLight(biome.hemiSky, biome.hemiGround, biome.hemiIntensity);
+    Object.assign(this.sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s, far: 300 });
+    this.hemi = new THREE.HemisphereLight(biome.hemi.sky, biome.hemi.ground, biome.hemi.intensity);
     scene.add(this.sun, this.hemi);
     this.meshes.push(this.sun, this.hemi);
 
-    // ---- ground + arena walls ----
+    // ---- terrain (textured, noise-displaced) + arena walls ----
     physics.addGroundPlane();
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(cfg.size * 2.5, cfg.size * 2.5),
-      new THREE.MeshStandardMaterial({ color: biome.groundColor, ...THEME.materials.ground })
-    );
-    ground.rotation.x = -Math.PI / 2;
+    const ground = buildTerrain(cfg, biome);
     ground.receiveShadow = true;
     scene.add(ground);
     this.meshes.push(ground);

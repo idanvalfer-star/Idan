@@ -24,8 +24,10 @@ import { Level } from '../levels/Level.js';
 import { HUD } from '../ui/HUD.js';
 import { Menus } from '../ui/Menus.js';
 import { PostFX } from '../fx/PostFX.js';
+import { Particles } from '../fx/Particles.js';
 import { LEVELS } from '../config/levels.config.js';
-import { THEME } from '../config/theme.config.js';
+import { BIOMES, RENDER } from '../config/theme.config.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 export const STATE = {
   MENU: 'MENU', PLAYING: 'PLAYING', PAUSED: 'PAUSED',
@@ -45,17 +47,20 @@ export class GameManager {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.toneMappingExposure = RENDER.exposure;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     appEl.prepend(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 600);
-    this.postfx = new PostFX(this.renderer, this.scene, this.camera);
 
-    // per-biome color grade: cheap CSS tint layer over the canvas
-    this.gradeEl = document.createElement('div');
-    this.gradeEl.style.cssText = 'position:absolute;inset:0;pointer-events:none;mix-blend-mode:overlay;';
-    uiEl.appendChild(this.gradeEl);
+    // image-based lighting so PBR materials get real reflections/ambient
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = RENDER.envIntensity;
+    pmrem.dispose();
+
+    this.postfx = new PostFX(this.renderer, this.scene, this.camera);
 
     // ---- systems ----
     this.physics = new PhysicsWorld();
@@ -69,6 +74,8 @@ export class GameManager {
     });
     this.hud = new HUD(uiEl, this.camera);
     this.player.hurtCallback = () => this.hud.flashPain();
+    this.particles = new Particles(this.scene);
+    this.player.particles = this.particles;
 
     this.arsenal = new Arsenal({
       scene: this.scene, camera: this.camera, player: this.player,
@@ -126,9 +133,9 @@ export class GameManager {
     this.input.enabled = false;
     this.input.exitPointerLock();
     // idle backdrop
-    this.scene.background = new THREE.Color(THEME.biomes.forest.sky);
+    this.scene.background = new THREE.Color(BIOMES.forest.sky);
     this.scene.fog = null;
-    this.gradeEl.style.background = 'none';
+    this.postfx.setBiome(null);
     this.camera.position.set(0, 3, 8);
     this.camera.lookAt(0, 1, 0);
   }
@@ -195,8 +202,9 @@ export class GameManager {
     this.hud.refreshAmmo(this.arsenal.current);
     this.hud.show();
     this.menus.hideAll();
-    this.gradeEl.style.background = THEME.biomes[cfg.biome].grade;
+    this.postfx.setBiome(BIOMES[cfg.biome]);
     this.postfx.setShimmer(!!this.level.flags.shimmer);
+    this.player.surface = BIOMES[cfg.biome].footstep;
     this.setState(STATE.PLAYING);
     this.input.enabled = true;
     this.input.requestPointerLock();
@@ -291,6 +299,7 @@ export class GameManager {
       this.arsenal.getTargets = () => this.level.getTargets();
       this.arsenal.update(dt, this.input);
       this.level.update(dt);
+      this.particles.update(dt);
       this.hud.update(dt, this.player, this.arsenal);
       this.hud.updateBoss();
       this.audio.updateListener(this.camera);

@@ -25,6 +25,7 @@ export const LEVELS = [
     size: 140, difficulty: 1.0,
     scatter: [
       { kind: 'trees', count: 130 },
+      { kind: 'grass', count: 6000 },
       { kind: 'rocks', count: 25 },
       { kind: 'godrays', count: 6 },
     ],
