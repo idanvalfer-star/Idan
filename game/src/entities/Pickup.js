@@ -9,7 +9,8 @@ import { THEME } from '../config/theme.config.js';
 export class Pickup {
   /**
    * @param {string} kind 'health' | 'ammo' | 'weapon' | 'fragment'
-   * @param {object} opts {weapon} for kind 'weapon'
+   * @param {object} opts {weapon} for kind 'weapon'; {y} floor offset for
+   *                 pickups placed on platforms (docks etc.)
    */
   constructor(scene, kind, pos, opts = {}) {
     this.scene = scene;
@@ -17,8 +18,8 @@ export class Pickup {
     this.opts = opts;
     this.collected = false;
     this.mesh = this.buildMesh();
-    this.mesh.position.set(pos.x, 1, pos.z);
-    this.baseY = 1;
+    this.baseY = 1 + (opts.y ?? 0);
+    this.mesh.position.set(pos.x, this.baseY, pos.z);
     this.t = Math.random() * 10;
     scene.add(this.mesh);
   }

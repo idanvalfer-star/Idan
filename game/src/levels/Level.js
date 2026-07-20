@@ -85,6 +85,7 @@ export class Level {
       { p: cfg.playerSpawn, r: 6 }, { p: cfg.boss.pos, r: 10 }, { p: cfg.exit, r: 6 },
       ...cfg.pickups.map((pk) => ({ p: pk.pos, r: 3 })),
       ...cfg.waves.map((w) => ({ p: [w.area[0], w.area[1]], r: 4 })),
+      ...(cfg.exclusions ?? []), // extra keep-clear zones (e.g. the dock corridor)
     ];
     const ctx = {
       scene, physics, size: cfg.size,
@@ -100,7 +101,7 @@ export class Level {
 
     // ---- pickups ----
     for (const pk of cfg.pickups) {
-      this.pickups.push(new Pickup(scene, pk.kind, { x: pk.pos[0], z: pk.pos[1] }, { weapon: pk.weapon }));
+      this.pickups.push(new Pickup(scene, pk.kind, { x: pk.pos[0], z: pk.pos[1] }, { weapon: pk.weapon, y: pk.y }));
     }
 
     // ---- exit portal (locked until boss dies) ----

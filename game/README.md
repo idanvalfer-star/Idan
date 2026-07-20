@@ -1,9 +1,11 @@
 # Lost Treasure Hunter
 
 A third-person adventure shooter built with **Three.js + cannon-es + Howler + Vite**.
-A treasure hunter crosses three biomes — forest, desert, and coast — hunting a
-legendary treasure guarded by glowing-core mechs (Horizon Zero Dawn-inspired art
-direction: warm gold player, cool biomes, hot red enemy tech).
+A treasure hunter crosses three fully playable biomes — forest, desert, and
+coast — hunting a legendary treasure guarded by glowing-core mechs (Horizon
+Zero Dawn-inspired art direction: warm gold player, cool biomes, hot red enemy
+tech). The coast level adds dock platforming over an animated water shader,
+with reward pickups at the end of the jump line.
 
 All art is procedural placeholder geometry; the code is structured so real glTF
 models can be dropped in later.
@@ -82,6 +84,9 @@ src/
    scaling, and the fragment counter all follow the `LEVELS` array.
 3. Optional: new prop types → add a builder in `levels/biomes.js` under
    `SCATTER_BUILDERS` and reference its `kind` from the level's `scatter` list.
+   Levels can also declare `exclusions: [{p: [x, z], r}]` to keep scattered
+   props out of gameplay corridors, and pickups accept an optional `y` for
+   placement on platforms.
 
 ### Add an enemy
 1. `enemies.config.js` → add an entry (stats + `body: {form: 'quad'|'biped',

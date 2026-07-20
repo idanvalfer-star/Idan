@@ -186,8 +186,9 @@ export const SCATTER_BUILDERS = {
     });
     const sheet = new THREE.Mesh(geo, mat);
     sheet.rotation.x = -Math.PI / 2;
-    // water occupies the far half of the map (beyond the shore line)
-    sheet.position.set(0, 0.25, -ctx.size * 0.55);
+    // water starts past the shoreline (z ≈ -size/5) and runs to the horizon,
+    // leaving the combat arena on dry sand
+    sheet.position.set(0, 0.25, -ctx.size / 5 - ctx.size / 2);
     ctx.scene.add(sheet);
     ctx.updatables.push((dt) => { mat.uniforms.uTime.value += dt; });
   },
@@ -216,30 +217,32 @@ export const SCATTER_BUILDERS = {
     }
   },
 
-  /** Dock platforming: raised planks with gaps, jumping path over the shallows. */
+  /**
+   * Dock platforming: a deterministic line of planks with jumpable gaps,
+   * running from the shore out over the water. Level configs can place
+   * reward pickups on the far platform (see the sea level's dock pickups).
+   */
   docks(ctx) {
     const plankMat = new THREE.MeshStandardMaterial({ color: 0x5c4630, roughness: 0.9 });
     const postMat = new THREE.MeshStandardMaterial({ color: 0x3f2f20, roughness: 0.95 });
-    let z = -18;
-    let x = 14;
+    const x = 14, w = 4, d = 4, y = 1.0, gap = 2;
     for (let i = 0; i < 8; i++) {
-      const w = rand(3, 4.5), d = rand(3, 4.5);
-      const y = 1.2 + (i % 3) * 0.4; // slight height variation
-      const plank = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), plankMat);
+      const z = -18 - i * (d + gap);
+      const last = i === 7;
+      const pw = last ? 6 : w, pd = last ? 6 : d; // wider end platform for the reward
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(pw, 0.3, pd), plankMat);
       plank.position.set(x, y, z);
       plank.castShadow = true;
       plank.receiveShadow = true;
       ctx.scene.add(plank);
       ctx.blockers.push(plank);
-      ctx.physics.addStaticBox([x, y, z], [w, 0.3, d]);
+      ctx.physics.addStaticBox([x, y, z], [pw, 0.3, pd]);
       ctx.groundMeshes.push(plank); // player jump ground-check
       for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, y, 6), postMat);
-        post.position.set(x + sx * (w / 2 - 0.2), y / 2, z + sz * (d / 2 - 0.2));
+        post.position.set(x + sx * (pw / 2 - 0.2), y / 2, z + sz * (pd / 2 - 0.2));
         ctx.scene.add(post);
       }
-      z -= d + rand(1.6, 2.4); // the gap you jump
-      x += rand(-2, 2);
     }
   },
 };

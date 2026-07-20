@@ -95,18 +95,23 @@ export const LEVELS = [
     ],
     playerSpawn: [0, 65],
     waves: [
-      { enemies: [{ type: 'corsair', count: 4 }], area: [0, 30, 14] },
-      { enemies: [{ type: 'harpooner', count: 3 }, { type: 'corsair', count: 2 }], area: [-25, -5, 16] },
-      { enemies: [{ type: 'harpooner', count: 4 }, { type: 'corsair', count: 3 }], area: [20, -35, 16] },
+      { enemies: [{ type: 'corsair', count: 4 }], area: [0, 35, 14] },
+      { enemies: [{ type: 'harpooner', count: 3 }, { type: 'corsair', count: 2 }], area: [-25, 8, 16] },
+      { enemies: [{ type: 'harpooner', count: 4 }, { type: 'corsair', count: 3 }], area: [22, -12, 14] },
     ],
     pickups: [
-      { kind: 'health', pos: [12, 40] },
-      { kind: 'ammo', pos: [-15, 15] },
-      { kind: 'health', pos: [25, -25] },
-      { kind: 'ammo', pos: [-8, -45] },
+      { kind: 'health', pos: [12, 45] },
+      { kind: 'ammo', pos: [-15, 22] },
+      { kind: 'health', pos: [28, -5] },
+      // dock-platforming reward: on the wide platform at the end of the planks
+      { kind: 'health', pos: [12.5, -60], y: 1.15 },
+      { kind: 'ammo', pos: [15.5, -60], y: 1.15 },
     ],
-    boss: { type: 'krakenHull', pos: [0, -55] },
-    exit: [0, -70],
+    // combat stays on dry sand: the waterline starts at z = -size/5 = -32
+    boss: { type: 'krakenHull', pos: [0, -24] },
+    exit: [-22, -28],
+    // keep shipwrecks/rocks off the dock jumping line (x=14, z -18…-60)
+    exclusions: [{ p: [14, -40], r: 27 }],
     objectives: [
       'Fight through the wreckage and clear the pirate mechs',
       'Defeat the Kraken Hull',
