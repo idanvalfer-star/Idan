@@ -31,10 +31,7 @@ CREATE TABLE list_items (
   source TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_by UUID REFERENCES users(id),
-
-  INDEX idx_family_id (family_id),
-  INDEX idx_checked (checked)
+  updated_by UUID REFERENCES users(id)
 );
 
 -- Home inventory
@@ -47,10 +44,7 @@ CREATE TABLE home_inventory (
   expiry DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_by UUID REFERENCES users(id),
-
-  INDEX idx_family_id (family_id),
-  INDEX idx_expiry (expiry)
+  updated_by UUID REFERENCES users(id)
 );
 
 -- Saved videos
@@ -63,9 +57,7 @@ CREATE TABLE videos (
   description TEXT,
   thumb TEXT,
   ingredients JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-  INDEX idx_family_id (family_id)
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Recipes
@@ -78,9 +70,7 @@ CREATE TABLE recipes (
   ingredients JSONB,
   steps TEXT[],
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-  INDEX idx_family_id (family_id)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Enable realtime for list_items and home_inventory
@@ -90,3 +80,9 @@ ALTER TABLE home_inventory REPLICA IDENTITY FULL;
 -- Create indexes for better performance
 CREATE INDEX idx_users_family ON users(family_id);
 CREATE INDEX idx_families_created_by ON families(created_by);
+CREATE INDEX idx_list_items_family_id ON list_items(family_id);
+CREATE INDEX idx_list_items_checked ON list_items(checked);
+CREATE INDEX idx_home_inventory_family_id ON home_inventory(family_id);
+CREATE INDEX idx_home_inventory_expiry ON home_inventory(expiry);
+CREATE INDEX idx_videos_family_id ON videos(family_id);
+CREATE INDEX idx_recipes_family_id ON recipes(family_id);
