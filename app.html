@@ -1576,10 +1576,18 @@ const FAMILIES_KEY = "cartly.families";
 
 function getCurrentAuth() {
   try {
+    // Check Supabase auth (new)
+    const supabaseUser = sessionStorage.getItem('cartly.user');
+    if (supabaseUser) {
+      const user = JSON.parse(supabaseUser);
+      return { ...user, isGuest: user.id.startsWith('guest_') };
+    }
+    // Check old localStorage key
     const stored = localStorage.getItem(AUTH_KEY);
     if (stored) {
       return { ...JSON.parse(stored), isGuest: false };
     }
+    // Check old sessionStorage key
     const guestStored = sessionStorage.getItem(GUEST_SESSION_KEY);
     if (guestStored) {
       return { ...JSON.parse(guestStored), isGuest: true };
