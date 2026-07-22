@@ -1,11 +1,10 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Anthropic from '@anthropic-ai/sdk';
+import { analyzeVideo } from './lib/analyze.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const anthropic = new Anthropic();
 
 // Middleware
 app.use(express.json());
@@ -15,55 +14,44 @@ app.use(express.static(__dirname));
 
 // Config endpoint
 app.get('/api/config', (req, res) => {
-  res.json({ videoBackend: true, whisper: false });
+  const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+  const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+  const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+
+  res.json({
+    videoBackend: hasAnthropicKey || hasGeminiKey,
+    whisper: hasOpenAIKey,
+    anthropic: hasAnthropicKey,
+    openai: hasOpenAIKey,
+    gemini: hasGeminiKey
+  });
 });
 
-// Analyze video endpoint
+// Analyze video endpoint - uses full pipeline
 app.post('/api/analyze-video', async (req, res) => {
   try {
-    const { url, caption } = req.body;
+    const { url } = req.body;
 
-    if (!caption) {
-      return res.json({ success: false, error: 'Caption required' });
+    if (!url) {
+      return res.json({ success: false, error: 'Video URL required' });
     }
 
-    // Use Claude to extract ingredients from caption
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-4-1',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: `Extract all food/grocery ingredients from this recipe caption. Return as JSON array with {name, qty} objects. Caption:\n\n${caption}`
-        }
-      ]
+    const result = await analyzeVideo(url, {
+      anthropicKey: process.env.ANTHROPIC_API_KEY,
+      openaiKey: process.env.OPENAI_API_KEY,
+      geminiKey: process.env.GEMINI_API_KEY,
+      geminiModel: process.env.GEMINI_MODEL
     });
 
-    const content = message.content[0];
-    if (content.type !== 'text') {
-      return res.json({ success: false, error: 'Failed to parse response' });
-    }
-
-    // Parse Claude's response
-    let ingredients = [];
-    try {
-      const jsonMatch = content.text.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        ingredients = JSON.parse(jsonMatch[0]);
-      }
-    } catch (e) {
-      console.error('Failed to parse ingredients:', e);
-    }
-
-    res.json({
-      success: true,
-      ingredients,
-      platform: url.includes('instagram') ? 'instagram' : 'youtube'
-    });
+    res.json({ success: true, ...result });
 
   } catch (error) {
     console.error('Video analysis error:', error);
-    res.json({ success: false, error: error.message });
+    res.json({
+      success: false,
+      error: error.message,
+      code: error.code
+    });
   }
 });
 
