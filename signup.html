@@ -103,6 +103,7 @@ input::placeholder{color:var(--muted)}
   text-align:center;
   font-size:14px;
   color:var(--muted);
+  margin-top:20px;
 }
 .link-section a{
   color:var(--accent);
@@ -127,6 +128,18 @@ input::placeholder{color:var(--muted)}
   transition:transform .15s;
 }
 .theme-btn:active{transform:scale(.9)}
+.info{
+  display:none;
+  padding:12px 14px;
+  background:#efe;
+  border-radius:12px;
+  color:#060;
+  font-size:13px;
+  font-weight:600;
+  border:1px solid #cfc;
+  margin-bottom:16px;
+}
+.info.show{display:block}
 </style>
 
 <button class="theme-btn" id="themeBtn">🌙</button>
@@ -138,26 +151,24 @@ input::placeholder{color:var(--muted)}
     <p class="subtitle">Create your family account</p>
   </div>
 
+  <div class="info" id="infoMessage"></div>
+
   <form class="form" id="signupForm" onsubmit="return handleSignup(event)">
     <div class="field">
-      <label for="signupName">Name</label>
-      <input id="signupName" type="text" placeholder="Your name" required autocomplete="off">
-    </div>
-    <div class="field">
       <label for="signupEmail">Email</label>
-      <input id="signupEmail" type="email" placeholder="Your email address" required autocomplete="email">
+      <input id="signupEmail" type="email" placeholder="Enter your email" required autocomplete="email">
     </div>
     <div class="field">
-      <label for="signupNickname">Nickname</label>
-      <input id="signupNickname" type="text" placeholder="Your nickname (for quick identification)" required autocomplete="off">
+      <label for="signupNickname">Your Name</label>
+      <input id="signupNickname" type="text" placeholder="Your name or nickname" required>
     </div>
     <div class="field">
-      <label for="signupFamilyName">Family Name</label>
-      <input id="signupFamilyName" type="text" placeholder="Your family name" required autocomplete="off">
+      <label for="signupPassword">Password</label>
+      <input id="signupPassword" type="password" placeholder="Create a password" required>
     </div>
     <div class="field">
-      <label for="signupFamilyCode">Family Code</label>
-      <input id="signupFamilyCode" type="text" placeholder="Create a code to share with family" required autocomplete="off">
+      <label for="signupFamilyCode">Family Code (Optional)</label>
+      <input id="signupFamilyCode" type="text" placeholder="Leave blank to create a new family" autocomplete="off">
     </div>
     <div class="error" id="signupError"></div>
     <button type="submit" class="btn">Create Account</button>
@@ -170,7 +181,7 @@ input::placeholder{color:var(--muted)}
 </div>
 
 <script type="module">
-import { signup, enforceAuthRouting } from './auth.js';
+import { signupWithFamilyCode, initAuth, getCurrentUser } from './supabase-service.js';
 
 // Apply theme
 function applyTheme(t) {
@@ -188,40 +199,63 @@ document.getElementById('themeBtn').onclick = () => {
 };
 
 // Check if already authenticated
-enforceAuthRouting('/signup');
+async function checkAuth() {
+  await initAuth();
+  if (getCurrentUser()) {
+    window.location.href = '/app';
+  }
+}
+checkAuth();
 
 // Handle signup
 window.handleSignup = async function(e) {
   e.preventDefault();
-  const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim();
   const nickname = document.getElementById('signupNickname').value.trim();
-  const familyName = document.getElementById('signupFamilyName').value.trim();
-  const familyCode = document.getElementById('signupFamilyCode').value.trim();
+  const password = document.getElementById('signupPassword').value.trim();
+  const familyCode = document.getElementById('signupFamilyCode').value.trim().toUpperCase() || null;
 
-  const result = signup(name, email, nickname, familyName, familyCode);
+  const errorEl = document.getElementById('signupError');
+  const infoEl = document.getElementById('infoMessage');
+  errorEl.classList.remove('show');
+  infoEl.classList.remove('show');
+
+  if (!isValidEmail(email)) {
+    errorEl.textContent = 'Please enter a valid email address';
+    errorEl.classList.add('show');
+    return false;
+  }
+
+  if (!nickname) {
+    errorEl.textContent = 'Please enter your name';
+    errorEl.classList.add('show');
+    return false;
+  }
+
+  if (password.length < 6) {
+    errorEl.textContent = 'Password must be at least 6 characters';
+    errorEl.classList.add('show');
+    return false;
+  }
+
+  const result = await signupWithFamilyCode(email, nickname, password, familyCode);
 
   if (result.success) {
-    // Also register user on server for password recovery
-    try {
-      const response = await fetch('/api/register-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, nickname, familyCode, name })
-      });
-      if (!response.ok) {
-        console.error('Failed to register user on server');
-      }
-    } catch (err) {
-      console.error('Error registering user on server:', err);
-    }
-
-    window.location.href = '/app';
+    infoEl.textContent = familyCode
+      ? 'Welcome! You have joined the family.'
+      : 'Welcome! Your family code is: ' + result.familyCode + ' — share it with family members.';
+    infoEl.classList.add('show');
+    setTimeout(() => {
+      window.location.href = '/app';
+    }, 2000);
   } else {
-    const errorEl = document.getElementById('signupError');
-    errorEl.textContent = result.error;
+    errorEl.textContent = result.error || 'Signup failed';
     errorEl.classList.add('show');
   }
   return false;
 };
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 </script>
