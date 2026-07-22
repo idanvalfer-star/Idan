@@ -300,12 +300,12 @@ import { initAuth, getCurrentUser, subscribeToListUpdates } from './supabase-ser
 // Expose to window so inline script can access
 window.getCurrentUser = getCurrentUser;
 window.subscribeToListUpdates = subscribeToListUpdates;
+window.supabaseReady = true;
 
-// Initialize auth
-(async () => {
+// Initialize auth (non-blocking - run after page renders)
+setTimeout(async () => {
   try {
     await initAuth();
-    window.supabaseReady = true;
     const user = getCurrentUser();
 
     if(user && !user.id.startsWith('guest_')) {
@@ -329,10 +329,9 @@ window.subscribeToListUpdates = subscribeToListUpdates;
       }
     }
   } catch(e) {
-    console.error('Auth init error:', e);
-    window.supabaseReady = true;
+    console.log('Supabase init skipped (guest or error)');
   }
-})();
+}, 100);
 </script>
 
 <script>
