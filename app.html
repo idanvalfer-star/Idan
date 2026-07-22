@@ -294,6 +294,39 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 
 <div class="toast" id="toast"></div>
 
+<script type="module">
+import { supabase, initAuth, getCurrentUser, subscribeToListUpdates } from './supabase-service.js';
+
+window.supabaseService = { supabase, initAuth, getCurrentUser };
+
+// Initialize auth and Supabase on page load
+(async () => {
+  await initAuth();
+  window.supabaseReady = true;
+  const user = getCurrentUser();
+
+  if(user && !user.id.startsWith('guest_')) {
+    // Update UI with logged-in user info
+    document.getElementById('userInfo').style.display = 'flex';
+    document.getElementById('currentUserName').textContent = user.nickname || 'User';
+    document.getElementById('logoutBtn').style.display = 'block';
+    document.getElementById('logoutBtn').onclick = () => {
+      logout();
+      window.location.href = '/login';
+    };
+
+    // Set up real-time subscription for list updates
+    subscribeToListUpdates((payload) => {
+      if(payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+        renderList();
+      } else if(payload.eventType === 'DELETE') {
+        renderList();
+      }
+    });
+  }
+})();
+</script>
+
 <script>
 "use strict";
 /* ---------------- Store sections in walk order ---------------- */
@@ -640,11 +673,42 @@ const RECIPES = [
 /* ---------------- State ---------------- */
 const LS = "cartly.v1";
 let state = load();
+let supabaseReady = false;
+let saveTimeout = null;
+
 function load(){
   try{ const s = JSON.parse(localStorage.getItem(LS)); if(s&&s.items){ if(!Array.isArray(s.inventory)) s.inventory=[]; return s; } }catch(e){}
-  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null};
+  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[]};
 }
-function save(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
+
+function save(){
+  try{
+    localStorage.setItem(LS, JSON.stringify(state));
+    // Queue save to Supabase (non-blocking)
+    if(supabaseReady) {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(saveToSupabase, 500);
+    }
+  }catch(e){}
+}
+
+// Async save to Supabase (non-blocking, batched)
+async function saveToSupabase() {
+  if(!supabaseReady) return;
+  try {
+    const user = getCurrentUser();
+    if(!user || user.id.startsWith('guest_')) return;
+
+    // Batch sync items, videos, inventory
+    for(const item of state.items) {
+      if(item._dirty || !item.id.includes('-')) {
+        await upsertListItem(item);
+        item._dirty = false;
+      }
+    }
+  } catch(e) { console.error('Supabase save error:', e); }
+}
+
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 /* Starter list — seeded from the built-in essentials, then user-editable. */
@@ -1595,6 +1659,36 @@ if(userInfo && userNameEl){
   if(logoutBtnElement){
     logoutBtnElement.style.display = "flex";
   }
+}
+
+// Supabase sync functions
+window.logout = function() {
+  const { supabase } = window.supabaseService;
+  sessionStorage.removeItem('cartly.user');
+  supabase.auth.signOut();
+};
+
+async function upsertListItem(item) {
+  try {
+    const user = getCurrentUser?.();
+    if(!user || user.id.startsWith('guest_')) return;
+
+    const { supabase } = window.supabaseService;
+    await supabase
+      .from('list_items')
+      .upsert({
+        id: item.id,
+        family_id: user.family_id,
+        name: item.name,
+        quantity: item.qty || '',
+        category: item.category,
+        emoji: item.emoji,
+        checked: item.checked,
+        source: item.source || '',
+        updated_by: user.id,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+  } catch(e) { console.error('Supabase upsert error:', e); }
 }
 
 // Initialize app

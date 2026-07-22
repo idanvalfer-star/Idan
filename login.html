@@ -307,7 +307,7 @@ input::placeholder{color:var(--muted)}
 </div>
 
 <script type="module">
-import { login, guestLogin as guestLoginFn, enforceAuthRouting } from './auth.js';
+import { loginWithFamilyCode, guestLogin as guestLoginFn, getCurrentUser, initAuth } from './supabase-service.js';
 
 // Apply theme
 function applyTheme(t) {
@@ -325,14 +325,21 @@ document.getElementById('themeBtn').onclick = () => {
 };
 
 // Check if already authenticated
-enforceAuthRouting('/login');
+async function checkAuth() {
+  await initAuth();
+  if (getCurrentUser()) {
+    window.location.href = '/app';
+  }
+}
+checkAuth();
 
 // Handle login with email
-window.handleLogin = function(e) {
+window.handleLogin = async function(e) {
   e.preventDefault();
   const email = document.getElementById('loginEmail').value.trim();
-  const familyCode = document.getElementById('loginFamilyCode').value.trim();
+  const familyCode = document.getElementById('loginFamilyCode').value.trim().toUpperCase();
   const errorEl = document.getElementById('loginError');
+  errorEl.classList.remove('show');
 
   // Validate email format
   if (!isValidEmail(email)) {
@@ -341,13 +348,19 @@ window.handleLogin = function(e) {
     return false;
   }
 
-  // Try login with email and family code
-  const result = loginWithEmail(email, familyCode);
+  if (!familyCode) {
+    errorEl.textContent = 'Please enter your family code';
+    errorEl.classList.add('show');
+    return false;
+  }
+
+  // Try login with Supabase
+  const result = await loginWithFamilyCode(email, familyCode);
 
   if (result.success) {
     window.location.href = '/app';
   } else {
-    errorEl.textContent = result.error;
+    errorEl.textContent = result.error || 'Login failed';
     errorEl.classList.add('show');
   }
   return false;
@@ -357,43 +370,6 @@ window.handleLogin = function(e) {
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
-
-// Login with email and family code
-function loginWithEmail(email, familyCode) {
-  const authData = getAuthData();
-
-  // Find user by email
-  let user = null;
-  for (const u of Object.values(authData.users)) {
-    if (u.email && u.email.toLowerCase() === email.toLowerCase() && u.familyCode === familyCode) {
-      user = u;
-      break;
-    }
-  }
-
-  if (!user) {
-    return { success: false, error: 'Invalid email or family code' };
-  }
-
-  localStorage.setItem(AUTH_KEY, JSON.stringify(user));
-  return { success: true, user };
-}
-
-// Get auth data
-function getAuthData() {
-  try {
-    return {
-      users: JSON.parse(localStorage.getItem(USERS_KEY) || "{}"),
-      families: JSON.parse(localStorage.getItem(FAMILIES_KEY) || "{}")
-    };
-  } catch (e) {
-    return { users: {}, families: {} };
-  }
-}
-
-const AUTH_KEY = "cartly.auth";
-const USERS_KEY = "cartly.users";
-const FAMILIES_KEY = "cartly.families";
 
 // Forgot family code modal
 window.openForgotModal = function() {
@@ -417,31 +393,8 @@ window.sendFamilyCode = async function() {
     return;
   }
 
-  try {
-    const response = await fetch('/api/send-family-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      closeForgotModal();
-      const successMsg = document.getElementById('successMessage');
-      successMsg.textContent = 'Family code sent to your email!';
-      successMsg.classList.add('show');
-      setTimeout(() => {
-        successMsg.classList.remove('show');
-      }, 5000);
-    } else {
-      errorEl.textContent = data.error || 'Failed to send family code';
-      errorEl.classList.add('show');
-    }
-  } catch (err) {
-    errorEl.textContent = 'Network error. Please try again.';
-    errorEl.classList.add('show');
-  }
+  errorEl.textContent = 'Contact support to recover your family code';
+  errorEl.classList.add('show');
 };
 
 // Close modal when clicking outside
