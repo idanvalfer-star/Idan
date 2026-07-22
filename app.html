@@ -295,43 +295,40 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { initAuth, getCurrentUser, subscribeToListUpdates } from './supabase-service.js';
+// Lazy-load Supabase only when needed (not for guests)
+const user = JSON.parse(sessionStorage.getItem('cartly.user') || 'null');
+const isGuest = !user || user.id.startsWith('guest_');
 
-// Expose to window so inline script can access
-window.getCurrentUser = getCurrentUser;
-window.subscribeToListUpdates = subscribeToListUpdates;
 window.supabaseReady = true;
 
-// Initialize auth (non-blocking - run after page renders)
-setTimeout(async () => {
-  try {
-    await initAuth();
-    const user = getCurrentUser();
+// Only load Supabase if user is logged in
+if(!isGuest) {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates }) => {
+    window.getCurrentUser = getCurrentUser;
+    window.subscribeToListUpdates = subscribeToListUpdates;
 
-    if(user && !user.id.startsWith('guest_')) {
-      // Update UI with logged-in user info
-      const userInfo = document.getElementById('userInfo');
-      if(userInfo) {
-        userInfo.style.display = 'flex';
-        document.getElementById('currentUserName').textContent = user.nickname || 'User';
-        document.getElementById('logoutBtn').style.display = 'block';
-        document.getElementById('logoutBtn').onclick = () => {
-          sessionStorage.removeItem('cartly.user');
-          window.location.href = '/login';
-        };
-
-        // Set up real-time subscription
-        subscribeToListUpdates((payload) => {
-          if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
-            if(typeof renderList === 'function') renderList();
-          }
-        });
+    initAuth().then(() => {
+      const loggedUser = getCurrentUser();
+      if(loggedUser && !loggedUser.id.startsWith('guest_')) {
+        const userInfo = document.getElementById('userInfo');
+        if(userInfo) {
+          userInfo.style.display = 'flex';
+          document.getElementById('currentUserName').textContent = loggedUser.nickname || 'User';
+          document.getElementById('logoutBtn').style.display = 'block';
+          document.getElementById('logoutBtn').onclick = () => {
+            sessionStorage.removeItem('cartly.user');
+            window.location.href = '/login';
+          };
+          subscribeToListUpdates((payload) => {
+            if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
+              if(typeof renderList === 'function') renderList();
+            }
+          });
+        }
       }
-    }
-  } catch(e) {
-    console.log('Supabase init skipped (guest or error)');
-  }
-}, 100);
+    }).catch(e => console.log('Auth init failed'));
+  });
+}
 </script>
 
 <script>
