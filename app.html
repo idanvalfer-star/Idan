@@ -1646,6 +1646,7 @@ document.getElementById("logoutBtn").onclick = function(){
   if(confirm("Sign out from Cartly?")){
     localStorage.removeItem(AUTH_KEY);
     sessionStorage.removeItem(GUEST_SESSION_KEY);
+    sessionStorage.removeItem('cartly.user');
     window.location.replace('/login');
   }
 };
