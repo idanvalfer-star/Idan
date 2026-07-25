@@ -170,8 +170,26 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 .linkline{font-size:12px;word-break:break-all}
 .linkline a{color:var(--blue);text-decoration:none}
 
+/* settings panel */
+.settings-modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.settings-modal.show{display:flex;align-items:flex-start;justify-content:flex-end;padding-top:60px}
+.settings-panel{background:var(--card);border-radius:20px;width:90%;max-width:300px;box-shadow:var(--shadow);
+  padding:16px;margin:16px;animation:slideIn .25s cubic-bezier(.34,1.56,.64,1)}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:none;opacity:1}}
+.settings-panel h3{margin:0 0 12px;font-size:16px;font-weight:800;color:var(--ink)}
+.settings-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line);font-size:14px}
+.settings-item:last-child{border-bottom:none}
+.settings-item label{margin:0;font-weight:600;color:var(--ink);flex:1}
+.settings-item button{width:40px;height:40px;border-radius:12px;background:var(--bg);border:1px solid var(--line);
+  font-size:18px;display:grid;place-items:center;transition:.15s;font-weight:800}
+.settings-item button:active{transform:scale(.9);background:var(--line)}
+.settings-btn-danger{background:#fee!important;border-color:#fcc!important;color:#c00!important;font-weight:800;padding:10px 14px;
+  font-size:13px;width:100%;margin-top:12px;border-radius:12px;transition:.15s}
+.settings-btn-danger:active{transform:scale(.98);background:#fdd!important}
+
 /* language + photo + inventory */
-#langBtn{font-size:14px;font-weight:800}
+#settingsBtn{font-size:18px;font-weight:800}
 .photo-btn{background:var(--card);box-shadow:var(--shadow-sm);font-size:18px;flex:none}
 #photoPreview{display:flex;align-items:center;gap:10px;background:var(--accent-soft);border-radius:14px;padding:8px 12px;margin:0 0 12px;font-size:13px;font-weight:700;color:var(--accent-2)}
 #photoPreview img{width:40px;height:40px;border-radius:10px;object-fit:cover}
@@ -208,9 +226,7 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <span id="familyCodeDisplay" style="display:none;background:var(--accent-soft);color:var(--accent-2);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;margin:0 8px;cursor:pointer;border:1px solid var(--accent);"></span>
       <span id="guestBadge" style="display:none;"></span>
     </div>
-    <button class="icon-btn" id="langBtn" title="Language">עב</button>
-    <button class="icon-btn" id="themeBtn" title="Toggle theme">🌙</button>
-    <button class="icon-btn" id="logoutBtn" title="Sign out" style="display:none;">🚪</button>
+    <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
   </header>
 
   <nav class="tabs">
@@ -293,6 +309,30 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   </div><!-- end appContent -->
 </div>
 
+<!-- Settings Modal -->
+<div class="settings-modal" id="settingsModal">
+  <div class="settings-panel">
+    <h3 style="text-align:center">⚙️ Settings</h3>
+
+    <div class="settings-item">
+      <label>Language</label>
+      <button id="langBtn" title="Toggle language">עב</button>
+    </div>
+
+    <div class="settings-item">
+      <label>Brightness</label>
+      <button id="themeBtn" title="Toggle theme">🌙</button>
+    </div>
+
+    <div class="settings-item">
+      <label>Sign out</label>
+      <button id="logoutBtn" title="Sign out" style="display:none;">🚪</button>
+    </div>
+
+    <button class="settings-btn-danger" id="deleteAccountBtn" style="display:none;">🗑️ Delete Account</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -316,6 +356,7 @@ if(!isGuest) {
           userInfo.style.display = 'flex';
           document.getElementById('currentUserName').textContent = loggedUser.nickname || 'User';
           document.getElementById('logoutBtn').style.display = 'block';
+          document.getElementById('deleteAccountBtn').style.display = 'block';
           document.getElementById('logoutBtn').onclick = () => {
             sessionStorage.removeItem('cartly.user');
             window.location.href = '/login';
@@ -1583,6 +1624,61 @@ function applyLang(){
 document.getElementById("langBtn").onclick = ()=>{
   state.lang = isRTL() ? "en" : "he"; save(); applyLang();
 };
+
+/* ----------- SETTINGS MODAL ----------- */
+const settingsModal = document.getElementById("settingsModal");
+const settingsBtn = document.getElementById("settingsBtn");
+const deleteAccountBtn = document.getElementById("deleteAccountBtn");
+
+settingsBtn.onclick = ()=>{
+  settingsModal.classList.toggle("show");
+};
+
+settingsModal.onclick = (e)=>{
+  if(e.target === settingsModal) settingsModal.classList.remove("show");
+};
+
+deleteAccountBtn.onclick = ()=>{
+  if(confirm("Are you absolutely sure? This will permanently delete your account and all associated data.")){
+    if(confirm("This action cannot be undone. Type 'DELETE' to confirm.")){
+      const confirmText = prompt("Type DELETE to confirm account deletion:");
+      if(confirmText === "DELETE"){
+        deleteAccount();
+      } else {
+        alert("Cancelled. Account not deleted.");
+      }
+    }
+  }
+};
+
+async function deleteAccount(){
+  try {
+    const user = JSON.parse(sessionStorage.getItem('cartly.user') || 'null');
+    if(!user || !window.supabaseReady) {
+      alert("Error: Not authenticated");
+      return;
+    }
+
+    // Import supabase service
+    const { supabase } = await import('./supabase-service.js');
+
+    // Delete user profile
+    await supabase.from('users').delete().eq('id', user.id);
+
+    // Delete auth user
+    await supabase.auth.admin.deleteUser(user.id).catch(e => console.log('Auth delete error:', e));
+
+    // Clear session
+    sessionStorage.removeItem('cartly.user');
+    localStorage.clear();
+
+    alert("Account deleted successfully. Redirecting to login...");
+    setTimeout(()=>{ window.location.href = '/login'; }, 1000);
+  } catch(e){
+    console.error("Delete account error:", e);
+    alert("Error deleting account: " + e.message);
+  }
+}
 
 // expose handlers used in inline HTML
 Object.assign(window,{toggleItem,delItem,setCat,addRecipeToList,editRecipe,delRecipe,
