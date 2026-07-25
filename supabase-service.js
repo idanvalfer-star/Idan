@@ -72,7 +72,38 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
   }
 }
 
-// Login with email + family code
+// Login with email + password
+export async function loginWithPassword(email, password) {
+  try {
+    // Sign in with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (authError) throw authError;
+
+    const userId = authData.user.id;
+
+    // Fetch user profile to get family_id and nickname
+    const { data: userProfile, error: userError } = await supabase
+      .from('users')
+      .select('id, family_id, nickname')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userProfile) throw new Error('User profile not found');
+
+    currentUser = { id: userId, email, nickname: userProfile.nickname, family_id: userProfile.family_id };
+    sessionStorage.setItem('cartly.user', JSON.stringify(currentUser));
+
+    return { success: true, user: currentUser };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Login with email + family code (deprecated, kept for reference)
 export async function loginWithFamilyCode(email, familyCode) {
   try {
     // Get user by email from users table (since Supabase Auth doesn't let us query by email directly)

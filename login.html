@@ -268,15 +268,15 @@ input::placeholder{color:var(--muted)}
       <input id="loginEmail" type="email" placeholder="Enter your email" required autocomplete="email">
     </div>
     <div class="field">
-      <label for="loginFamilyCode">Family Code</label>
-      <input id="loginFamilyCode" type="text" placeholder="Enter your family code" required autocomplete="off">
+      <label for="loginPassword">Password</label>
+      <input id="loginPassword" type="password" placeholder="Enter your password" required autocomplete="current-password">
     </div>
     <div class="error" id="loginError"></div>
     <button type="submit" class="btn">Sign In</button>
   </form>
 
   <div class="forgot-link">
-    <a onclick="openForgotModal()">Forgot Family Code?</a>
+    <a onclick="openForgotModal()">Forgot Password?</a>
   </div>
 
   <button type="button" class="btn secondary" onclick="guestLogin()">Continue as Guest</button>
@@ -287,27 +287,21 @@ input::placeholder{color:var(--muted)}
   </div>
 </div>
 
-<!-- Forgot Family Code Modal -->
+<!-- Forgot Password Modal -->
 <div class="modal" id="forgotModal">
   <div class="modal-content">
-    <div class="modal-header">Recover Family Code</div>
+    <div class="modal-header">Reset Password</div>
     <div class="modal-text">
-      Enter your email address and we'll send your family code to you.
+      Password recovery is not yet available. Please contact support.
     </div>
-    <div class="modal-field">
-      <label for="forgotEmail">Email Address</label>
-      <input id="forgotEmail" type="email" placeholder="Enter your email" required autocomplete="email">
-    </div>
-    <div class="error" id="forgotError"></div>
     <div class="modal-buttons">
-      <button type="button" class="primary" onclick="sendFamilyCode()">Send Code</button>
-      <button type="button" class="secondary" onclick="closeForgotModal()">Cancel</button>
+      <button type="button" class="secondary" onclick="closeForgotModal()">Close</button>
     </div>
   </div>
 </div>
 
 <script type="module">
-import { loginWithFamilyCode, guestLogin as guestLoginFn, getCurrentUser, initAuth } from './supabase-service.js';
+import { loginWithPassword, guestLogin as guestLoginFn, getCurrentUser, initAuth } from './supabase-service.js';
 
 // Apply theme
 function applyTheme(t) {
@@ -333,11 +327,11 @@ async function checkAuth() {
 }
 checkAuth();
 
-// Handle login with email
+// Handle login with email + password
 window.handleLogin = async function(e) {
   e.preventDefault();
   const email = document.getElementById('loginEmail').value.trim();
-  const familyCode = document.getElementById('loginFamilyCode').value.trim().toUpperCase();
+  const password = document.getElementById('loginPassword').value;
   const errorEl = document.getElementById('loginError');
   errorEl.classList.remove('show');
 
@@ -348,14 +342,14 @@ window.handleLogin = async function(e) {
     return false;
   }
 
-  if (!familyCode) {
-    errorEl.textContent = 'Please enter your family code';
+  if (!password) {
+    errorEl.textContent = 'Please enter your password';
     errorEl.classList.add('show');
     return false;
   }
 
   // Try login with Supabase
-  const result = await loginWithFamilyCode(email, familyCode);
+  const result = await loginWithPassword(email, password);
 
   if (result.success) {
     window.location.href = '/app';
