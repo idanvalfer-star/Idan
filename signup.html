@@ -59,6 +59,13 @@ input:focus{
   box-shadow:0 0 0 3px var(--accent-soft);
 }
 input::placeholder{color:var(--muted)}
+.field-wrapper{position:relative;display:flex;align-items:stretch}
+.field-wrapper input{flex:1}
+.toggle-password{
+  position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;
+  padding:0;width:24px;height:24px;display:grid;place-items:center;transition:.2s}
+.toggle-password:active{color:var(--accent)}
 .error{
   display:none;
   padding:12px 14px;
@@ -164,7 +171,10 @@ input::placeholder{color:var(--muted)}
     </div>
     <div class="field">
       <label for="signupPassword">Password</label>
-      <input id="signupPassword" type="password" placeholder="Create a password" required>
+      <div class="field-wrapper">
+        <input id="signupPassword" type="password" placeholder="Create a password" required style="padding-right:40px">
+        <button type="button" class="toggle-password" id="toggleSignupPassword" title="Show/hide password">👁️</button>
+      </div>
     </div>
     <div class="field">
       <label for="signupFamilyCode">Family Code (Optional)</label>
@@ -249,7 +259,16 @@ window.handleSignup = async function(e) {
       window.location.href = '/app';
     }, 2000);
   } else {
-    errorEl.textContent = result.error || 'Signup failed';
+    let errorMsg = result.error || 'Signup failed';
+
+    // Make error messages clearer
+    if (errorMsg.includes('duplicate') || errorMsg.includes('already')) {
+      errorMsg = 'This email is already registered. Please sign in instead or use a different email.';
+    } else if (errorMsg.includes('Invalid family code')) {
+      errorMsg = 'The family code you entered is invalid. Leave blank to create a new family.';
+    }
+
+    errorEl.textContent = errorMsg;
     errorEl.classList.add('show');
   }
   return false;
@@ -258,4 +277,18 @@ window.handleSignup = async function(e) {
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+// Toggle password visibility
+document.getElementById('toggleSignupPassword').onclick = (e) => {
+  e.preventDefault();
+  const input = document.getElementById('signupPassword');
+  const btn = document.getElementById('toggleSignupPassword');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+  }
+};
 </script>

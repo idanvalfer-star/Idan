@@ -59,6 +59,13 @@ input:focus{
   box-shadow:0 0 0 3px var(--accent-soft);
 }
 input::placeholder{color:var(--muted)}
+.field-wrapper{position:relative;display:flex;align-items:stretch}
+.field-wrapper input{flex:1}
+.toggle-password{
+  position:absolute;right:14px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;
+  padding:0;width:24px;height:24px;display:grid;place-items:center;transition:.2s}
+.toggle-password:active{color:var(--accent)}
 .error{
   display:none;
   padding:12px 14px;
@@ -269,7 +276,10 @@ input::placeholder{color:var(--muted)}
     </div>
     <div class="field">
       <label for="loginPassword">Password</label>
-      <input id="loginPassword" type="password" placeholder="Enter your password" required autocomplete="current-password">
+      <div class="field-wrapper">
+        <input id="loginPassword" type="password" placeholder="Enter your password" required autocomplete="current-password" style="padding-right:40px">
+        <button type="button" class="toggle-password" id="toggleLoginPassword" title="Show/hide password">👁️</button>
+      </div>
     </div>
     <div class="error" id="loginError"></div>
     <button type="submit" class="btn">Sign In</button>
@@ -354,7 +364,16 @@ window.handleLogin = async function(e) {
   if (result.success) {
     window.location.href = '/app';
   } else {
-    errorEl.textContent = result.error || 'Login failed';
+    let errorMsg = result.error || 'Login failed';
+
+    // Make error messages clearer
+    if (errorMsg.includes('Invalid login credentials') || errorMsg.includes('invalid') || errorMsg.includes('not found')) {
+      errorMsg = 'Invalid email or password. Please check and try again.';
+    } else if (errorMsg.includes('User not found')) {
+      errorMsg = 'No account found with this email. Please sign up first.';
+    }
+
+    errorEl.textContent = errorMsg;
     errorEl.classList.add('show');
   }
   return false;
@@ -364,6 +383,20 @@ window.handleLogin = async function(e) {
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+// Toggle password visibility
+document.getElementById('toggleLoginPassword').onclick = (e) => {
+  e.preventDefault();
+  const input = document.getElementById('loginPassword');
+  const btn = document.getElementById('toggleLoginPassword');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    btn.textContent = '👁️';
+  }
+};
 
 // Forgot family code modal
 window.openForgotModal = function() {
