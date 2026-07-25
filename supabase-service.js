@@ -151,6 +151,34 @@ export function logout() {
   sessionStorage.removeItem('cartly.user');
 }
 
+// Request password reset email
+export async function requestPasswordReset(email) {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Update password with reset token
+export async function updatePasswordWithToken(newPassword, token) {
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 function generateFamilyCode() {
   return Math.random().toString(36).substr(2, 6).toUpperCase();
 }

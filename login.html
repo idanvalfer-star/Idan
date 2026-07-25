@@ -301,17 +301,24 @@ input::placeholder{color:var(--muted)}
 <div class="modal" id="forgotModal">
   <div class="modal-content">
     <div class="modal-header">Reset Password</div>
-    <div class="modal-text">
-      Password recovery is not yet available. Please contact support.
+    <div class="modal-text" id="forgotText">
+      Enter your email address and we'll send you a link to reset your password.
     </div>
+    <div class="modal-field" id="forgotEmailField">
+      <label for="forgotEmail">Email Address</label>
+      <input id="forgotEmail" type="email" placeholder="Enter your email" required autocomplete="email">
+    </div>
+    <div class="error" id="forgotError"></div>
+    <div id="forgotSuccess" class="success-message"></div>
     <div class="modal-buttons">
-      <button type="button" class="secondary" onclick="closeForgotModal()">Close</button>
+      <button type="button" class="primary" id="sendResetBtn" onclick="sendPasswordReset()">Send Reset Link</button>
+      <button type="button" class="secondary" onclick="closeForgotModal()">Cancel</button>
     </div>
   </div>
 </div>
 
 <script type="module">
-import { loginWithPassword, guestLogin as guestLoginFn, getCurrentUser, initAuth } from './supabase-service.js';
+import { loginWithPassword, guestLogin as guestLoginFn, getCurrentUser, initAuth, requestPasswordReset } from './supabase-service.js';
 
 // Apply theme
 function applyTheme(t) {
@@ -398,21 +405,27 @@ document.getElementById('toggleLoginPassword').onclick = (e) => {
   }
 };
 
-// Forgot family code modal
+// Forgot password modal
 window.openForgotModal = function() {
   document.getElementById('forgotModal').classList.add('show');
   document.getElementById('forgotEmail').value = '';
   document.getElementById('forgotError').classList.remove('show');
+  document.getElementById('forgotSuccess').classList.remove('show');
+  document.getElementById('forgotEmailField').style.display = 'block';
+  document.getElementById('sendResetBtn').style.display = 'block';
+  document.getElementById('forgotText').textContent = 'Enter your email address and we\'ll send you a link to reset your password.';
 };
 
 window.closeForgotModal = function() {
   document.getElementById('forgotModal').classList.remove('show');
 };
 
-window.sendFamilyCode = async function() {
+window.sendPasswordReset = async function() {
   const email = document.getElementById('forgotEmail').value.trim();
   const errorEl = document.getElementById('forgotError');
+  const successEl = document.getElementById('forgotSuccess');
   errorEl.classList.remove('show');
+  successEl.classList.remove('show');
 
   if (!isValidEmail(email)) {
     errorEl.textContent = 'Please enter a valid email address';
@@ -420,8 +433,21 @@ window.sendFamilyCode = async function() {
     return;
   }
 
-  errorEl.textContent = 'Contact support to recover your family code';
-  errorEl.classList.add('show');
+  const result = await requestPasswordReset(email);
+
+  if (result.success) {
+    successEl.textContent = '✓ Reset link sent! Check your email for instructions.';
+    successEl.classList.add('show');
+    document.getElementById('forgotEmailField').style.display = 'none';
+    document.getElementById('sendResetBtn').style.display = 'none';
+    document.getElementById('forgotText').textContent = 'A password reset link has been sent to ' + email;
+    setTimeout(() => {
+      closeForgotModal();
+    }, 4000);
+  } else {
+    errorEl.textContent = result.error || 'Failed to send reset link';
+    errorEl.classList.add('show');
+  }
 };
 
 // Close modal when clicking outside
