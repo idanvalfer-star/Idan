@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "@supabase/supabase-js": "^2.39.3",
     "express": "^4.21.2",
     "nodemailer": "^6.9.13"
   }
