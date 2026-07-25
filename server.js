@@ -2,16 +2,9 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeVideo } from './lib/analyze.js';
-import { createClient } from '@supabase/supabase-js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-
-// Supabase admin client
-const supabase = createClient(
-  'https://xxyhrhkflexpyipttmug.supabase.co',
-  process.env.SUPABASE_SERVICE_KEY || 'sb_publishable_S18kdYcFkvHKBKjvcXXOjg_rF7qqW94'
-);
 
 // Middleware
 app.use(express.json());
