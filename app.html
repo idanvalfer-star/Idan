@@ -372,7 +372,7 @@ if(!isGuest) {
               .then(({data}) => {
                 if(data && data.family_code) {
                   const codeEl = document.getElementById('familyCodeDisplay');
-                  codeEl.textContent = 'Code: ' + data.family_code;
+                  codeEl.textContent = 'Family Code: ' + data.family_code;
                   codeEl.style.display = 'inline-block';
                   codeEl.title = 'Click to copy family code';
                   codeEl.onclick = () => {
