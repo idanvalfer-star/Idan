@@ -14,6 +14,10 @@ export async function initAuth() {
   const stored = sessionStorage.getItem('cartly.user');
   if (stored) {
     currentUser = JSON.parse(stored);
+    // Validate that family_id is set for non-guest users
+    if (!currentUser.id.startsWith('guest_') && !currentUser.family_id) {
+      console.warn('WARNING: User restored but family_id is missing. This will cause issues.', { currentUser });
+    }
   }
   return currentUser;
 }
@@ -198,9 +202,13 @@ function generateFamilyCode() {
 // Data operations
 export async function getListItems() {
   if (!currentUser || currentUser.id === 'guest_' + currentUser.id.match(/\d+$/)?.[0]) {
-    // Guest: use localStorage
     const stored = localStorage.getItem('cartly.v1');
     return stored ? JSON.parse(stored).items || [] : [];
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot fetch items - family_id is missing from currentUser', { currentUser });
+    return [];
   }
 
   const { data, error } = await supabase
@@ -210,7 +218,7 @@ export async function getListItems() {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching items:', error);
+    console.error('Error fetching items:', error, { family_id: currentUser.family_id });
     return [];
   }
 
@@ -229,8 +237,12 @@ export async function getListItems() {
 
 export async function addListItem(item) {
   if (!currentUser || currentUser.id.startsWith('guest_')) {
-    // Guest: use localStorage
     return addItemLocalStorage(item);
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot add item - family_id is not set', { currentUser });
+    throw new Error('Family ID not set. Please log in again.');
   }
 
   const { error } = await supabase
@@ -246,12 +258,20 @@ export async function addListItem(item) {
       updated_by: currentUser.id
     }]);
 
-  if (error) console.error('Error adding item:', error);
+  if (error) {
+    console.error('Error adding item:', error, { family_id: currentUser.family_id });
+    throw error;
+  }
 }
 
 export async function updateListItem(id, updates) {
   if (!currentUser || currentUser.id.startsWith('guest_')) {
     return updateItemLocalStorage(id, updates);
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot update item - family_id is not set', { currentUser });
+    throw new Error('Family ID not set. Please log in again.');
   }
 
   const { error } = await supabase
@@ -264,12 +284,20 @@ export async function updateListItem(id, updates) {
     .eq('id', id)
     .eq('family_id', currentUser.family_id);
 
-  if (error) console.error('Error updating item:', error);
+  if (error) {
+    console.error('Error updating item:', error, { family_id: currentUser.family_id });
+    throw error;
+  }
 }
 
 export async function deleteListItem(id) {
   if (!currentUser || currentUser.id.startsWith('guest_')) {
     return deleteItemLocalStorage(id);
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot delete item - family_id is not set', { currentUser });
+    throw new Error('Family ID not set. Please log in again.');
   }
 
   const { error } = await supabase
@@ -278,7 +306,10 @@ export async function deleteListItem(id) {
     .eq('id', id)
     .eq('family_id', currentUser.family_id);
 
-  if (error) console.error('Error deleting item:', error);
+  if (error) {
+    console.error('Error deleting item:', error, { family_id: currentUser.family_id });
+    throw error;
+  }
 }
 
 // Subscribe to real-time updates (Realtime API v2)

@@ -62,7 +62,139 @@ app.post('/api/analyze-video', async (req, res) => {
   }
 });
 
-// Setup RLS policies endpoint
+// Debug endpoint to check family isolation
+app.get('/api/debug/list-items', async (req, res) => {
+  try {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    if (!serviceKey) {
+      return res.json({ success: false, error: 'Service key required' });
+    }
+
+    // Get all items (admin view with service key)
+    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items?select=id,name,family_id,created_at', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const items = await response.json();
+    const grouped = {};
+    items.forEach(item => {
+      const familyId = item.family_id || 'null';
+      if (!grouped[familyId]) grouped[familyId] = [];
+      grouped[familyId].push(item);
+    });
+
+    res.json({ success: true, itemsByFamily: grouped, totalItems: items.length });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Debug endpoint to check users and families
+app.get('/api/debug/users-families', async (req, res) => {
+  try {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    if (!serviceKey) {
+      return res.json({ success: false, error: 'Service key required' });
+    }
+
+    // Get all users
+    const usersResp = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/users?select=id,email,family_id', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const users = await usersResp.json();
+
+    // Get all families
+    const familiesResp = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/families?select=id,family_code', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const families = await familiesResp.json();
+
+    res.json({ success: true, users, families });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint to verify RLS is working
+app.get('/api/debug/rls-status', async (req, res) => {
+  try {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    if (!serviceKey) {
+      return res.json({ success: false, error: 'Service key required' });
+    }
+
+    // Check RLS status on list_items table
+    const sqlQuery = `
+      SELECT
+        schemaname,
+        tablename,
+        rowsecurity
+      FROM pg_tables
+      WHERE tablename IN ('list_items', 'home_inventory', 'users', 'families')
+      ORDER BY tablename;
+    `;
+
+    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/rpc/exec_sql', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sql: sqlQuery })
+    });
+
+    const result = await response.json();
+
+    // Also get policies
+    const policiesQuery = `
+      SELECT
+        schemaname,
+        tablename,
+        policyname,
+        permissive,
+        cmd
+      FROM pg_policies
+      WHERE tablename IN ('list_items', 'home_inventory')
+      ORDER BY tablename, policyname;
+    `;
+
+    const policiesResp = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/rpc/exec_sql', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sql: policiesQuery })
+    });
+
+    const policiesResult = await policiesResp.json();
+
+    res.json({
+      success: true,
+      tables: result,
+      policies: policiesResult
+    });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Setup RLS policies endpoint - FIXED VERSION with JWT metadata
 app.get('/api/setup-rls', async (req, res) => {
   try {
     const serviceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -74,25 +206,61 @@ app.get('/api/setup-rls', async (req, res) => {
       });
     }
 
-    const queries = [
+    // First, ensure RLS is enabled on list_items
+    const enableRLS = `ALTER TABLE list_items ENABLE ROW LEVEL SECURITY;`;
+
+    // Drop all existing policies to start fresh
+    const dropPolicies = [
       'DROP POLICY IF EXISTS "list_select" ON list_items;',
       'DROP POLICY IF EXISTS "list_insert" ON list_items;',
       'DROP POLICY IF EXISTS "list_update" ON list_items;',
       'DROP POLICY IF EXISTS "list_delete" ON list_items;',
-      `CREATE POLICY "list_select" ON list_items FOR SELECT USING (family_id::text = auth.jwt_claims()->>'family_id');`,
-      `CREATE POLICY "list_insert" ON list_items FOR INSERT WITH CHECK (family_id::text = auth.jwt_claims()->>'family_id');`,
-      `CREATE POLICY "list_update" ON list_items FOR UPDATE USING (family_id::text = auth.jwt_claims()->>'family_id') WITH CHECK (family_id::text = auth.jwt_claims()->>'family_id');`,
-      `CREATE POLICY "list_delete" ON list_items FOR DELETE USING (family_id::text = auth.jwt_claims()->>'family_id');`
+      'DROP POLICY IF EXISTS "Enable read for family" ON list_items;',
+      'DROP POLICY IF EXISTS "Enable insert for authenticated users" ON list_items;',
+      'DROP POLICY IF EXISTS "Enable update for family" ON list_items;',
+      'DROP POLICY IF EXISTS "Enable delete for family" ON list_items;'
     ];
 
-    // Run queries via Supabase SQL endpoint
+    // Create new policies using JWT metadata (most reliable)
+    // The family_id is stored in auth.user_metadata by the app during login/signup
+    const createPolicies = [
+      // Allow users to SELECT only their family's items
+      `CREATE POLICY "list_select" ON list_items
+       FOR SELECT USING (
+         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
+       );`,
+
+      // Allow users to INSERT only to their family
+      `CREATE POLICY "list_insert" ON list_items
+       FOR INSERT WITH CHECK (
+         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
+       );`,
+
+      // Allow users to UPDATE only their family's items
+      `CREATE POLICY "list_update" ON list_items
+       FOR UPDATE USING (
+         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
+       ) WITH CHECK (
+         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
+       );`,
+
+      // Allow users to DELETE only their family's items
+      `CREATE POLICY "list_delete" ON list_items
+       FOR DELETE USING (
+         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
+       );`
+    ];
+
+    const allQueries = [enableRLS, ...dropPolicies, ...createPolicies];
+
+    // Run via Supabase SQL endpoint
     const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/rpc/exec_sql', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ sql: queries.join('\n') })
+      body: JSON.stringify({ sql: allQueries.join('\n') })
     });
 
     const result = await response.json();
@@ -101,7 +269,7 @@ app.get('/api/setup-rls', async (req, res) => {
       throw new Error(result.message || 'Failed to run migrations');
     }
 
-    res.json({ success: true, message: 'RLS policies updated successfully' });
+    res.json({ success: true, message: 'RLS policies configured successfully with JWT metadata' });
   } catch (error) {
     console.error('Setup error:', error);
     res.json({ success: false, error: error.message });
