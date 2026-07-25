@@ -68,6 +68,7 @@ app.get('/api/debug/list-items', async (req, res) => {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
         'Content-Type': 'application/json'
       }
     });
@@ -100,6 +101,7 @@ app.get('/api/debug/users-families', async (req, res) => {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
         'Content-Type': 'application/json'
       }
     });
@@ -110,6 +112,7 @@ app.get('/api/debug/users-families', async (req, res) => {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
         'Content-Type': 'application/json'
       }
     });
@@ -145,6 +148,7 @@ app.get('/api/debug/rls-status', async (req, res) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ sql: sqlQuery })
@@ -169,6 +173,7 @@ app.get('/api/debug/rls-status', async (req, res) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ sql: policiesQuery })
@@ -251,6 +256,7 @@ app.get('/api/setup-rls', async (req, res) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ sql: allQueries.join('\n') })
