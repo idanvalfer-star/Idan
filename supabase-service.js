@@ -56,6 +56,13 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
       familyId = newFamily.id;
     }
 
+    // Update auth user metadata with family_id
+    const { error: metaError } = await supabase.auth.updateUser({
+      data: { family_id: familyId }
+    });
+
+    if (metaError) throw metaError;
+
     // Create user profile
     const { error: userError } = await supabase
       .from('users')
@@ -93,6 +100,11 @@ export async function loginWithPassword(email, password) {
       .single();
 
     if (userError || !userProfile) throw new Error('User profile not found');
+
+    // Update auth metadata with family_id for RLS policies
+    await supabase.auth.updateUser({
+      data: { family_id: userProfile.family_id }
+    });
 
     currentUser = { id: userId, email, nickname: userProfile.nickname, family_id: userProfile.family_id };
     sessionStorage.setItem('cartly.user', JSON.stringify(currentUser));
