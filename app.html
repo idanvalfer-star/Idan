@@ -205,6 +205,7 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <div class="user-info" id="userInfo" style="display:none;">
       <span id="userBadge" title="Logged in as">👤</span>
       <span id="currentUserName" style="font-weight:700;margin:0 8px;"></span>
+      <span id="familyCodeDisplay" style="display:none;background:var(--accent-soft);color:var(--accent-2);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;margin:0 8px;cursor:pointer;border:1px solid var(--accent);"></span>
       <span id="guestBadge" style="display:none;"></span>
     </div>
     <button class="icon-btn" id="langBtn" title="Language">עב</button>
@@ -319,6 +320,27 @@ if(!isGuest) {
             sessionStorage.removeItem('cartly.user');
             window.location.href = '/login';
           };
+
+          // Fetch and display family code
+          import('./supabase-service.js').then(({supabase}) => {
+            supabase
+              .from('families')
+              .select('family_code')
+              .eq('id', loggedUser.family_id)
+              .single()
+              .then(({data}) => {
+                if(data && data.family_code) {
+                  const codeEl = document.getElementById('familyCodeDisplay');
+                  codeEl.textContent = 'Code: ' + data.family_code;
+                  codeEl.style.display = 'inline-block';
+                  codeEl.title = 'Click to copy family code';
+                  codeEl.onclick = () => {
+                    navigator.clipboard.writeText(data.family_code);
+                    alert('Family code copied!');
+                  };
+                }
+              });
+          });
           subscribeToListUpdates((payload) => {
             if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
               if(typeof renderList === 'function') renderList();
