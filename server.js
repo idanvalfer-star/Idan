@@ -2,9 +2,16 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { analyzeVideo } from './lib/analyze.js';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+
+// Supabase admin client
+const supabase = createClient(
+  'https://xxyhrhkflexpyipttmug.supabase.co',
+  process.env.SUPABASE_SERVICE_KEY || 'sb_publishable_S18kdYcFkvHKBKjvcXXOjg_rF7qqW94'
+);
 
 // Middleware
 app.use(express.json());
@@ -52,6 +59,52 @@ app.post('/api/analyze-video', async (req, res) => {
       error: error.message,
       code: error.code
     });
+  }
+});
+
+// Setup RLS policies endpoint
+app.get('/api/setup-rls', async (req, res) => {
+  try {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+
+    if (!serviceKey) {
+      return res.json({
+        success: false,
+        error: 'Service key not configured. Need SUPABASE_SERVICE_KEY environment variable.'
+      });
+    }
+
+    const queries = [
+      'DROP POLICY IF EXISTS "list_select" ON list_items;',
+      'DROP POLICY IF EXISTS "list_insert" ON list_items;',
+      'DROP POLICY IF EXISTS "list_update" ON list_items;',
+      'DROP POLICY IF EXISTS "list_delete" ON list_items;',
+      `CREATE POLICY "list_select" ON list_items FOR SELECT USING (family_id::text = auth.jwt_claims()->>'family_id');`,
+      `CREATE POLICY "list_insert" ON list_items FOR INSERT WITH CHECK (family_id::text = auth.jwt_claims()->>'family_id');`,
+      `CREATE POLICY "list_update" ON list_items FOR UPDATE USING (family_id::text = auth.jwt_claims()->>'family_id') WITH CHECK (family_id::text = auth.jwt_claims()->>'family_id');`,
+      `CREATE POLICY "list_delete" ON list_items FOR DELETE USING (family_id::text = auth.jwt_claims()->>'family_id');`
+    ];
+
+    // Run queries via Supabase SQL endpoint
+    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/rpc/exec_sql', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sql: queries.join('\n') })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to run migrations');
+    }
+
+    res.json({ success: true, message: 'RLS policies updated successfully' });
+  } catch (error) {
+    console.error('Setup error:', error);
+    res.json({ success: false, error: error.message });
   }
 });
 
