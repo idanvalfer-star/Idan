@@ -65,7 +65,12 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
       data: { family_id: familyId }
     });
 
-    if (metaError) throw metaError;
+    if (metaError) {
+      console.error('ERROR setting auth metadata:', metaError);
+      throw new Error(`Failed to set family metadata: ${metaError.message || 'Unknown error'}`);
+    }
+
+    console.log('✓ Auth metadata set with family_id:', familyId);
 
     // Create user profile
     const { error: userError } = await supabase
@@ -106,9 +111,16 @@ export async function loginWithPassword(email, password) {
     if (userError || !userProfile) throw new Error('User profile not found');
 
     // Update auth metadata with family_id for RLS policies
-    await supabase.auth.updateUser({
+    const { error: metaError } = await supabase.auth.updateUser({
       data: { family_id: userProfile.family_id }
     });
+
+    if (metaError) {
+      console.error('ERROR setting auth metadata on login:', metaError);
+      throw new Error(`Failed to set family metadata: ${metaError.message || 'Unknown error'}`);
+    }
+
+    console.log('✓ Auth metadata set on login with family_id:', userProfile.family_id);
 
     currentUser = { id: userId, email, nickname: userProfile.nickname, family_id: userProfile.family_id };
     sessionStorage.setItem('cartly.user', JSON.stringify(currentUser));
