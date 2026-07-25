@@ -37,6 +37,8 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
 
     // Find or create family by code
     let familyId;
+    let returnedFamilyCode = familyCode; // Track what code to return
+
     if (familyCode) {
       // Join existing family
       const { data: families, error: familyError } = await supabase
@@ -48,7 +50,7 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
       if (familyError) throw new Error('Invalid family code');
       familyId = families.id;
     } else {
-      // Create new family
+      // Create new family - IMPORTANT: capture the generated code
       const newCode = generateFamilyCode();
       const { data: newFamily, error: createError } = await supabase
         .from('families')
@@ -58,6 +60,7 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
 
       if (createError) throw createError;
       familyId = newFamily.id;
+      returnedFamilyCode = newCode; // Return the generated code!
     }
 
     // Update auth user metadata with family_id
@@ -71,6 +74,7 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
     }
 
     console.log('✓ Auth metadata set with family_id:', familyId);
+    console.log('✓ Family code:', returnedFamilyCode);
 
     // Create user profile
     const { error: userError } = await supabase
@@ -82,7 +86,7 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
     currentUser = { id: userId, email, nickname, family_id: familyId };
     sessionStorage.setItem('cartly.user', JSON.stringify(currentUser));
 
-    return { success: true, user: currentUser, familyCode };
+    return { success: true, user: currentUser, familyCode: returnedFamilyCode };
   } catch (error) {
     return { success: false, error: error.message };
   }
