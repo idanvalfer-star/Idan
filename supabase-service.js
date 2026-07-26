@@ -25,6 +25,9 @@ export async function initAuth() {
 // Sign up with family code
 export async function signupWithFamilyCode(email, nickname, password, familyCode) {
   try {
+    // Normalize familyCode - treat empty string as no code
+    const normalizedCode = familyCode && familyCode.trim() ? familyCode.trim() : null;
+
     // Create Supabase auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -35,22 +38,27 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
 
     const userId = authData.user.id;
 
-    // Find or create family by code
+    // Find or create family
     let familyId;
-    let returnedFamilyCode = familyCode; // Track what code to return
+    let returnedFamilyCode = normalizedCode;
 
-    if (familyCode) {
-      // Join existing family
-      const { data: families, error: familyError } = await supabase
-        .from('families')
-        .select('id')
-        .eq('family_code', familyCode)
-        .single();
+    if (normalizedCode) {
+      // Validate family code using server endpoint
+      const validateResp = await fetch('/api/validate-family-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ familyCode: normalizedCode })
+      });
 
-      if (familyError) throw new Error('Invalid family code');
-      familyId = families.id;
+      const validateResult = await validateResp.json();
+
+      if (!validateResult.success || !validateResult.exists) {
+        throw new Error('Invalid family code');
+      }
+
+      familyId = validateResult.familyId;
     } else {
-      // Create new family - IMPORTANT: capture the generated code
+      // Create new family
       const newCode = generateFamilyCode();
       const { data: newFamily, error: createError } = await supabase
         .from('families')
@@ -60,7 +68,7 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
 
       if (createError) throw createError;
       familyId = newFamily.id;
-      returnedFamilyCode = newCode; // Return the generated code!
+      returnedFamilyCode = newCode;
     }
 
     // Update auth user metadata with family_id

@@ -41,6 +41,37 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// Family code validation endpoint
+app.post('/api/validate-family-code', async (req, res) => {
+  try {
+    const { familyCode } = req.body;
+
+    if (!familyCode) {
+      return res.json({ success: true, exists: false, message: 'No code provided' });
+    }
+
+    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/families?select=id&family_code=eq.' + familyCode, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+
+    if (Array.isArray(result) && result.length > 0) {
+      return res.json({ success: true, exists: true, familyId: result[0].id });
+    }
+
+    res.json({ success: true, exists: false });
+  } catch (error) {
+    console.error('Error in /api/validate-family-code:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Add list item endpoint - bypass RLS issues by using service key
 app.post('/api/add-item', async (req, res) => {
   try {
