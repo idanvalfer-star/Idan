@@ -222,8 +222,9 @@ function isValidUUID(uuid) {
 
 // Data operations
 export async function getListItems() {
-  if (!currentUser || currentUser.id === 'guest_' + currentUser.id.match(/\d+$/)?.[0]) {
-    const stored = localStorage.getItem('cartly.v1');
+  if (!currentUser || currentUser.id.startsWith('guest_')) {
+    const key = getStorageKey();
+    const stored = localStorage.getItem(key);
     return stored ? JSON.parse(stored).items || [] : [];
   }
 
@@ -394,25 +395,34 @@ export function subscribeToListUpdates(callback) {
   }
 }
 
-// Guest/localStorage fallbacks
+// Guest/localStorage fallbacks - use family_id in key to isolate per family
+function getStorageKey() {
+  return currentUser && currentUser.family_id
+    ? `cartly.v1.${currentUser.family_id}`
+    : 'cartly.v1.guest';
+}
+
 function addItemLocalStorage(item) {
-  let state = JSON.parse(localStorage.getItem('cartly.v1') || '{"items":[]}');
+  const key = getStorageKey();
+  let state = JSON.parse(localStorage.getItem(key) || '{"items":[]}');
   state.items.unshift({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     ...item
   });
-  localStorage.setItem('cartly.v1', JSON.stringify(state));
+  localStorage.setItem(key, JSON.stringify(state));
 }
 
 function updateItemLocalStorage(id, updates) {
-  let state = JSON.parse(localStorage.getItem('cartly.v1') || '{"items":[]}');
+  const key = getStorageKey();
+  let state = JSON.parse(localStorage.getItem(key) || '{"items":[]}');
   const item = state.items.find(i => i.id === id);
   if (item) Object.assign(item, updates);
-  localStorage.setItem('cartly.v1', JSON.stringify(state));
+  localStorage.setItem(key, JSON.stringify(state));
 }
 
 function deleteItemLocalStorage(id) {
-  let state = JSON.parse(localStorage.getItem('cartly.v1') || '{"items":[]}');
+  const key = getStorageKey();
+  let state = JSON.parse(localStorage.getItem(key) || '{"items":[]}');
   state.items = state.items.filter(i => i.id !== id);
-  localStorage.setItem('cartly.v1', JSON.stringify(state));
+  localStorage.setItem(key, JSON.stringify(state));
 }
