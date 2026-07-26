@@ -27,6 +27,120 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// Add list item endpoint - bypass RLS issues by using service key
+app.post('/api/add-item', async (req, res) => {
+  try {
+    const { item, userId, familyId } = req.body;
+
+    if (!item || !userId || !familyId) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Insert item with service key (bypasses RLS)
+    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        family_id: familyId,
+        name: item.name,
+        quantity: item.qty || '',
+        category: item.category,
+        emoji: item.emoji,
+        checked: item.checked || false,
+        source: item.source || '',
+        updated_by: userId
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return res.json({ success: false, error: result.message || 'Failed to add item' });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in /api/add-item:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Update list item endpoint
+app.put('/api/update-item/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { updates, userId, familyId } = req.body;
+
+    if (!id || !updates || !userId || !familyId) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Update item with service key (bypasses RLS)
+    const response = await fetch(`https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items?id=eq.${id}&family_id=eq.${familyId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        ...updates,
+        updated_by: userId,
+        updated_at: new Date().toISOString()
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return res.json({ success: false, error: result.message || 'Failed to update item' });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in /api/update-item:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Delete list item endpoint
+app.delete('/api/delete-item/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, familyId } = req.body;
+
+    if (!id || !userId || !familyId) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Delete item with service key (bypasses RLS)
+    const response = await fetch(`https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items?id=eq.${id}&family_id=eq.${familyId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok && response.status !== 204) {
+      const result = await response.json();
+      return res.json({ success: false, error: result.message || 'Failed to delete item' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error in /api/delete-item:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Analyze video endpoint - uses full pipeline
 app.post('/api/analyze-video', async (req, res) => {
   try {

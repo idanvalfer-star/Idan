@@ -273,27 +273,27 @@ export async function addListItem(item) {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('list_items')
-      .insert([{
-        family_id: currentUser.family_id,
-        name: item.name,
-        quantity: item.qty,
-        category: item.category,
-        emoji: item.emoji,
-        checked: item.checked || false,
-        source: item.source || '',
-        updated_by: currentUser.id
-      }])
-      .select();
+    const response = await fetch('/api/add-item', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        item,
+        userId: currentUser.id,
+        familyId: currentUser.family_id
+      })
+    });
 
-    if (error) {
-      console.error('Error adding item to Supabase:', error, { family_id: currentUser.family_id });
-      throw error;
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error('Error adding item via API:', result.error, { family_id: currentUser.family_id });
+      throw new Error(result.error || 'Failed to add item');
     }
 
-    console.log('✓ Item saved to Supabase with family_id:', currentUser.family_id);
-    return data?.[0];
+    console.log('✓ Item saved to Supabase via API with family_id:', currentUser.family_id);
+    return result.data?.[0];
   } catch (error) {
     console.error('ERROR: Failed to save item:', error.message, { family_id: currentUser.family_id });
     throw error;
@@ -310,18 +310,27 @@ export async function updateListItem(id, updates) {
     throw new Error('Family ID not set. Please log in again.');
   }
 
-  const { error } = await supabase
-    .from('list_items')
-    .update({
-      ...updates,
-      updated_by: currentUser.id,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', id)
-    .eq('family_id', currentUser.family_id);
+  try {
+    const response = await fetch(`/api/update-item/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        updates,
+        userId: currentUser.id,
+        familyId: currentUser.family_id
+      })
+    });
 
-  if (error) {
-    console.error('Error updating item:', error, { family_id: currentUser.family_id });
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error('Error updating item via API:', result.error, { family_id: currentUser.family_id });
+      throw new Error(result.error || 'Failed to update item');
+    }
+  } catch (error) {
+    console.error('ERROR: Failed to update item:', error.message, { family_id: currentUser.family_id });
     throw error;
   }
 }
@@ -336,14 +345,26 @@ export async function deleteListItem(id) {
     throw new Error('Family ID not set. Please log in again.');
   }
 
-  const { error } = await supabase
-    .from('list_items')
-    .delete()
-    .eq('id', id)
-    .eq('family_id', currentUser.family_id);
+  try {
+    const response = await fetch(`/api/delete-item/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId: currentUser.id,
+        familyId: currentUser.family_id
+      })
+    });
 
-  if (error) {
-    console.error('Error deleting item:', error, { family_id: currentUser.family_id });
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error('Error deleting item via API:', result.error, { family_id: currentUser.family_id });
+      throw new Error(result.error || 'Failed to delete item');
+    }
+  } catch (error) {
+    console.error('ERROR: Failed to delete item:', error.message, { family_id: currentUser.family_id });
     throw error;
   }
 }
