@@ -215,6 +215,11 @@ function generateFamilyCode() {
   return Math.random().toString(36).substr(2, 6).toUpperCase();
 }
 
+function isValidUUID(uuid) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
 // Data operations
 export async function getListItems() {
   if (!currentUser || currentUser.id === 'guest_' + currentUser.id.match(/\d+$/)?.[0]) {
@@ -261,21 +266,36 @@ export async function addListItem(item) {
     throw new Error('Family ID not set. Please log in again.');
   }
 
-  const { error } = await supabase
-    .from('list_items')
-    .insert([{
-      family_id: currentUser.family_id,
-      name: item.name,
-      quantity: item.qty,
-      category: item.category,
-      emoji: item.emoji,
-      checked: item.checked || false,
-      source: item.source || '',
-      updated_by: currentUser.id
-    }]);
+  // Validate family_id is a valid UUID format
+  if (!isValidUUID(currentUser.family_id)) {
+    console.error('ERROR: Invalid family_id format', { family_id: currentUser.family_id });
+    throw new Error('Invalid family configuration. Please log in again.');
+  }
 
-  if (error) {
-    console.error('Error adding item:', error, { family_id: currentUser.family_id });
+  try {
+    const { data, error } = await supabase
+      .from('list_items')
+      .insert([{
+        family_id: currentUser.family_id,
+        name: item.name,
+        quantity: item.qty,
+        category: item.category,
+        emoji: item.emoji,
+        checked: item.checked || false,
+        source: item.source || '',
+        updated_by: currentUser.id
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding item to Supabase:', error, { family_id: currentUser.family_id });
+      throw error;
+    }
+
+    console.log('✓ Item saved to Supabase with family_id:', currentUser.family_id);
+    return data?.[0];
+  } catch (error) {
+    console.error('ERROR: Failed to save item:', error.message, { family_id: currentUser.family_id });
     throw error;
   }
 }
