@@ -17,14 +17,28 @@ app.get('/api/config', (req, res) => {
   const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
   const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
   const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+  const hasServiceKey = !!process.env.SUPABASE_SERVICE_KEY;
 
   res.json({
     videoBackend: hasAnthropicKey || hasGeminiKey,
     whisper: hasOpenAIKey,
     anthropic: hasAnthropicKey,
     openai: hasOpenAIKey,
-    gemini: hasGeminiKey
+    gemini: hasGeminiKey,
+    supabaseServiceKey: hasServiceKey
   });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  const hasServiceKey = !!process.env.SUPABASE_SERVICE_KEY;
+  if (!hasServiceKey) {
+    return res.json({
+      status: 'error',
+      message: 'SUPABASE_SERVICE_KEY is not configured on Render'
+    });
+  }
+  res.json({ status: 'ok', message: 'Server is running' });
 });
 
 // Add list item endpoint - bypass RLS issues by using service key
@@ -35,6 +49,8 @@ app.post('/api/add-item', async (req, res) => {
     if (!item || !userId || !familyId) {
       return res.json({ success: false, error: 'Missing required fields' });
     }
+
+    console.log('📝 /api/add-item: Adding item to family', { familyId, userId, itemName: item.name });
 
     // Insert item with service key (bypasses RLS)
     const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items', {
@@ -60,12 +76,14 @@ app.post('/api/add-item', async (req, res) => {
     const result = await response.json();
 
     if (!response.ok) {
+      console.error('❌ Supabase error response:', { status: response.status, error: result });
       return res.json({ success: false, error: result.message || 'Failed to add item' });
     }
 
+    console.log('✅ Item saved successfully:', { familyId, itemId: result[0]?.id });
     res.json({ success: true, data: result });
   } catch (error) {
-    console.error('Error in /api/add-item:', error);
+    console.error('❌ Error in /api/add-item:', error);
     res.json({ success: false, error: error.message });
   }
 });
