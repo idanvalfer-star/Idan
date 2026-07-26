@@ -219,34 +219,25 @@ app.get('/api/setup-rls', async (req, res) => {
       'DROP POLICY IF EXISTS "Enable delete for family" ON list_items;'
     ];
 
-    // Create new policies using JWT metadata (most reliable)
-    // The family_id is stored in auth.user_metadata by the app during login/signup
+    // Create new policies using users table lookup (reliable method)
+    // Query the users table to get each user's family_id, then compare
     const createPolicies = [
       // Allow users to SELECT only their family's items
-      `CREATE POLICY "list_select" ON list_items
-       FOR SELECT USING (
-         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
-       );`,
+      `CREATE POLICY "list_select" ON list_items FOR SELECT
+       USING (family_id = (SELECT family_id FROM users WHERE id = auth.uid()));`,
 
       // Allow users to INSERT only to their family
-      `CREATE POLICY "list_insert" ON list_items
-       FOR INSERT WITH CHECK (
-         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
-       );`,
+      `CREATE POLICY "list_insert" ON list_items FOR INSERT
+       WITH CHECK (family_id = (SELECT family_id FROM users WHERE id = auth.uid()));`,
 
       // Allow users to UPDATE only their family's items
-      `CREATE POLICY "list_update" ON list_items
-       FOR UPDATE USING (
-         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
-       ) WITH CHECK (
-         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
-       );`,
+      `CREATE POLICY "list_update" ON list_items FOR UPDATE
+       USING (family_id = (SELECT family_id FROM users WHERE id = auth.uid()))
+       WITH CHECK (family_id = (SELECT family_id FROM users WHERE id = auth.uid()));`,
 
       // Allow users to DELETE only their family's items
-      `CREATE POLICY "list_delete" ON list_items
-       FOR DELETE USING (
-         family_id::text = (auth.jwt()->'user_metadata'->>'family_id')
-       );`
+      `CREATE POLICY "list_delete" ON list_items FOR DELETE
+       USING (family_id = (SELECT family_id FROM users WHERE id = auth.uid()));`
     ];
 
     const allQueries = [enableRLS, ...dropPolicies, ...createPolicies];
