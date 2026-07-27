@@ -228,6 +228,41 @@ function isValidUUID(uuid) {
   return uuidRegex.test(uuid);
 }
 
+// Migrate old shared localStorage to family-specific storage
+async function migrateOldStorage() {
+  try {
+    const oldKey = 'cartly.v1';
+    const oldData = localStorage.getItem(oldKey);
+
+    if (!oldData || !currentUser || !currentUser.family_id) return;
+
+    const parsed = JSON.parse(oldData);
+    if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) return;
+
+    console.log('🔄 Migrating old localStorage items to family storage...');
+
+    const familyKey = getStorageKey();
+
+    // Get existing family-specific data
+    let familyData = localStorage.getItem(familyKey);
+    let familyState = familyData ? JSON.parse(familyData) : { items: [] };
+
+    // Move items from old to family-specific
+    for (const item of parsed.items) {
+      // Check if item already exists in family data
+      if (!familyState.items.find(i => i.id === item.id)) {
+        familyState.items.unshift(item);
+      }
+    }
+
+    // Save to family-specific key
+    localStorage.setItem(familyKey, JSON.stringify(familyState));
+    console.log('✓ Migrated ' + parsed.items.length + ' items to family storage');
+  } catch (error) {
+    console.error('Migration error:', error);
+  }
+}
+
 // Data operations
 export async function getListItems() {
   if (!currentUser || currentUser.id.startsWith('guest_')) {
@@ -241,6 +276,9 @@ export async function getListItems() {
     return [];
   }
 
+  // Migrate old storage on first load
+  await migrateOldStorage();
+
   const { data, error } = await supabase
     .from('list_items')
     .select('*')
@@ -249,20 +287,31 @@ export async function getListItems() {
 
   if (error) {
     console.error('Error fetching items:', error, { family_id: currentUser.family_id });
-    return [];
+    // Fallback to family-specific localStorage if Supabase fails
+    const key = getStorageKey();
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored).items || [] : [];
   }
 
-  return (data || []).map(item => ({
-    id: item.id,
-    name: item.name,
-    qty: item.quantity || '',
-    category: item.category,
-    emoji: item.emoji,
-    checked: item.checked,
-    source: item.source || '',
-    img: item.img || '',
-    inStock: false
-  }));
+  // If Supabase has items, return them
+  if (data && data.length > 0) {
+    return data.map(item => ({
+      id: item.id,
+      name: item.name,
+      qty: item.quantity || '',
+      category: item.category,
+      emoji: item.emoji,
+      checked: item.checked,
+      source: item.source || '',
+      img: item.img || '',
+      inStock: false
+    }));
+  }
+
+  // Fallback to family-specific localStorage
+  const key = getStorageKey();
+  const stored = localStorage.getItem(key);
+  return stored ? JSON.parse(stored).items || [] : [];
 }
 
 export async function addListItem(item) {
