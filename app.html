@@ -775,8 +775,10 @@ function getCurrentFamilyId(){
 function load(){
   const key = typeof getStorageKey === 'function' ? getStorageKey() : getStorageKeyFallback();
   const currentFamily = getCurrentFamilyId();
+  console.log('📂 Loading state:', { key, currentFamily });
   try{
     const s = JSON.parse(localStorage.getItem(key));
+    console.log('📂 Loaded from localStorage:', { key, items: s?.items?.length || 0, _family_id: s?._family_id });
     if(s && s.items){
       // Validate family_id to prevent cross-family data leaks
       if(currentFamily && s._family_id && s._family_id !== currentFamily) {
@@ -788,7 +790,8 @@ function load(){
       s._family_id = currentFamily;
       return s;
     }
-  }catch(e){}
+  }catch(e){ console.error('Error loading state:', e); }
+  console.log('📂 Returning empty state for family:', currentFamily);
   return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[], _family_id: currentFamily};
 }
 
@@ -800,22 +803,36 @@ function reloadState(){
 async function migrateOldItems(){
   // Migrate items from old 'cartly.v1' key to family-specific key when user logs in
   const currentFamily = getCurrentFamilyId();
-  if(!currentFamily) return;
+  console.log('🔄 Migration check:', { currentFamily });
+  if(!currentFamily) {
+    console.log('⏭️ Skipping migration: no family id');
+    return;
+  }
 
   const oldKey = 'cartly.v1';
   const newKey = `cartly.v1.${currentFamily}`;
 
   try {
     const oldData = localStorage.getItem(oldKey);
-    if(!oldData) return; // No old data to migrate
+    console.log('🔄 Migration: checking old key', { oldKey, found: !!oldData });
+    if(!oldData) {
+      console.log('⏭️ No old data to migrate');
+      return; // No old data to migrate
+    }
 
     const parsed = JSON.parse(oldData);
-    if(!parsed || !parsed.items || parsed.items.length === 0) return; // No items to migrate
+    console.log('🔄 Old data parsed:', { items: parsed?.items?.length || 0 });
+    if(!parsed || !parsed.items || parsed.items.length === 0) {
+      console.log('⏭️ No items in old data to migrate');
+      return; // No items to migrate
+    }
 
     // Check if new key already has data
     const newData = localStorage.getItem(newKey);
+    console.log('🔄 New key check:', { newKey, found: !!newData });
     if(newData) {
       // New key already has data, delete old key to avoid confusion
+      console.log('⏭️ New key already exists, cleaning up old key');
       localStorage.removeItem(oldKey);
       return;
     }
@@ -823,12 +840,15 @@ async function migrateOldItems(){
     // Migrate: move old data to new family-specific key
     localStorage.setItem(newKey, oldData);
     localStorage.removeItem(oldKey);
-    console.log('✅ Migrated', parsed.items.length, 'items to family-specific storage');
+    console.log('✅ Migrated', parsed.items.length, 'items to', newKey);
 
     // Reload state with migrated data
-    if(typeof reloadState === 'function') reloadState();
+    if(typeof reloadState === 'function') {
+      console.log('🔄 Calling reloadState after migration');
+      reloadState();
+    }
   } catch(e) {
-    console.error('Migration error:', e);
+    console.error('❌ Migration error:', e);
   }
 }
 
@@ -874,13 +894,14 @@ async function loadFamilyItems(){
 function save(){
   try{
     const key = typeof getStorageKey === 'function' ? getStorageKey() : getStorageKeyFallback();
+    console.log('💾 Saving to localStorage:', { key, items: state.items.length, _family_id: state._family_id });
     localStorage.setItem(key, JSON.stringify(state));
     // Queue save to Supabase (non-blocking)
     if(supabaseReady) {
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(saveToSupabase, 500);
     }
-  }catch(e){}
+  }catch(e){ console.error('Error saving state:', e); }
 }
 
 // Async save to Supabase (non-blocking, batched)
