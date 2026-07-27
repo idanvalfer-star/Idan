@@ -228,16 +228,28 @@ function isValidUUID(uuid) {
   return uuidRegex.test(uuid);
 }
 
-// Migrate old shared localStorage to family-specific storage
+// Migrate old shared localStorage to family-specific storage (one-time only)
 async function migrateOldStorage() {
   try {
     const oldKey = 'cartly.v1';
+    const migrationMarker = 'cartly.migrated';
+
+    // Only migrate once
+    if (localStorage.getItem(migrationMarker)) return;
+
     const oldData = localStorage.getItem(oldKey);
 
-    if (!oldData || !currentUser || !currentUser.family_id) return;
+    if (!oldData || !currentUser || !currentUser.family_id) {
+      // Mark as migrated even if no data or not logged in
+      localStorage.setItem(migrationMarker, 'true');
+      return;
+    }
 
     const parsed = JSON.parse(oldData);
-    if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) return;
+    if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
+      localStorage.setItem(migrationMarker, 'true');
+      return;
+    }
 
     console.log('🔄 Migrating old localStorage items to family storage...');
 
@@ -257,6 +269,13 @@ async function migrateOldStorage() {
 
     // Save to family-specific key
     localStorage.setItem(familyKey, JSON.stringify(familyState));
+
+    // Delete old shared key to prevent re-migration
+    localStorage.removeItem(oldKey);
+
+    // Mark migration as complete
+    localStorage.setItem(migrationMarker, 'true');
+
     console.log('✓ Migrated ' + parsed.items.length + ' items to family storage');
   } catch (error) {
     console.error('Migration error:', error);
