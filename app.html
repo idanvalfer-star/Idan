@@ -342,9 +342,13 @@ const isGuest = !user || user.id.startsWith('guest_');
 
 window.supabaseReady = true;
 
+// Import getStorageKey for dynamic family-specific localStorage keys
+let getStorageKey = null;
+
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported }) => {
+    getStorageKey = getStorageKeyImported;
     window.getCurrentUser = getCurrentUser;
     window.subscribeToListUpdates = subscribeToListUpdates;
 
@@ -387,6 +391,9 @@ if(!isGuest) {
               if(typeof renderList === 'function') renderList();
             }
           });
+
+          // Reload state after authentication for logged-in users
+          if(typeof reloadState === 'function') reloadState();
         }
       }
     }).catch(e => console.log('Auth init failed'));
@@ -738,19 +745,32 @@ const RECIPES = [
 ];
 
 /* ---------------- State ---------------- */
-const LS = "cartly.v1";
 let state = load();
 let supabaseReady = false;
 let saveTimeout = null;
 
+function getStorageKeyFallback(){
+  const user = JSON.parse(sessionStorage.getItem('cartly.user') || 'null');
+  if(user && user.family_id) return `cartly.v1.${user.family_id}`;
+  if(user && user.id && user.id.startsWith('guest_')) return 'cartly.v1.guest';
+  return 'cartly.v1';
+}
+
 function load(){
-  try{ const s = JSON.parse(localStorage.getItem(LS)); if(s&&s.items){ if(!Array.isArray(s.inventory)) s.inventory=[]; return s; } }catch(e){}
+  const key = typeof getStorageKey === 'function' ? getStorageKey() : getStorageKeyFallback();
+  try{ const s = JSON.parse(localStorage.getItem(key)); if(s&&s.items){ if(!Array.isArray(s.inventory)) s.inventory=[]; return s; } }catch(e){}
   return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[]};
+}
+
+function reloadState(){
+  state = load();
+  renderList();
 }
 
 function save(){
   try{
-    localStorage.setItem(LS, JSON.stringify(state));
+    const key = typeof getStorageKey === 'function' ? getStorageKey() : getStorageKeyFallback();
+    localStorage.setItem(key, JSON.stringify(state));
     // Queue save to Supabase (non-blocking)
     if(supabaseReady) {
       clearTimeout(saveTimeout);

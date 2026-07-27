@@ -419,7 +419,7 @@ export function subscribeToListUpdates(callback) {
 }
 
 // Guest/localStorage fallbacks - use family_id in key to isolate per family
-function getStorageKey() {
+export function getStorageKey() {
   return currentUser && currentUser.family_id
     ? `cartly.v1.${currentUser.family_id}`
     : 'cartly.v1.guest';
