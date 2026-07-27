@@ -218,7 +218,7 @@ app.post('/api/analyze-video', async (req, res) => {
   }
 });
 
-// Debug endpoint to check family isolation
+// Debug endpoint to check all items and their family_id
 app.get('/api/debug/list-items', async (req, res) => {
   try {
     const serviceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -239,14 +239,41 @@ app.get('/api/debug/list-items', async (req, res) => {
     const items = await response.json();
     const grouped = {};
     items.forEach(item => {
-      const familyId = item.family_id || 'null';
+      const familyId = item.family_id || 'NULL';
       if (!grouped[familyId]) grouped[familyId] = [];
       grouped[familyId].push(item);
     });
 
+    console.log('📊 Database items by family:', grouped);
     res.json({ success: true, itemsByFamily: grouped, totalItems: items.length });
   } catch (error) {
     console.error('Debug error:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Debug endpoint to delete all items (reset database)
+app.post('/api/debug/reset-items', async (req, res) => {
+  try {
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+    if (!serviceKey) {
+      return res.json({ success: false, error: 'Service key required' });
+    }
+
+    // Delete ALL items
+    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items', {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${serviceKey}`,
+        'apikey': serviceKey,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('🗑️ Deleted all items from database');
+    res.json({ success: true, message: 'All items deleted' });
+  } catch (error) {
+    console.error('Reset error:', error);
     res.json({ success: false, error: error.message });
   }
 });
