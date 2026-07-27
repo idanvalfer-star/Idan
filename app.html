@@ -761,7 +761,7 @@ const RECIPES = [
 ];
 
 /* ---------------- State ---------------- */
-let state = load();
+let state = {items:[], videos:[], inventory:[], recipes:RECIPES.slice(), recipes_edit:[], sortAisle:false, theme:null, lang:null, starter:[]};
 let supabaseReady = false;
 let saveTimeout = null;
 
