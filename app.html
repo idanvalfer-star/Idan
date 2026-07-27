@@ -394,8 +394,14 @@ if(!isGuest) {
             }
           });
 
-          // Load items from Supabase and sync with family
-          if(typeof loadFamilyItems === 'function') loadFamilyItems();
+          // Migrate old items from 'cartly.v1' to family-specific key, then sync from Supabase
+          if(typeof migrateOldItems === 'function') {
+            migrateOldItems().then(() => {
+              if(typeof loadFamilyItems === 'function') loadFamilyItems();
+            });
+          } else if(typeof loadFamilyItems === 'function') {
+            loadFamilyItems();
+          }
 
           // Reload state after authentication for logged-in users
           if(typeof reloadState === 'function') reloadState();
@@ -789,6 +795,41 @@ function load(){
 function reloadState(){
   state = load();
   renderList();
+}
+
+async function migrateOldItems(){
+  // Migrate items from old 'cartly.v1' key to family-specific key when user logs in
+  const currentFamily = getCurrentFamilyId();
+  if(!currentFamily) return;
+
+  const oldKey = 'cartly.v1';
+  const newKey = `cartly.v1.${currentFamily}`;
+
+  try {
+    const oldData = localStorage.getItem(oldKey);
+    if(!oldData) return; // No old data to migrate
+
+    const parsed = JSON.parse(oldData);
+    if(!parsed || !parsed.items || parsed.items.length === 0) return; // No items to migrate
+
+    // Check if new key already has data
+    const newData = localStorage.getItem(newKey);
+    if(newData) {
+      // New key already has data, delete old key to avoid confusion
+      localStorage.removeItem(oldKey);
+      return;
+    }
+
+    // Migrate: move old data to new family-specific key
+    localStorage.setItem(newKey, oldData);
+    localStorage.removeItem(oldKey);
+    console.log('✅ Migrated', parsed.items.length, 'items to family-specific storage');
+
+    // Reload state with migrated data
+    if(typeof reloadState === 'function') reloadState();
+  } catch(e) {
+    console.error('Migration error:', e);
+  }
 }
 
 async function loadFamilyItems(){
