@@ -398,9 +398,14 @@ if(!isGuest) {
           if(typeof migrateOldItems === 'function') {
             migrateOldItems().then(() => {
               if(typeof loadFamilyItems === 'function') loadFamilyItems();
+              if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
             });
           } else if(typeof loadFamilyItems === 'function') {
-            loadFamilyItems();
+            loadFamilyItems().then(() => {
+              if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
+            });
+          } else {
+            if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
           }
 
           // Reload state after authentication for logged-in users
@@ -850,6 +855,27 @@ async function migrateOldItems(){
   } catch(e) {
     console.error('❌ Migration error:', e);
   }
+}
+
+function cleanupOtherFamilyData(){
+  // After migration completes, delete any family keys that don't belong to current user
+  const currentFamily = getCurrentFamilyId();
+  if(!currentFamily) return;
+
+  const myKey = `cartly.v1.${currentFamily}`;
+  const keysToDelete = [];
+
+  for(let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if(key && key.startsWith('cartly.v1.') && key !== myKey) {
+      keysToDelete.push(key);
+    }
+  }
+
+  keysToDelete.forEach(key => {
+    console.log('🧹 Cleaning up other family data:', key);
+    localStorage.removeItem(key);
+  });
 }
 
 async function loadFamilyItems(){
