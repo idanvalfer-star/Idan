@@ -432,10 +432,16 @@ export function subscribeToListUpdates(callback) {
 }
 
 // Guest/localStorage fallbacks - use family_id in key to isolate per family
+// MUST match getStorageKeyFallback() in app.html to avoid key mismatches!
 export function getStorageKey() {
-  return currentUser && currentUser.family_id
-    ? `cartly.v1.${currentUser.family_id}`
-    : 'cartly.v1.guest';
+  if(currentUser && currentUser.family_id) {
+    return `cartly.v1.${currentUser.family_id}`;
+  }
+  if(currentUser && currentUser.id && currentUser.id.startsWith('guest_')) {
+    return 'cartly.v1.guest';
+  }
+  // Not logged in yet - use default key
+  return 'cartly.v1';
 }
 
 function addItemLocalStorage(item) {
