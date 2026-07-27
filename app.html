@@ -344,11 +344,13 @@ window.supabaseReady = true;
 
 // Import getStorageKey for dynamic family-specific localStorage keys
 let getStorageKey = null;
+let getListItems = null;
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported }) => {
     getStorageKey = getStorageKeyImported;
+    getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
     window.subscribeToListUpdates = subscribeToListUpdates;
 
@@ -391,6 +393,9 @@ if(!isGuest) {
               if(typeof renderList === 'function') renderList();
             }
           });
+
+          // Load items from Supabase and sync with family
+          if(typeof loadFamilyItems === 'function') loadFamilyItems();
 
           // Reload state after authentication for logged-in users
           if(typeof reloadState === 'function') reloadState();
@@ -784,6 +789,45 @@ function load(){
 function reloadState(){
   state = load();
   renderList();
+}
+
+async function loadFamilyItems(){
+  if(typeof getListItems !== 'function') return;
+  try {
+    const familyItems = await getListItems();
+    if(!familyItems || !Array.isArray(familyItems)) return;
+
+    // Get existing local item names to avoid duplicates
+    const localNames = new Set(state.items.map(i => i.name.toLowerCase()));
+
+    // Merge Supabase items with local items (Supabase items first, then unique local items)
+    const mergedItems = [];
+    const seenIds = new Set();
+
+    // Add items from Supabase (these are the source of truth)
+    familyItems.forEach(item => {
+      if(!seenIds.has(item.id)) {
+        mergedItems.push(item);
+        seenIds.add(item.id);
+        localNames.add(item.name.toLowerCase());
+      }
+    });
+
+    // Add any unique local items that aren't in Supabase
+    state.items.forEach(localItem => {
+      if(!seenIds.has(localItem.id) && !mergedItems.some(i => i.name.toLowerCase() === localItem.name.toLowerCase())) {
+        mergedItems.push(localItem);
+        seenIds.add(localItem.id);
+      }
+    });
+
+    state.items = mergedItems;
+    save(); // Save merged state
+    renderList();
+    console.log('📥 Loaded family items from Supabase:', familyItems.length, 'items');
+  } catch(e) {
+    console.error('Error loading family items:', e);
+  }
 }
 
 function save(){
