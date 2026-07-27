@@ -756,10 +756,29 @@ function getStorageKeyFallback(){
   return 'cartly.v1';
 }
 
+function getCurrentFamilyId(){
+  const user = JSON.parse(sessionStorage.getItem('cartly.user') || 'null');
+  return user && user.family_id ? user.family_id : (user && user.id && user.id.startsWith('guest_') ? 'guest' : null);
+}
+
 function load(){
   const key = typeof getStorageKey === 'function' ? getStorageKey() : getStorageKeyFallback();
-  try{ const s = JSON.parse(localStorage.getItem(key)); if(s&&s.items){ if(!Array.isArray(s.inventory)) s.inventory=[]; return s; } }catch(e){}
-  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[]};
+  const currentFamily = getCurrentFamilyId();
+  try{
+    const s = JSON.parse(localStorage.getItem(key));
+    if(s && s.items){
+      // Validate family_id to prevent cross-family data leaks
+      if(currentFamily && s._family_id && s._family_id !== currentFamily) {
+        console.warn('⚠️ Data family mismatch, clearing', { stored: s._family_id, current: currentFamily });
+        localStorage.removeItem(key);
+        return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[], _family_id: currentFamily};
+      }
+      if(!Array.isArray(s.inventory)) s.inventory=[];
+      s._family_id = currentFamily;
+      return s;
+    }
+  }catch(e){}
+  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[], _family_id: currentFamily};
 }
 
 function reloadState(){

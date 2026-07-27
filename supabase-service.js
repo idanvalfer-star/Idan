@@ -21,7 +21,20 @@ export async function initAuth() {
   }
 
   // Clean up old shared localStorage key to prevent cross-family data leaks
+  // Delete the old 'cartly.v1' key that previous users might have used
   localStorage.removeItem('cartly.v1');
+
+  // Also delete any 'cartly.v1.*' keys that don't belong to the current user
+  if(currentUser && currentUser.family_id) {
+    for(let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if(key && key.startsWith('cartly.v1.') && key !== `cartly.v1.${currentUser.family_id}`) {
+        console.log('🧹 Cleaning up old family data:', key);
+        localStorage.removeItem(key);
+        i--; // Adjust index since we just removed an item
+      }
+    }
+  }
 
   return currentUser;
 }
