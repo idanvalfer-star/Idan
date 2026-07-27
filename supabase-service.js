@@ -19,6 +19,10 @@ export async function initAuth() {
       console.warn('WARNING: User restored but family_id is missing. This will cause issues.', { currentUser });
     }
   }
+
+  // Clean up old shared localStorage key to prevent cross-family data leaks
+  localStorage.removeItem('cartly.v1');
+
   return currentUser;
 }
 
@@ -228,60 +232,6 @@ function isValidUUID(uuid) {
   return uuidRegex.test(uuid);
 }
 
-// Migrate old shared localStorage to family-specific storage (one-time only)
-async function migrateOldStorage() {
-  try {
-    const oldKey = 'cartly.v1';
-    const migrationMarker = 'cartly.migrated';
-
-    // Only migrate once
-    if (localStorage.getItem(migrationMarker)) return;
-
-    const oldData = localStorage.getItem(oldKey);
-
-    if (!oldData || !currentUser || !currentUser.family_id) {
-      // Mark as migrated even if no data or not logged in
-      localStorage.setItem(migrationMarker, 'true');
-      return;
-    }
-
-    const parsed = JSON.parse(oldData);
-    if (!parsed.items || !Array.isArray(parsed.items) || parsed.items.length === 0) {
-      localStorage.setItem(migrationMarker, 'true');
-      return;
-    }
-
-    console.log('🔄 Migrating old localStorage items to family storage...');
-
-    const familyKey = getStorageKey();
-
-    // Get existing family-specific data
-    let familyData = localStorage.getItem(familyKey);
-    let familyState = familyData ? JSON.parse(familyData) : { items: [] };
-
-    // Move items from old to family-specific
-    for (const item of parsed.items) {
-      // Check if item already exists in family data
-      if (!familyState.items.find(i => i.id === item.id)) {
-        familyState.items.unshift(item);
-      }
-    }
-
-    // Save to family-specific key
-    localStorage.setItem(familyKey, JSON.stringify(familyState));
-
-    // Delete old shared key to prevent re-migration
-    localStorage.removeItem(oldKey);
-
-    // Mark migration as complete
-    localStorage.setItem(migrationMarker, 'true');
-
-    console.log('✓ Migrated ' + parsed.items.length + ' items to family storage');
-  } catch (error) {
-    console.error('Migration error:', error);
-  }
-}
-
 // Data operations
 export async function getListItems() {
   if (!currentUser || currentUser.id.startsWith('guest_')) {
@@ -294,9 +244,6 @@ export async function getListItems() {
     console.error('ERROR: Cannot fetch items - family_id is missing from currentUser', { currentUser });
     return [];
   }
-
-  // Migrate old storage on first load
-  await migrateOldStorage();
 
   const { data, error } = await supabase
     .from('list_items')
