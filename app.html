@@ -1037,7 +1037,7 @@ function addStarterIfEmpty(){
 /* Seed the user's recipe book from the built-ins the first time. After that
    they own it — add, edit, delete freely. ing is [{name, qty}]. */
 function seedRecipes(){
-  if(Array.isArray(state.recipes)) return;
+  if(Array.isArray(state.recipes) && state.recipes.length > 0 && state.recipes[0].id) return;
   state.recipes = RECIPES.map(r=>({
     id:uid(), e:r.e, n:r.n, time:r.time,
     ing:r.ing.map(x=>({name:cap(x), qty:""})),
