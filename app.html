@@ -843,7 +843,7 @@ function load(){
       if(currentFamily && s._family_id && s._family_id !== currentFamily) {
         console.warn('⚠️ Data family mismatch, clearing', { stored: s._family_id, current: currentFamily });
         localStorage.removeItem(key);
-        return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[], _family_id: currentFamily};
+        return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:RECIPES.slice(), starter:[], watched:[], _family_id: currentFamily};
       }
       if(!Array.isArray(s.inventory)) s.inventory=[];
       s._family_id = currentFamily;
@@ -851,7 +851,7 @@ function load(){
     }
   }catch(e){ console.error('Error loading state:', e); }
   console.log('📂 Returning empty state for family:', currentFamily);
-  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:[], starter:[], watched:[], _family_id: currentFamily};
+  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:RECIPES.slice(), starter:[], watched:[], _family_id: currentFamily};
 }
 
 function reloadState(){
