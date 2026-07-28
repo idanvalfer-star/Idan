@@ -373,6 +373,23 @@ window.supabaseReady = true;
 let getStorageKey = null;
 let getListItems = null;
 
+// Show guest info if guest mode
+if(isGuest && user && user.id.startsWith('guest_')) {
+  const userInfo = document.getElementById('userInfo');
+  if(userInfo) {
+    userInfo.style.display = 'flex';
+    document.getElementById('currentUserName').textContent = 'Guest';
+    document.getElementById('guestBadge').style.display = 'inline-block';
+    document.getElementById('guestBadge').textContent = '👤 Guest';
+    document.getElementById('logoutBtn').style.display = 'block';
+    document.getElementById('logoutBtn').onclick = () => {
+      sessionStorage.removeItem('cartly.user');
+      localStorage.removeItem('cartly.user');
+      window.location.href = '/login';
+    };
+  }
+}
+
 // Only load Supabase if user is logged in
 if(!isGuest) {
   import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported }) => {
@@ -388,11 +405,14 @@ if(!isGuest) {
         if(userInfo) {
           userInfo.style.display = 'flex';
           document.getElementById('currentUserName').textContent = loggedUser.nickname || 'User';
+          document.getElementById('guestBadge').style.display = 'none'; // Hide guest badge for logged-in users
           document.getElementById('logoutBtn').style.display = 'block';
           document.getElementById('deleteAccountBtn').style.display = 'block';
           document.getElementById('logoutBtn').onclick = () => {
-            sessionStorage.removeItem('cartly.user');
-            window.location.href = '/login';
+            import('./supabase-service.js').then(({logout}) => {
+              logout();
+              window.location.href = '/login';
+            });
           };
 
           // Fetch and display family code
