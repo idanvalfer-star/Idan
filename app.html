@@ -378,9 +378,7 @@ if(isGuest && user && user.id.startsWith('guest_')) {
   const userInfo = document.getElementById('userInfo');
   if(userInfo) {
     userInfo.style.display = 'flex';
-    document.getElementById('currentUserName').textContent = 'Guest';
-    document.getElementById('guestBadge').style.display = 'inline-block';
-    document.getElementById('guestBadge').textContent = '👤 Guest';
+    document.getElementById('currentUserName').textContent = '👤 Guest';
     document.getElementById('logoutBtn').style.display = 'block';
     document.getElementById('logoutBtn').onclick = () => {
       sessionStorage.removeItem('cartly.user');
