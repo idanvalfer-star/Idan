@@ -1437,7 +1437,7 @@ async function analyzeSource(url, cap){
   const thumb = yid ? `https://img.youtube.com/vi/${yid}/hqdefault.jpg` : "";
   const localResult = () => {
     const rows = extractIngredients(cap||"");
-    return { platform, title:"", thumb,
+    return { platform, title:"", name:"", thumb,
       description: makeDescription(cap||"", platform, rows.length),
       ingredients: rows.map(g=>({name:g.name, qty:g.qty})),
       source: backend.video ? "caption" : "caption (offline)" };
@@ -1455,7 +1455,7 @@ async function analyzeSource(url, cap){
         err.status = r.status;
         throw err;
       }
-      return { platform:data.platform||platform, title:data.title||"", thumb:data.thumb||thumb,
+      return { platform:data.platform||platform, title:data.title||"", name:data.name||"", thumb:data.thumb||thumb,
         description:data.description||"", source:data.source||"",
         ingredients:(data.ingredients||[]).map(g=>({name:g.name, qty:g.quantity||""})) };
     }catch(e){
@@ -1486,7 +1486,7 @@ async function analyseVideo(){
   btn.disabled = true; btn.textContent = watching ? t("watching") : t("reading");
   try{
     const res = await analyzeSource(url, "");
-    pendingVideo = { id:uid(), url, platform:res.platform, title:res.title, thumb:res.thumb,
+    pendingVideo = { id:uid(), url, platform:res.platform, title:res.title, name:res.name, thumb:res.thumb,
       description:res.description, ingredients:toRows(res.ingredients), source:res.source };
     renderVideoResult();
     if(!pendingVideo.ingredients.length) toast(t("t_no_ings"));
