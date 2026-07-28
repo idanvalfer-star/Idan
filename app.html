@@ -996,10 +996,18 @@ function seedStarter(){
 function addStarterIfEmpty(){
   if(state.items && state.items.length > 0) return; // Not empty
   if(!Array.isArray(DEFAULTS)) return;
+
+  // Add to main list
   let added = 0;
   DEFAULTS.forEach(name => {
     if(addItem(name)) added++;
   });
+
+  // Also populate the starter list editor with defaults
+  if(!Array.isArray(state.starter) || state.starter.length === 0) {
+    state.starter = DEFAULTS.slice();
+  }
+
   if(added > 0) {
     save();
     if(typeof renderList === 'function') renderList();
