@@ -1444,7 +1444,7 @@ async function analyzeSource(url, cap){
   };
   if(backend.video && url){
     try{
-      const r = await fetch("/api/analyze", {
+      const r = await fetch("/api/analyze-video", {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({ url, caption: cap }),
       });
