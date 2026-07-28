@@ -65,12 +65,19 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 .add-btn:active{transform:scale(.92)}
 
 /* toolbar row */
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
   padding:8px 13px;border-radius:999px;font-size:13px;font-weight:700;color:var(--ink);box-shadow:var(--shadow-sm);transition:.15s}
 .chip:active{transform:scale(.95)}
 .chip.on{background:var(--accent);color:#fff;border-color:transparent}
 .chip.ghost{color:var(--muted)}
+.actions-menu{position:absolute;top:100%;right:0;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);min-width:200px;z-index:100;display:flex;flex-direction:column;overflow:hidden}
+.actions-menu.hide{display:none}
+.action-item{display:flex;align-items:center;gap:8px;padding:12px 14px;border:none;background:transparent;color:var(--ink);
+  cursor:pointer;font-size:13px;font-weight:600;text-align:left;transition:.15s;font-family:inherit}
+.action-item:active{background:var(--line)}
+.action-item span:first-child{font-size:16px}
 .count-pill{margin-inline-start:auto;font-size:12.5px;color:var(--muted);align-self:center;font-weight:700}
 
 /* list */
@@ -252,12 +259,18 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <div id="photoPreview" class="hide"></div>
     <div class="toolbar">
       <button class="chip" id="sortChip"><span>🏪</span> <span data-i18n="sort_aisle">Sort by aisle</span></button>
-      <button class="chip ghost" id="defaultChip"><span>📋</span> <span data-i18n="starter_list">Starter list</span></button>
-      <button class="chip ghost" id="editStarterChip"><span>✎</span> <span data-i18n="edit_starter">Edit starter</span></button>
-      <button class="chip ghost" id="pasteListChip"><span>📄</span> <span data-i18n="paste_list">Paste list</span></button>
-      <button class="chip ghost" id="clearAllChip"><span>🗑️</span> <span data-i18n="clear_all">Clear all</span></button>
-      <button class="chip ghost" id="copyListChip"><span>📋</span> <span data-i18n="copy_list">Copy list</span></button>
-      <button class="chip ghost" id="shufChip"><span>🛒</span> <span data-i18n="shuf_button">Shop at Shufersal</span></button>
+      <div style="position:relative;flex:1">
+        <button class="chip ghost" id="menuBtn" style="margin-left:auto"><span>⋮</span> <span data-i18n="more">More</span></button>
+        <div id="actionsMenu" class="actions-menu hide">
+          <button class="action-item" id="defaultChip"><span>📋</span> <span data-i18n="starter_list">Starter list</span></button>
+          <button class="action-item" id="editStarterChip"><span>✎</span> <span data-i18n="edit_starter">Edit starter</span></button>
+          <button class="action-item" id="pasteListChip"><span>📌</span> <span data-i18n="paste_list">Paste items</span></button>
+          <button class="action-item" id="copyListChip"><span>📋</span> <span data-i18n="copy_list">Copy list</span></button>
+          <button class="action-item" id="shufChip"><span>🛒</span> <span data-i18n="shuf_button">Shop at Shufersal</span></button>
+          <hr style="margin:4px 0;border:none;height:1px;background:var(--line)">
+          <button class="action-item" id="clearAllChip" style="color:var(--muted)"><span>🗑️</span> <span data-i18n="clear_all">Clear all</span></button>
+        </div>
+      </div>
       <span class="count-pill" id="countPill"></span>
     </div>
     <div id="starterEditor" class="hide"></div>
@@ -1662,15 +1675,30 @@ function addInvFromInput(){
 document.getElementById("invAddBtn").onclick = addInvFromInput;
 document.getElementById("invInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addInvFromInput(); });
 
+// Menu button
+document.getElementById("menuBtn").onclick = (e) => {
+  e.stopPropagation();
+  const menu = document.getElementById("actionsMenu");
+  menu.classList.toggle("hide");
+};
+// Close menu when clicking outside
+document.addEventListener("click", (e) => {
+  if(!e.target.closest("#menuBtn") && !e.target.closest("#actionsMenu")) {
+    document.getElementById("actionsMenu").classList.add("hide");
+  }
+});
+
 document.getElementById("sortChip").onclick = ()=>{ state.sortAisle=!state.sortAisle; save(); renderList();
   toast(state.sortAisle? t("t_sorted") : t("t_unsorted")); };
 document.getElementById("defaultChip").onclick = ()=>{
+  document.getElementById("actionsMenu").classList.add("hide");
   seedStarter();
   if(!state.starter.length){ toast(t("t_starter_empty")); return; }
   let n=0; state.starter.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
   toast(n? t("t_added_essentials")(n) : t("t_essentials_have"));
 };
 document.getElementById("clearAllChip").onclick = ()=>{
+  document.getElementById("actionsMenu").classList.add("hide");
   if(!state.items.length){ toast(t("t_list_empty")); return; }
   const backup = state.items.slice();
   state.items = []; save(); renderList();
@@ -1679,6 +1707,7 @@ document.getElementById("clearAllChip").onclick = ()=>{
 
 /* Copy list to clipboard */
 function copyListToClipboard(){
+  document.getElementById("actionsMenu").classList.add("hide");
   if(!state.items.length){ toast(t("t_list_empty")); return; }
   const listText = state.items
     .map(it => `${it.emoji||"🛍️"} ${it.name}${it.qty ? " ("+it.qty+")" : ""}`)
@@ -1712,7 +1741,11 @@ function addPastedList(){
   closePasteModal();
   toast(added? t("t_added_essentials")(added) : "All items already exist");
 }
-document.getElementById("pasteListChip").onclick = openPasteModal;
+function openPasteAndCloseMenu(){
+  document.getElementById("actionsMenu").classList.add("hide");
+  openPasteModal();
+}
+document.getElementById("pasteListChip").onclick = openPasteAndCloseMenu;
 
 // Close modal when clicking outside
 document.getElementById("pasteModal").onclick = function(e){
@@ -1741,7 +1774,10 @@ function openStarterEditor(){
   ed.scrollIntoView({behavior:"smooth", block:"start"});
 }
 function closeStarterEditor(){ const ed=document.getElementById("starterEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
-document.getElementById("editStarterChip").onclick = openStarterEditor;
+document.getElementById("editStarterChip").onclick = ()=>{
+  document.getElementById("actionsMenu").classList.add("hide");
+  openStarterEditor();
+};
 
 /* ---------- Shufersal: build your order from the shopping list ---------- */
 let shufDone = new Set();     // items ticked off as "added on Shufersal" this session
@@ -1793,6 +1829,7 @@ function openShufPopup(){
 function toggleShuf(id){ if(shufDone.has(id)) shufDone.delete(id); else shufDone.add(id); renderShufPanel(); }
 function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; }
 document.getElementById("shufChip").onclick = ()=>{
+  document.getElementById("actionsMenu").classList.add("hide");
   const ed=document.getElementById("shufPanel");
   if(ed.classList.contains("hide")) openShufPanel(); else closeShufPanel();
 };
