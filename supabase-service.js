@@ -9,11 +9,13 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Current user
 let currentUser = null;
 
-// Initialize from session storage
+// Initialize from session or local storage (for mobile app backgrounding)
 export async function initAuth() {
-  const stored = sessionStorage.getItem('cartly.user');
+  const stored = sessionStorage.getItem('cartly.user') || localStorage.getItem('cartly.user');
   if (stored) {
     currentUser = JSON.parse(stored);
+    // Always restore to sessionStorage for consistency
+    sessionStorage.setItem('cartly.user', stored);
     // Validate that family_id is set for non-guest users
     if (!currentUser.id.startsWith('guest_') && !currentUser.family_id) {
       console.warn('WARNING: User restored but family_id is missing. This will cause issues.', { currentUser });
@@ -93,7 +95,9 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
     if (userError) throw userError;
 
     currentUser = { id: userId, email, nickname, family_id: familyId };
-    sessionStorage.setItem('cartly.user', JSON.stringify(currentUser));
+    const userJson = JSON.stringify(currentUser);
+    sessionStorage.setItem('cartly.user', userJson);
+    localStorage.setItem('cartly.user', userJson);
 
     return { success: true, user: currentUser, familyCode: returnedFamilyCode };
   } catch (error) {
@@ -190,6 +194,7 @@ export function getCurrentUser() {
 export function logout() {
   currentUser = null;
   sessionStorage.removeItem('cartly.user');
+  localStorage.removeItem('cartly.user');
 }
 
 // Request password reset email
