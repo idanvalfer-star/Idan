@@ -2012,6 +2012,7 @@ async function upsertListItem(item) {
 }
 
 // Initialize app
+state = load(); // Load saved state from localStorage first
 seedRecipes();
 seedStarter();
 cleanupOldSourceTags();
