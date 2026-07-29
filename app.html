@@ -390,11 +390,14 @@ if(isGuest && user && user.id.startsWith('guest_')) {
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported }) => {
     getStorageKey = getStorageKeyImported;
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
     window.subscribeToListUpdates = subscribeToListUpdates;
+    window.addListItemSupabase = addListItemImported;
+    window.updateListItemSupabase = updateListItemImported;
+    window.deleteListItemSupabase = deleteListItemImported;
 
     initAuth().then(() => {
       const loggedUser = getCurrentUser();
@@ -984,18 +987,25 @@ function save(){
   }catch(e){ console.error('Error saving state:', e); }
 }
 
-// Async save to Supabase (non-blocking, batched)
+// Sync changes to Supabase immediately for authenticated users
 async function saveToSupabase() {
-  if(!supabaseReady) return;
+  if(!window.supabaseReady) return;
   try {
-    const user = getCurrentUser();
+    const user = window.getCurrentUser?.();
     if(!user || user.id.startsWith('guest_')) return;
 
-    // Batch sync items, videos, inventory
+    // Sync items via Supabase API (uses service key, bypasses RLS)
     for(const item of state.items) {
       if(item._dirty || !item.id.includes('-')) {
-        await upsertListItem(item);
-        item._dirty = false;
+        // Use the API-based function for syncing
+        if(window.addListItemSupabase) {
+          try {
+            await window.addListItemSupabase(item);
+            item._dirty = false;
+          } catch(e) {
+            console.error('Error syncing item to Supabase:', e);
+          }
+        }
       }
     }
   } catch(e) { console.error('Supabase save error:', e); }
@@ -1090,8 +1100,15 @@ function addItem(name, qty, source, img){
   // merge duplicates (same name, not checked)
   const dup = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase() && !i.checked);
   if(dup){ if(qty) dup.qty = qty; if(img) dup.img = img; save(); return "dup"; }
-  state.items.unshift({id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false});
-  save(); return true;
+  const newItem = {id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
+  state.items.unshift(newItem);
+  save();
+  // Sync to Supabase immediately for authenticated users
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.addListItemSupabase) {
+    window.addListItemSupabase(newItem).catch(e => console.error('Failed to sync item to Supabase:', e));
+  }
+  return true;
 }
 function toggleInStock(id, e){
   e.stopPropagation();
@@ -1110,7 +1127,13 @@ function toggleInStock(id, e){
 }
 function toggleItem(id){
   const it = state.items.find(i=>i.id===id); if(!it) return;
-  it.checked = !it.checked; save();
+  it.checked = !it.checked;
+  save();
+  // Sync update to Supabase for authenticated users
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.updateListItemSupabase) {
+    window.updateListItemSupabase(id, {checked: it.checked}).catch(e => console.error('Failed to sync update to Supabase:', e));
+  }
   if(shufPopupWindow && !shufPopupWindow.closed) shufPopupWindow.close();
   // Animate in place — the item stays where it is, just shown checked.
   const row = document.querySelector(`.item[data-id="${id}"]`);
@@ -1127,8 +1150,30 @@ function toggleItem(id){
     updateCount();
   } else { renderList(); }
 }
-function delItem(id){ state.items = state.items.filter(i=>i.id!==id); save(); renderList(); }
-function setCat(id,cat){ const it=state.items.find(i=>i.id===id); if(it){ it.category=cat; it.emoji=SECTION_EMOJI[cat]||it.emoji; save(); renderList(); } }
+function delItem(id){
+  state.items = state.items.filter(i=>i.id!==id);
+  save();
+  renderList();
+  // Sync delete to Supabase for authenticated users
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.deleteListItemSupabase) {
+    window.deleteListItemSupabase(id).catch(e => console.error('Failed to sync delete to Supabase:', e));
+  }
+}
+function setCat(id,cat){
+  const it=state.items.find(i=>i.id===id);
+  if(it){
+    it.category=cat;
+    it.emoji=SECTION_EMOJI[cat]||it.emoji;
+    save();
+    renderList();
+    // Sync update to Supabase for authenticated users
+    const user = window.getCurrentUser?.();
+    if(user && !user.id.startsWith('guest_') && window.updateListItemSupabase) {
+      window.updateListItemSupabase(id, {category: it.category, emoji: it.emoji}).catch(e => console.error('Failed to sync update to Supabase:', e));
+    }
+  }
+}
 
 /* ---------------- Render list ---------------- */
 function shufUrl(name){
