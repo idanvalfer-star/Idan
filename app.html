@@ -348,6 +348,11 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <button id="syncBtn" title="Sync and refresh">🔄</button>
     </div>
 
+    <div class="settings-item">
+      <label>Clean Duplicates</label>
+      <button onclick="cleanupSupabaseDuplicates()" title="Remove duplicate items from database">🧹</button>
+    </div>
+
     <button class="settings-btn-danger" id="deleteAccountBtn" style="display:none;">🗑️ Delete Account</button>
   </div>
 </div>
@@ -2085,10 +2090,68 @@ async function deleteAccount(){
   }
 }
 
+// Clean up duplicate items in Supabase (keeps one copy, removes rest)
+async function cleanupSupabaseDuplicates(){
+  try {
+    const user = window.getCurrentUser?.();
+    if(!user || user.id.startsWith('guest_')) {
+      alert("Only logged-in users can clean up duplicates");
+      return;
+    }
+
+    if(!confirm("This will remove duplicate items from your family's Supabase database, keeping only one copy of each item. Continue?")) {
+      return;
+    }
+
+    const { supabase } = await import('./supabase-service.js');
+    const allItems = await supabase
+      .from('list_items')
+      .select('*')
+      .eq('family_id', user.family_id);
+
+    if(!allItems.data) {
+      alert("Error fetching items");
+      return;
+    }
+
+    // Find duplicates by name (case-insensitive)
+    const seen = new Map();
+    const toDelete = [];
+
+    allItems.data.forEach(item => {
+      const key = `${item.name.toLowerCase()}_${item.checked}`;
+      if(seen.has(key)) {
+        toDelete.push(item.id); // Keep first, delete the rest
+      } else {
+        seen.set(key, item.id);
+      }
+    });
+
+    if(toDelete.length === 0) {
+      alert("No duplicates found!");
+      return;
+    }
+
+    console.log('🧹 Cleaning up ' + toDelete.length + ' duplicate items...');
+
+    // Delete in batches
+    for(let i = 0; i < toDelete.length; i += 50) {
+      const batch = toDelete.slice(i, i + 50);
+      await supabase.from('list_items').delete().in('id', batch);
+    }
+
+    alert('✓ Removed ' + toDelete.length + ' duplicate items! Refresh to see the cleaned list.');
+    location.reload();
+  } catch(e) {
+    console.error('Cleanup error:', e);
+    alert('Error cleaning up duplicates: ' + e.message);
+  }
+}
+
 // expose handlers used in inline HTML
 Object.assign(window,{toggleItem,delItem,setCat,addRecipeToList,editRecipe,delRecipe,
   togglePending,commitVideo,saveVideoAsRecipe,readd,delVideo,
-  itemPhoto,removeItemImg,clearPendingPhoto,moveToList,delInv,editInv,toggleShuf});
+  itemPhoto,removeItemImg,clearPendingPhoto,moveToList,delInv,editInv,toggleShuf,cleanupSupabaseDuplicates});
 
 
 // Supabase sync functions (non-blocking background sync)
