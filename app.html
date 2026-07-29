@@ -400,6 +400,8 @@ if(!isGuest) {
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
     window.subscribeToListUpdates = subscribeToListUpdates;
+    window.getListItems = getListItemsImported;
+    window.getStorageKey = getStorageKeyImported;
     window.addListItemSupabase = addListItemImported;
     window.updateListItemSupabase = updateListItemImported;
     window.deleteListItemSupabase = deleteListItemImported;
@@ -953,12 +955,14 @@ function cleanupOtherFamilyData(){
 }
 
 async function loadFamilyItems(){
-  if(typeof getListItems !== 'function') {
+  // Use window.getListItems if available (set by module), fallback to local getListItems
+  const getListItemsFn = window.getListItems || (typeof getListItems === 'function' ? getListItems : null);
+  if(typeof getListItemsFn !== 'function') {
     console.warn('⚠️ getListItems not available yet, skipping Supabase load');
     return;
   }
   try {
-    const familyItems = await getListItems();
+    const familyItems = await getListItemsFn();
     console.log('📥 getListItems returned:', { count: familyItems?.length, type: Array.isArray(familyItems) ? 'array' : typeof familyItems });
 
     if(!familyItems || !Array.isArray(familyItems)) {
