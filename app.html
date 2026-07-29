@@ -1156,14 +1156,96 @@ function toast(msg, action){
   clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove("show"), action?4500:1900);
 }
 
+/* Pluralization mapping for common grocery items */
+const ITEM_PLURALS = {
+  'apple': 'apples', 'banana': 'bananas', 'orange': 'oranges', 'tomato': 'tomatoes',
+  'potato': 'potatoes', 'onion': 'onions', 'carrot': 'carrots', 'egg': 'eggs',
+  'strawberry': 'strawberries', 'raspberry': 'raspberries', 'blueberry': 'blueberries',
+  'grape': 'grapes', 'peach': 'peaches', 'pear': 'pears', 'plum': 'plums',
+  'pepper': 'peppers', 'bell pepper': 'bell peppers', 'chili': 'chilies',
+  'mushroom': 'mushrooms', 'celery': 'celery', 'broccoli': 'broccoli', 'cauliflower': 'cauliflower',
+  'cucumber': 'cucumbers', 'zucchini': 'zucchini', 'eggplant': 'eggplants',
+  'lettuce': 'lettuces', 'spinach': 'spinach', 'herb': 'herbs', 'parsley': 'parsley',
+  'basil': 'basil', 'cilantro': 'cilantro', 'mint': 'mint', 'scallion': 'scallions',
+  'lime': 'limes', 'lemon': 'lemons', 'ginger': 'ginger', 'garlic': 'garlic',
+  'milk': 'milk', 'cheese': 'cheese', 'butter': 'butter', 'yogurt': 'yogurts',
+  'bread': 'breads', 'bagel': 'bagels', 'baguette': 'baguettes', 'tortilla': 'tortillas',
+  'chicken': 'chickens', 'beef': 'beef', 'fish': 'fish', 'shrimp': 'shrimp',
+  'salmon': 'salmon', 'tuna': 'tuna', 'bacon': 'bacon', 'ham': 'ham',
+  'rice': 'rice', 'pasta': 'pasta', 'noodle': 'noodles', 'bean': 'beans',
+  'lentil': 'lentils', 'chickpea': 'chickpeas', 'pea': 'peas',
+  'coffee': 'coffee', 'tea': 'tea', 'juice': 'juices', 'soda': 'sodas',
+  'water': 'water', 'wine': 'wine', 'beer': 'beers', 'oil': 'oils',
+  'salt': 'salt', 'sugar': 'sugar', 'flour': 'flour', 'honey': 'honey',
+  'olive oil': 'olive oils', 'soy sauce': 'soy sauces', 'cream': 'cream',
+  'olive': 'olives', 'avocado': 'avocados', 'mango': 'mangos', 'pineapple': 'pineapples'
+};
+
+/* Pluralize a grocery item name (or return normalized form) */
+function pluralizeItem(name) {
+  const lower = name.toLowerCase().trim();
+  if (ITEM_PLURALS[lower]) return ITEM_PLURALS[lower];
+  // Simple English pluralization rules
+  if (lower.endsWith('y')) return lower.slice(0, -1) + 'ies';
+  if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('z')) return lower + 'es';
+  if (lower.endsWith('o')) return lower + 'es';
+  // Default: just add 's'
+  return lower + 's';
+}
+
+/* Capitalize first letter */
+function capitalizeItem(name) {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 /* ---------------- Item ops ---------------- */
 function addItem(name, qty, source, img){
   name = (name||"").trim(); if(!name) return false;
-  const info = classify(name);
-  // merge duplicates (same name, not checked)
-  const dup = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase() && !i.checked);
-  if(dup){ if(qty) dup.qty = qty; if(img) dup.img = img; save(); return "dup"; }
-  const newItem = {id:uid(), name, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
+
+  // Pluralize and normalize the item name
+  const normalized = capitalizeItem(pluralizeItem(name));
+
+  // Check if item exists on the list (unchecked)
+  const existsOnList = state.items.find(i => i.name.toLowerCase() === normalized.toLowerCase() && !i.checked);
+  if(existsOnList) {
+    if(confirm(`"${normalized}" already exists on your list. Are you sure you want to add it again?`)) {
+      // User confirmed, update qty if provided
+      if(qty) existsOnList.qty = qty;
+      if(img) existsOnList.img = img;
+      save();
+      toast('Updated quantity for ' + normalized);
+      return "dup";
+    } else {
+      toast('Cancelled');
+      return false;
+    }
+  }
+
+  // Check if item exists in home inventory
+  const existsAtHome = state.inventory.find(i => i.name.toLowerCase() === normalized.toLowerCase());
+  if(existsAtHome) {
+    if(confirm(`"${normalized}" already exists in your home. Do you want to add it to your shopping list?`)) {
+      // User confirmed, proceed to add
+      const info = classify(normalized);
+      const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
+      state.items.unshift(newItem);
+      save();
+      toast('Added ' + normalized + ' to shopping list');
+      // Sync to Supabase immediately for authenticated users
+      const user = window.getCurrentUser?.();
+      if(user && !user.id.startsWith('guest_') && window.addListItemSupabase) {
+        window.addListItemSupabase(newItem).catch(e => console.error('Failed to sync item to Supabase:', e));
+      }
+      return true;
+    } else {
+      toast('Cancelled');
+      return false;
+    }
+  }
+
+  // Item doesn't exist, add it normally
+  const info = classify(normalized);
+  const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
   state.items.unshift(newItem);
   save();
   // Sync to Supabase immediately for authenticated users
@@ -1719,10 +1801,21 @@ function renderInventory(){
 function invUnitVal(){ return document.getElementById("invUnit").value || ""; }
 function addInv(name, qty, unit, expiry){
   name=(name||"").trim(); if(!name) return false;
-  const info = classify(name);
-  const newInvItem = {id:uid(), name, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji};
+
+  // Pluralize and normalize the item name
+  const normalized = capitalizeItem(pluralizeItem(name));
+
+  // Check if item already exists in inventory
+  const existsInInv = state.inventory.find(i => i.name.toLowerCase() === normalized.toLowerCase());
+  if(existsInInv) {
+    toast(normalized + ' already exists in your home');
+    return false;
+  }
+
+  const info = classify(normalized);
+  const newInvItem = {id:uid(), name:normalized, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji};
   state.inventory.unshift(newInvItem);
-  const matchingItem = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase());
+  const matchingItem = state.items.find(i=>i.name.toLowerCase()===normalized.toLowerCase());
   if(matchingItem) matchingItem.inStock = true;
   save();
 
