@@ -1239,7 +1239,6 @@ function addItem(name, qty, source, img){
   if(existsAtHome) {
     if(confirm(`"${normalized}" already exists in your home. Do you want to add it to your shopping list?`)) {
       // User confirmed, proceed to add
-      const info = classify(normalized);
       const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
       state.items.unshift(newItem);
       save();
@@ -1257,7 +1256,6 @@ function addItem(name, qty, source, img){
   }
 
   // Item doesn't exist, add it normally
-  const info = classify(normalized);
   const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
   state.items.unshift(newItem);
   save();
@@ -1828,6 +1826,7 @@ function addInv(name, qty, unit, expiry){
     return false;
   }
 
+  // Note: Keep using the original 'info' from classify(name), not the normalized name
   const newInvItem = {id:uid(), name:normalized, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji};
   state.inventory.unshift(newInvItem);
   const matchingItem = state.items.find(i=>i.name.toLowerCase()===normalized.toLowerCase());
