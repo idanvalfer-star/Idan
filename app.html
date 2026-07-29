@@ -313,6 +313,10 @@ details.recipe-more summary::-webkit-details-marker{display:none}
         <label data-i18n="video_link">Video link</label>
         <input id="vUrl" placeholder="https://youtube.com/…  ·  instagram.com/…  ·  tiktok.com/…" autocomplete="off">
       </div>
+      <div class="field">
+        <label>Caption (optional)</label>
+        <textarea id="vCaption" placeholder="Paste the video description, captions, or recipe text to help extract ingredients better…" style="min-height:80px"></textarea>
+      </div>
       <button class="btn" id="vParse" data-i18n="analyse">✨ Analyse video</button>
       <div id="vResult" class="hide" style="margin-top:16px"></div>
     </div>
@@ -1335,6 +1339,7 @@ function saveVideoAsRecipe(){
   save();
   pendingVideo = null;
   document.getElementById("vUrl").value = "";
+  document.getElementById("vCaption").value = "";
   document.getElementById("vResult").classList.add("hide");
   toast(t("t_saved_recipe_book"));
 }
@@ -1482,10 +1487,11 @@ async function analyseVideo(){
   }
   const btn = document.getElementById("vParse");
   const watching = backend.video && url;
+  const caption = document.getElementById("vCaption").value.trim();
   analysing = true;
   btn.disabled = true; btn.textContent = watching ? t("watching") : t("reading");
   try{
-    const res = await analyzeSource(url, "");
+    const res = await analyzeSource(url, caption);
     pendingVideo = { id:uid(), url, platform:res.platform, title:res.title, name:res.name, thumb:res.thumb,
       description:res.description, ingredients:toRows(res.ingredients), source:res.source };
     renderVideoResult();
