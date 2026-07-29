@@ -449,9 +449,12 @@ if(!isGuest) {
 
           // Migrate old items from 'cartly.v1' to family-specific key, then sync from Supabase
           if(typeof migrateOldItems === 'function') {
+            console.log('🔐 Auth: Starting migration...');
             migrateOldItems().then(() => {
               if(typeof loadFamilyItems === 'function') {
+                console.log('🔐 Auth: Migration done, loading family items...');
                 loadFamilyItems().then(() => {
+                  console.log('🔐 Auth: Family items loaded, checking if empty...');
                   if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
                   // Add starter list if family is new (no items yet)
                   if(typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
@@ -459,13 +462,16 @@ if(!isGuest) {
                   if(typeof reloadState === 'function') reloadState();
                 });
               } else {
+                console.log('🔐 Auth: loadFamilyItems not available yet');
                 if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
                 // Reload state after authentication for logged-in users
                 if(typeof reloadState === 'function') reloadState();
               }
             });
           } else if(typeof loadFamilyItems === 'function') {
+            console.log('🔐 Auth: No migration needed, loading family items...');
             loadFamilyItems().then(() => {
+              console.log('🔐 Auth: Family items loaded, checking if empty...');
               if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
               // Add starter list if family is new (no items yet)
               if(typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
@@ -473,6 +479,7 @@ if(!isGuest) {
               if(typeof reloadState === 'function') reloadState();
             });
           } else {
+            console.log('🔐 Auth: No functions available for loading items');
             if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
             // Reload state after authentication for logged-in users
             if(typeof reloadState === 'function') reloadState();
@@ -946,10 +953,18 @@ function cleanupOtherFamilyData(){
 }
 
 async function loadFamilyItems(){
-  if(typeof getListItems !== 'function') return;
+  if(typeof getListItems !== 'function') {
+    console.warn('⚠️ getListItems not available yet, skipping Supabase load');
+    return;
+  }
   try {
     const familyItems = await getListItems();
-    if(!familyItems || !Array.isArray(familyItems)) return;
+    console.log('📥 getListItems returned:', { count: familyItems?.length, type: Array.isArray(familyItems) ? 'array' : typeof familyItems });
+
+    if(!familyItems || !Array.isArray(familyItems)) {
+      console.warn('⚠️ No family items or not an array, keeping local items:', state.items.length);
+      return;
+    }
 
     // Get existing local item names to avoid duplicates
     const localNames = new Set(state.items.map(i => i.name.toLowerCase()));
@@ -978,9 +993,9 @@ async function loadFamilyItems(){
     state.items = mergedItems;
     save(); // Save merged state
     renderList();
-    console.log('📥 Loaded family items from Supabase:', familyItems.length, 'items');
+    console.log('✅ Merged items from Supabase:', { supabase: familyItems.length, total: state.items.length });
   } catch(e) {
-    console.error('Error loading family items:', e);
+    console.error('❌ Error loading family items:', e);
   }
 }
 
@@ -1032,8 +1047,19 @@ function seedStarter(){
 
 /* Add starter list to main list if empty (for new guests and new families) */
 function addStarterIfEmpty(){
-  if(state.items && state.items.length > 0) return; // Not empty
-  if(!Array.isArray(DEFAULTS)) return;
+  console.log('📋 addStarterIfEmpty check:', { items: state.items?.length, hasDefaults: Array.isArray(DEFAULTS) });
+
+  if(state.items && state.items.length > 0) {
+    console.log('✓ List not empty, skipping starter');
+    return; // Not empty
+  }
+
+  if(!Array.isArray(DEFAULTS)) {
+    console.warn('⚠️ DEFAULTS not available');
+    return;
+  }
+
+  console.log('📋 Adding starter list for empty account...');
 
   // Add to main list
   let added = 0;
