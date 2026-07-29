@@ -1181,11 +1181,21 @@ const ITEM_PLURALS = {
   'olive': 'olives', 'avocado': 'avocados', 'mango': 'mangos', 'pineapple': 'pineapples'
 };
 
-/* Pluralize a grocery item name (or return normalized form) */
-function pluralizeItem(name) {
+/* Pluralize a grocery item name (ONLY for Produce category) */
+function pluralizeItem(name, category) {
+  // Only pluralize if it's Produce
+  if (!category || category !== 'Produce') return name;
+
   const lower = name.toLowerCase().trim();
+
+  // Check if already plural (ends with 's' and not a singular word)
+  if (lower.endsWith('s') && !ITEM_PLURALS[lower]) {
+    return name; // Already plural, don't pluralize again
+  }
+
   if (ITEM_PLURALS[lower]) return ITEM_PLURALS[lower];
-  // Simple English pluralization rules
+
+  // Simple English pluralization rules (only for Produce)
   if (lower.endsWith('y')) return lower.slice(0, -1) + 'ies';
   if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('z')) return lower + 'es';
   if (lower.endsWith('o')) return lower + 'es';
@@ -1202,8 +1212,11 @@ function capitalizeItem(name) {
 function addItem(name, qty, source, img){
   name = (name||"").trim(); if(!name) return false;
 
-  // Pluralize and normalize the item name
-  const normalized = capitalizeItem(pluralizeItem(name));
+  // Get category first to determine if we should pluralize
+  const info = classify(name);
+
+  // Pluralize (only for Produce) and normalize the item name
+  const normalized = capitalizeItem(pluralizeItem(name, info.category));
 
   // Check if item exists on the list (unchecked)
   const existsOnList = state.items.find(i => i.name.toLowerCase() === normalized.toLowerCase() && !i.checked);
@@ -1802,8 +1815,11 @@ function invUnitVal(){ return document.getElementById("invUnit").value || ""; }
 function addInv(name, qty, unit, expiry){
   name=(name||"").trim(); if(!name) return false;
 
-  // Pluralize and normalize the item name
-  const normalized = capitalizeItem(pluralizeItem(name));
+  // Get category first to determine if we should pluralize
+  const info = classify(name);
+
+  // Pluralize (only for Produce) and normalize the item name
+  const normalized = capitalizeItem(pluralizeItem(name, info.category));
 
   // Check if item already exists in inventory
   const existsInInv = state.inventory.find(i => i.name.toLowerCase() === normalized.toLowerCase());
@@ -1812,7 +1828,6 @@ function addInv(name, qty, unit, expiry){
     return false;
   }
 
-  const info = classify(normalized);
   const newInvItem = {id:uid(), name:normalized, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji};
   state.inventory.unshift(newInvItem);
   const matchingItem = state.items.find(i=>i.name.toLowerCase()===normalized.toLowerCase());
