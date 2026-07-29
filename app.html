@@ -2072,7 +2072,12 @@ async function upsertListItem(item) {
 }
 
 // Initialize app
+const appUser = JSON.parse(sessionStorage.getItem('cartly.user') || localStorage.getItem('cartly.user') || 'null');
+console.log('🔍 App init: user available =', !!appUser, appUser ? { id: appUser.id?.slice(0, 8), family_id: appUser.family_id?.slice(0, 8) } : null);
+
 state = load(); // Load saved state from localStorage first
+console.log('🔍 Initial state loaded:', { items: state.items.length, family_id: state._family_id?.slice(0, 8) });
+
 seedRecipes();
 seedStarter();
 cleanupOldSourceTags();
