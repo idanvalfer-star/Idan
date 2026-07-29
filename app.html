@@ -400,7 +400,7 @@ if(isGuest && user && user.id.startsWith('guest_')) {
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported }) => {
     getStorageKey = getStorageKeyImported;
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
@@ -410,6 +410,9 @@ if(!isGuest) {
     window.addListItemSupabase = addListItemImported;
     window.updateListItemSupabase = updateListItemImported;
     window.deleteListItemSupabase = deleteListItemImported;
+    window.addInventoryItemSupabase = addInventoryItemImported;
+    window.updateInventoryItemSupabase = updateInventoryItemImported;
+    window.deleteInventoryItemSupabase = deleteInventoryItemImported;
 
     initAuth().then(() => {
       const loggedUser = getCurrentUser();
@@ -1188,11 +1191,17 @@ function toggleInStock(id, e){
 function toggleItem(id){
   const it = state.items.find(i=>i.id===id); if(!it) return;
   it.checked = !it.checked;
+  console.log('✓ Item toggled locally:', { name: it.name, checked: it.checked });
   save();
   // Sync update to Supabase for authenticated users
   const user = window.getCurrentUser?.();
   if(user && !user.id.startsWith('guest_') && window.updateListItemSupabase) {
-    window.updateListItemSupabase(id, {checked: it.checked}).catch(e => console.error('Failed to sync update to Supabase:', e));
+    console.log('📤 Syncing check status to Supabase:', { id, checked: it.checked });
+    window.updateListItemSupabase(id, {checked: it.checked})
+      .then(() => console.log('✅ Check sync successful'))
+      .catch(e => console.error('❌ Failed to sync check to Supabase:', e));
+  } else {
+    console.log('⏭️ Skipping Supabase sync (guest or function unavailable)');
   }
   if(shufPopupWindow && !shufPopupWindow.closed) shufPopupWindow.close();
   // Animate in place — the item stays where it is, just shown checked.
@@ -1711,10 +1720,19 @@ function invUnitVal(){ return document.getElementById("invUnit").value || ""; }
 function addInv(name, qty, unit, expiry){
   name=(name||"").trim(); if(!name) return false;
   const info = classify(name);
-  state.inventory.unshift({id:uid(), name, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji});
+  const newInvItem = {id:uid(), name, qty:qty||"1", unit:unit||"", expiry:expiry||"", category:info.category, emoji:info.emoji};
+  state.inventory.unshift(newInvItem);
   const matchingItem = state.items.find(i=>i.name.toLowerCase()===name.toLowerCase());
   if(matchingItem) matchingItem.inStock = true;
-  save(); return true;
+  save();
+
+  // Sync to Supabase immediately for authenticated users
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.addInventoryItemSupabase) {
+    window.addInventoryItemSupabase(newInvItem).catch(e => console.error('Failed to sync inventory item to Supabase:', e));
+  }
+
+  return true;
 }
 function delInv(id){
   const inv = state.inventory.find(x=>x.id===id);
@@ -1723,7 +1741,15 @@ function delInv(id){
     const item = state.items.find(i=>i.name.toLowerCase()===inv.name.toLowerCase());
     if(item) item.inStock = false;
   }
-  save(); renderInventory(); renderList(); toast(t("t_removed"));
+  save(); renderInventory(); renderList();
+
+  // Sync deletion to Supabase for authenticated users
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.deleteInventoryItemSupabase) {
+    window.deleteInventoryItemSupabase(id).catch(e => console.error('Failed to sync inventory deletion:', e));
+  }
+
+  toast(t("t_removed"));
 }
 function moveToList(id){
   const it = state.inventory.find(x=>x.id===id); if(!it) return;
@@ -1761,10 +1787,23 @@ function openInvEditor(id){
     const qty=document.getElementById("ieQty").value.trim()||"1";
     const unit=document.getElementById("ieUnit").value;
     const expiry=document.getElementById("ieExp").value;
-    if(editingInvId){ const r=state.inventory.find(x=>x.id===editingInvId);
-      if(r){ const info=classify(name); Object.assign(r,{name,qty,unit,expiry,category:info.category,emoji:info.emoji}); } }
-    else { addInv(name,qty,unit,expiry); }
-    save(); closeInvEditor(); renderInventory(); toast(t("t_added_inv"));
+    if(editingInvId){
+      const r=state.inventory.find(x=>x.id===editingInvId);
+      if(r){
+        const info=classify(name);
+        Object.assign(r,{name,qty,unit,expiry,category:info.category,emoji:info.emoji});
+        save();
+        // Sync update to Supabase for authenticated users
+        const user = window.getCurrentUser?.();
+        if(user && !user.id.startsWith('guest_') && window.updateInventoryItemSupabase) {
+          window.updateInventoryItemSupabase(editingInvId, {name,qty,unit,expiry,category:info.category,emoji:info.emoji})
+            .catch(e => console.error('Failed to sync inventory update:', e));
+        }
+      }
+    } else {
+      addInv(name,qty,unit,expiry);
+    }
+    closeInvEditor(); renderInventory(); toast(t("t_added_inv"));
   };
   ed.scrollIntoView({behavior:"smooth", block:"start"});
 }

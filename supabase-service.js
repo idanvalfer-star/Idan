@@ -457,3 +457,126 @@ function deleteItemLocalStorage(id) {
   state.items = state.items.filter(i => i.id !== id);
   localStorage.setItem(key, JSON.stringify(state));
 }
+
+// Inventory sync functions (Home section)
+export async function addInventoryItem(item) {
+  if (!currentUser || currentUser.id.startsWith('guest_')) {
+    return addInventoryLocalStorage(item);
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot add inventory - family_id is not set', { currentUser });
+    throw new Error('Family ID not set. Please log in again.');
+  }
+
+  try {
+    const response = await fetch('/api/add-inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        item,
+        userId: currentUser.id,
+        familyId: currentUser.family_id
+      })
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to add inventory item');
+    }
+    console.log('✓ Inventory item saved to Supabase');
+    return result.data?.[0];
+  } catch (error) {
+    console.error('ERROR: Failed to save inventory item:', error.message);
+    throw error;
+  }
+}
+
+export async function updateInventoryItem(id, updates) {
+  if (!currentUser || currentUser.id.startsWith('guest_')) {
+    return updateInventoryLocalStorage(id, updates);
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot update inventory - family_id is not set', { currentUser });
+    throw new Error('Family ID not set. Please log in again.');
+  }
+
+  try {
+    const response = await fetch(`/api/update-inventory/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        updates,
+        userId: currentUser.id,
+        familyId: currentUser.family_id
+      })
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update inventory item');
+    }
+    console.log('✓ Inventory item updated in Supabase');
+  } catch (error) {
+    console.error('ERROR: Failed to update inventory item:', error.message);
+    throw error;
+  }
+}
+
+export async function deleteInventoryItem(id) {
+  if (!currentUser || currentUser.id.startsWith('guest_')) {
+    return deleteInventoryLocalStorage(id);
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot delete inventory - family_id is not set', { currentUser });
+    throw new Error('Family ID not set. Please log in again.');
+  }
+
+  try {
+    const response = await fetch(`/api/delete-inventory/${id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUser.id,
+        familyId: currentUser.family_id
+      })
+    });
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete inventory item');
+    }
+    console.log('✓ Inventory item deleted from Supabase');
+  } catch (error) {
+    console.error('ERROR: Failed to delete inventory item:', error.message);
+    throw error;
+  }
+}
+
+// Inventory localStorage fallbacks
+function addInventoryLocalStorage(item) {
+  const key = getStorageKey();
+  let state = JSON.parse(localStorage.getItem(key) || '{"items":[]}');
+  if (!Array.isArray(state.inventory)) state.inventory = [];
+  state.inventory.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), ...item });
+  localStorage.setItem(key, JSON.stringify(state));
+}
+
+function updateInventoryLocalStorage(id, updates) {
+  const key = getStorageKey();
+  let state = JSON.parse(localStorage.getItem(key) || '{"items":[]}');
+  if (!Array.isArray(state.inventory)) state.inventory = [];
+  const item = state.inventory.find(i => i.id === id);
+  if (item) Object.assign(item, updates);
+  localStorage.setItem(key, JSON.stringify(state));
+}
+
+function deleteInventoryLocalStorage(id) {
+  const key = getStorageKey();
+  let state = JSON.parse(localStorage.getItem(key) || '{"items":[]}');
+  if (!Array.isArray(state.inventory)) state.inventory = [];
+  state.inventory = state.inventory.filter(i => i.id !== id);
+  localStorage.setItem(key, JSON.stringify(state));
+}
