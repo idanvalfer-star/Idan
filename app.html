@@ -845,7 +845,7 @@ const RECIPES = [
 ];
 
 /* ---------------- State ---------------- */
-let state = {items:[], videos:[], inventory:[], recipes:RECIPES.slice(), recipes_edit:[], sortAisle:false, theme:null, lang:null, starter:[]};
+let state = {items:[], videos:[], inventory:[], recipes:RECIPES.slice(), recipes_edit:[], sortAisle:false, theme:null, lang:null, starter:[], starterAdded:false};
 let supabaseReady = false;
 let saveTimeout = null;
 
@@ -1074,10 +1074,17 @@ function seedStarter(){
 
 /* Add starter list to main list if empty (for new guests and new families) */
 function addStarterIfEmpty(){
-  console.log('📋 addStarterIfEmpty check:', { items: state.items?.length, hasDefaults: Array.isArray(DEFAULTS) });
+  console.log('📋 addStarterIfEmpty check:', { items: state.items?.length, starterAdded: state.starterAdded, hasDefaults: Array.isArray(DEFAULTS) });
+
+  // Don't add starter if we've already added it before
+  if(state.starterAdded) {
+    console.log('✓ Starter already added, skipping');
+    return;
+  }
 
   if(state.items && state.items.length > 0) {
     console.log('✓ List not empty, skipping starter');
+    state.starterAdded = true; // Mark as added even if list wasn't empty
     return; // Not empty
   }
 
@@ -1100,6 +1107,7 @@ function addStarterIfEmpty(){
   }
 
   if(added > 0) {
+    state.starterAdded = true; // Mark starter as added
     save();
     if(typeof renderList === 'function') renderList();
     console.log('✅ Added starter list for new account:', added, 'items');
