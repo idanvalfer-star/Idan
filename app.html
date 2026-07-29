@@ -1787,9 +1787,9 @@ function openStarterEditor(){
     <div class="vc-plat" style="margin-bottom:8px">${esc(t("starter_editor_title"))}</div>
     <p class="sub" style="margin:0 0 10px">${esc(t("starter_editor_sub"))}</p>
     <div class="field"><textarea id="starterText" style="min-height:180px">${esc(state.starter.join("\n"))}</textarea></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn" id="starterSave" type="button" style="flex:1">${esc(t("save_starter"))}</button>
-      <button class="btn sec" id="starterCancel" type="button" style="flex:0 0 auto">${esc(t("cancel"))}</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="starterSave" type="button" style="flex:1;min-width:140px">${esc(t("save_starter"))}</button>
+      <button class="btn sec" id="starterCancel" type="button" style="flex:0 0 auto;min-width:100px">${esc(t("cancel"))}</button>
     </div>
   </div>`;
   document.getElementById("starterCancel").onclick = closeStarterEditor;
