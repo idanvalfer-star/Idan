@@ -343,6 +343,11 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <button id="logoutBtn" title="Sign out" style="display:none;">🚪</button>
     </div>
 
+    <div class="settings-item">
+      <label>Sync Data</label>
+      <button id="syncBtn" title="Sync and refresh">🔄</button>
+    </div>
+
     <button class="settings-btn-danger" id="deleteAccountBtn" style="display:none;">🗑️ Delete Account</button>
   </div>
 </div>
@@ -1973,6 +1978,11 @@ function applyLang(){
 }
 document.getElementById("langBtn").onclick = ()=>{
   state.lang = isRTL() ? "en" : "he"; save(); applyLang();
+};
+
+// Sync button - reload page to fetch fresh data from Supabase
+document.getElementById("syncBtn").onclick = ()=>{
+  location.reload();
 };
 
 /* ----------- SETTINGS MODAL ----------- */
