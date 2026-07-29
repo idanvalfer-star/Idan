@@ -445,7 +445,16 @@ window.sendPasswordReset = async function() {
       closeForgotModal();
     }, 4000);
   } else {
-    errorEl.textContent = result.error || 'Failed to send reset link';
+    let errorMsg = result.error || 'Failed to send reset link';
+    // Provide more helpful error messages
+    if (errorMsg.includes('User not found')) {
+      errorMsg = 'No account found with this email address. Please sign up first.';
+    } else if (errorMsg.includes('rate limit')) {
+      errorMsg = 'Too many reset requests. Please wait a few minutes and try again.';
+    } else if (errorMsg.includes('Email') || errorMsg.includes('email')) {
+      errorMsg = 'Email service unavailable. Please try again later.';
+    }
+    errorEl.textContent = errorMsg;
     errorEl.classList.add('show');
   }
 };
