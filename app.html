@@ -977,12 +977,21 @@ async function loadFamilyItems(){
     const mergedItems = [];
     const seenIds = new Set();
 
-    // Add items from Supabase (these are the source of truth)
+    // Add items from Supabase (these are the source of truth), with deduplication
     familyItems.forEach(item => {
       if(!seenIds.has(item.id)) {
-        mergedItems.push(item);
-        seenIds.add(item.id);
-        localNames.add(item.name.toLowerCase());
+        // Skip if duplicate name (case-insensitive) with same checked status
+        const isDup = mergedItems.some(i =>
+          i.name.toLowerCase() === item.name.toLowerCase() &&
+          i.checked === item.checked
+        );
+        if(!isDup) {
+          mergedItems.push(item);
+          seenIds.add(item.id);
+          localNames.add(item.name.toLowerCase());
+        } else {
+          console.log('🔄 Skipping duplicate from Supabase:', item.name);
+        }
       }
     });
 
@@ -995,9 +1004,15 @@ async function loadFamilyItems(){
     });
 
     state.items = mergedItems;
+
+    // Log warning if too many items (likely duplication or accumulation)
+    if(state.items.length > 50) {
+      console.warn('⚠️ WARNING: Unusually large item count (' + state.items.length + '). This may indicate duplicates or accumulation in Supabase. Check your database.');
+    }
+
     save(); // Save merged state
     renderList();
-    console.log('✅ Merged items from Supabase:', { supabase: familyItems.length, total: state.items.length });
+    console.log('✅ Merged items from Supabase:', { supabase: familyItems.length, deduplicated: mergedItems.length, total: state.items.length });
   } catch(e) {
     console.error('❌ Error loading family items:', e);
   }
