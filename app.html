@@ -1285,10 +1285,10 @@ function openRecipeEditor(id){
     </div>
     <div class="field"><label>${esc(t("ing_lines"))}</label><textarea id="reIng" placeholder="2 cups flour&#10;3 eggs&#10;1 tbsp butter">${r?esc(ingToText(r.ing)):""}</textarea></div>
     <div class="field"><label>${esc(t("steps_lines"))}</label><textarea id="reSteps">${r?esc((r.steps||[]).join("\n")):""}</textarea></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn" id="reSave" type="button" style="flex:1">${esc(t("save_recipe"))}</button>
-      <button class="btn sec" id="reCancel" type="button" style="flex:0 0 auto">${esc(t("cancel"))}</button>
-      ${r ? '<button class="btn sec" id="reDelete" type="button" style="flex:0 0 auto">🗑️ ' + esc(t("del")) + '</button>' : ""}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="reSave" type="button" style="flex:1;min-width:140px">${esc(t("save_recipe"))}</button>
+      <button class="btn sec" id="reCancel" type="button" style="flex:0 0 auto;min-width:100px">${esc(t("cancel"))}</button>
+      ${r ? '<button class="btn sec" id="reDelete" type="button" style="flex:0 0 auto;min-width:80px">🗑️ ' + esc(t("del")) + '</button>' : ""}
   </div>`;
   document.getElementById("reCancel").onclick = closeRecipeEditor;
   document.getElementById("reSave").onclick = saveRecipe;
@@ -1644,9 +1644,9 @@ function openInvEditor(id){
       <div class="field" style="flex:1"><label>${esc(t("units")[0]?"":"")}${isRTL()?"יחידה":"Unit"}</label><select id="ieUnit" class="unitsel" style="width:100%;max-width:none">${units}</select></div>
     </div>
     <div class="field"><label>${esc(t("expiry"))}</label><input id="ieExp" type="date" value="${it?esc(it.expiry||""):""}"></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn" id="ieSave" type="button" style="flex:1">💾</button>
-      <button class="btn sec" id="ieCancel" type="button" style="flex:0 0 auto">${esc(t("cancel"))}</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="ieSave" type="button" style="flex:1;min-width:100px">💾</button>
+      <button class="btn sec" id="ieCancel" type="button" style="flex:0 0 auto;min-width:100px">${esc(t("cancel"))}</button>
     </div>
   </div>`;
   document.getElementById("ieCancel").onclick = closeInvEditor;
@@ -1827,9 +1827,9 @@ function renderShufPanel(){
     <p class="sub" style="margin:0 0 10px">${esc(t("shuf_sub"))}</p>
     ${items.length?`<div class="vc-plat" style="color:#e2231a;margin:0 0 8px">${done} / ${items.length} ${esc(t("added_word"))}</div>`:""}
     ${rows}
-    <div style="display:flex;gap:8px;margin-top:14px">
-      <button class="btn" id="shufOpenStore" type="button" style="flex:1">${esc(t("shuf_open_store"))}</button>
-      <button class="btn sec" id="shufClose" type="button">${esc(t("close"))}</button>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn" id="shufOpenStore" type="button" style="flex:1;min-width:140px">${esc(t("shuf_open_store"))}</button>
+      <button class="btn sec" id="shufClose" type="button" style="min-width:100px">${esc(t("close"))}</button>
     </div>
   </div>`;
   document.getElementById("shufClose").onclick = closeShufPanel;
