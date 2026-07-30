@@ -63,6 +63,11 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 .add-btn{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;font-size:22px;
   width:52px;border-radius:14px;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 45%,transparent);transition:transform .12s}
 .add-btn:active{transform:scale(.92)}
+.qty-inline{display:flex;align-items:center;gap:6px;flex:none}
+.qbtn-sm{width:24px;height:24px;border-radius:6px;background:var(--line);color:var(--ink);font-size:14px;font-weight:800;
+  display:grid;place-items:center;transition:.12s;padding:0;line-height:1}
+.qbtn-sm:active{transform:scale(.88);background:color-mix(in srgb,var(--accent) 20%,var(--line))}
+.qty-display{width:28px;text-align:center;font-size:13px;font-weight:700;color:var(--ink)}
 
 /* toolbar row */
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
@@ -1290,6 +1295,34 @@ function toggleInStock(id, e){
   }
   save(); renderList(); renderInventory();
 }
+
+function incQty(id, e){
+  e.stopPropagation();
+  const it = state.items.find(i=>i.id===id); if(!it) return;
+  const current = parseInt(it.qty) || 1;
+  it.qty = String(current + 1);
+  save(); renderList();
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.updateListItemSupabase) {
+    window.updateListItemSupabase(id, {qty: it.qty}).catch(e => console.error('Failed to sync qty:', e));
+  }
+}
+
+function decQty(id, e){
+  e.stopPropagation();
+  const it = state.items.find(i=>i.id===id); if(!it) return;
+  const current = parseInt(it.qty) || 1;
+  if(current > 1){
+    it.qty = String(current - 1);
+  } else {
+    it.qty = "";
+  }
+  save(); renderList();
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.updateListItemSupabase) {
+    window.updateListItemSupabase(id, {qty: it.qty}).catch(e => console.error('Failed to sync qty:', e));
+  }
+}
 function toggleItem(id){
   const it = state.items.find(i=>i.id===id); if(!it) return;
   it.checked = !it.checked;
@@ -1363,13 +1396,14 @@ function itemRow(it){
     : `<span class="cat-emoji" onclick="itemPhoto('${it.id}')" style="cursor:pointer" title="add photo">${it.emoji||"🛍️"}</span>`;
   const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
   const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'🏠':'☐'}</button>`;
-  const metaParts = [stock, rmPhoto, src].filter(x=>x);
+  const qtyControls = `<div class="qty-inline"><button class="qbtn-sm" onclick="decQty('${it.id}',event)">−</button><span class="qty-display">${it.qty||'1'}</span><button class="qbtn-sm" onclick="incQty('${it.id}',event)">+</button></div>`;
+  const metaParts = [qtyControls, stock, rmPhoto, src].filter(x=>x);
   return `<div class="item ${done} ${inStockClass}" data-id="${it.id}" title="${it.category}">
     <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
       <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
     ${thumb}
     <div class="body">
-      <div class="nm">${esc(it.name)}${it.qty?` <span class="tag">${esc(it.qty)}</span>`:""}</div>
+      <div class="nm">${esc(it.name)}</div>
       <div class="meta">${metaParts.join(' ')}</div>
     </div>
     <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
