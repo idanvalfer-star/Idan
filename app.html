@@ -1242,9 +1242,10 @@ function addItem(name, qty, source, img){
     }
   }
 
-  // Check if item exists in home inventory
+  // Check if item exists in home inventory (only if shopping list has unchecked items)
+  const hasActiveItems = state.items.some(i => !i.checked);
   const existsAtHome = state.inventory.find(i => i.name.toLowerCase() === normalized.toLowerCase());
-  if(existsAtHome) {
+  if(existsAtHome && hasActiveItems) {
     if(confirm(`"${normalized}" already exists in your home. Do you want to add it to your shopping list?`)) {
       // User confirmed, proceed to add
       const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
@@ -1986,6 +1987,15 @@ document.getElementById("clearAllChip").onclick = ()=>{
   document.getElementById("actionsMenu").classList.add("hide");
   if(!state.items.length){ toast(t("t_list_empty")); return; }
   const backup = state.items.slice();
+
+  // Delete from Supabase for authenticated users
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.deleteListItemSupabase) {
+    backup.forEach(item => {
+      window.deleteListItemSupabase(item.id).catch(e => console.error('Failed to delete from Supabase:', e));
+    });
+  }
+
   state.items = []; save(); renderList();
   toast(t("t_list_cleared"), { label:t("t_undo"), fn:()=>{ state.items = backup; save(); renderList(); toast(t("t_restored")); } });
 };
