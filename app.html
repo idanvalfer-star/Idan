@@ -68,6 +68,9 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
   display:grid;place-items:center;transition:.12s;padding:0;line-height:1}
 .qbtn-sm:active{transform:scale(.88);background:color-mix(in srgb,var(--accent) 20%,var(--line))}
 .qty-display{width:28px;text-align:center;font-size:13px;font-weight:700;color:var(--ink)}
+.qty-edit{border:1px solid var(--accent);background:var(--bg);color:var(--ink);border-radius:6px;font-size:13px;font-weight:700;
+  padding:4px 4px;outline:none;font-family:inherit;transition:border .15s}
+.qty-edit:focus{border-color:var(--accent-2);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)}
 
 /* toolbar row */
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
@@ -1323,6 +1326,61 @@ function decQty(id, e){
     window.updateListItemSupabase(id, {qty: it.qty}).catch(e => console.error('Failed to sync qty:', e));
   }
 }
+
+function editQty(id, e){
+  e.stopPropagation();
+  const it = state.items.find(i=>i.id===id); if(!it) return;
+  const span = e.target;
+  const currentQty = it.qty || '1';
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.className = 'qty-edit';
+  input.value = currentQty;
+  input.min = '1';
+  input.style.width = '35px';
+  input.style.textAlign = 'center';
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let isCancelled = false;
+  const saveQty = () => {
+    if(isCancelled) return;
+    const newQty = input.value.trim();
+    const numQty = parseInt(newQty);
+    if(newQty && !isNaN(numQty) && numQty > 0){
+      it.qty = String(numQty);
+    } else {
+      it.qty = "";
+    }
+    save(); renderList();
+    const user = window.getCurrentUser?.();
+    if(user && !user.id.startsWith('guest_') && window.updateListItemSupabase) {
+      window.updateListItemSupabase(id, {qty: it.qty}).catch(e => console.error('Failed to sync qty:', e));
+    }
+  };
+  const restoreSpan = () => {
+    const newSpan = document.createElement('span');
+    newSpan.className = 'qty-display';
+    newSpan.style.cursor = 'pointer';
+    newSpan.title = 'Click to edit quantity';
+    newSpan.textContent = currentQty;
+    newSpan.onclick = (evt) => editQty(id, evt);
+    if(input.parentNode) input.replaceWith(newSpan);
+  };
+  input.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') {
+      e.preventDefault();
+      saveQty();
+    }
+    if(e.key === 'Escape') {
+      e.preventDefault();
+      isCancelled = true;
+      restoreSpan();
+    }
+  });
+  input.addEventListener('blur', saveQty);
+}
+
 function toggleItem(id){
   const it = state.items.find(i=>i.id===id); if(!it) return;
   it.checked = !it.checked;
@@ -1396,7 +1454,7 @@ function itemRow(it){
     : `<span class="cat-emoji" onclick="itemPhoto('${it.id}')" style="cursor:pointer" title="add photo">${it.emoji||"🛍️"}</span>`;
   const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
   const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'🏠':'☐'}</button>`;
-  const qtyControls = `<div class="qty-inline"><button class="qbtn-sm" onclick="decQty('${it.id}',event)">−</button><span class="qty-display">${it.qty||'1'}</span><button class="qbtn-sm" onclick="incQty('${it.id}',event)">+</button></div>`;
+  const qtyControls = `<div class="qty-inline"><button class="qbtn-sm" onclick="decQty('${it.id}',event)">−</button><span class="qty-display" onclick="editQty('${it.id}',event)" title="Click to edit quantity" style="cursor:pointer">${it.qty||'1'}</span><button class="qbtn-sm" onclick="incQty('${it.id}',event)">+</button></div>`;
   const metaParts = [qtyControls, stock, rmPhoto, src].filter(x=>x);
   return `<div class="item ${done} ${inStockClass}" data-id="${it.id}" title="${it.category}">
     <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
