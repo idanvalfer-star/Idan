@@ -2188,7 +2188,7 @@ function renderShufPanel(){
         </div>`;
       }).join("")
     : `<p class="sub" style="margin:8px 0">${esc(t("shuf_empty"))}</p>`;
-  ed.innerHTML = `<div class="card" style="border:1px solid #e2231a;box-shadow:0 0 0 3px #fdeceb;cursor:grab;touch-action:none" id="shufDragHandle">
+  ed.innerHTML = `<div class="card" style="border:1px solid #e2231a;box-shadow:0 0 0 3px #fdeceb">
     <div style="width:44px;height:4px;background:#e2231a;border-radius:2px;margin:0 auto 12px;opacity:.6"></div>
     <div class="vc-plat" style="margin-bottom:6px">${esc(t("shuf_title"))}</div>
     <p class="sub" style="margin:0 0 10px">${esc(t("shuf_sub"))}</p>
@@ -2201,7 +2201,6 @@ function renderShufPanel(){
   </div>`;
   document.getElementById("shufClose").onclick = closeShufPanel;
   document.getElementById("shufOpenStore").onclick = openShufPopup;
-  setupShufDrag();
 }
 function openShufPanel(){
   closeStarterEditor();
@@ -2220,50 +2219,8 @@ function openShufPopup(){
   const url = URL.createObjectURL(blob);
   shufPopupWindow = window.open(url, "shufShopping", "width=100,height=100");
 }
-function setupShufDrag(){
-  const shufPanel = document.getElementById("shufPanel");
-  const dragHandle = document.getElementById("shufDragHandle");
-  if(!dragHandle) return;
-  let isDragging = false;
-  let startY = 0;
-  let startTranslate = 0;
-
-  const startDrag = (e) => {
-    isDragging = true;
-    startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-    const transform = window.getComputedStyle(shufPanel).transform;
-    if(transform && transform !== 'none'){
-      startTranslate = parseInt(transform.split(',')[5]) || 0;
-    } else {
-      startTranslate = 0;
-    }
-    dragHandle.style.cursor = 'grabbing';
-    dragHandle.style.background = '#c41807';
-  };
-
-  const moveDrag = (e) => {
-    if(!isDragging) return;
-    e.preventDefault();
-    const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-    const diff = currentY - startY;
-    shufPanel.style.transform = `translateY(${diff + startTranslate}px)`;
-  };
-
-  const endDrag = () => {
-    isDragging = false;
-    dragHandle.style.cursor = 'grab';
-    dragHandle.style.background = '#e2231a';
-  };
-
-  dragHandle.addEventListener('touchstart', startDrag);
-  dragHandle.addEventListener('mousedown', startDrag);
-  document.addEventListener('touchmove', moveDrag, {passive: false});
-  document.addEventListener('mousemove', moveDrag);
-  document.addEventListener('touchend', endDrag);
-  document.addEventListener('mouseup', endDrag);
-}
 function toggleShuf(id){ if(shufDone.has(id)) shufDone.delete(id); else shufDone.add(id); renderShufPanel(); }
-function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; ed.style.transform = ""; }
+function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; }
 document.getElementById("shufChip").onclick = ()=>{
   document.getElementById("actionsMenu").classList.add("hide");
   const ed=document.getElementById("shufPanel");
