@@ -1966,13 +1966,27 @@ function delInv(id){
 }
 function moveToList(id){
   const it = state.inventory.find(x=>x.id===id); if(!it) return;
-  const unitLabel = it.unit ? (isRTL() ? (T.he.units[INV_UNITS.indexOf(it.unit)]||it.unit) : it.unit) : "";
-  const qtyStr = (it.qty && String(it.qty)!=="1") || unitLabel ? `${it.qty||1}${unitLabel?' '+unitLabel:''}` : "";
-  addItem(it.name, qtyStr, "", it.img||"");
-  const addedItem = state.items.find(i=>i.name.toLowerCase()===it.name.toLowerCase());
-  if(addedItem) addedItem.inStock = true;
+  const existingItem = state.items.find(i=>i.name.toLowerCase()===it.name.toLowerCase());
+
+  if(existingItem) {
+    // Item already on list - combine quantities
+    const existingQty = parseInt(existingItem.qty) || 1;
+    const invQty = parseInt(it.qty) || 1;
+    existingItem.qty = String(existingQty + invQty);
+    existingItem.inStock = true;
+    toast(`${esc(capitalizeItem(it.name))}: ${existingQty} + ${invQty} = ${existingItem.qty}`);
+  } else {
+    // Item not on list - add it fresh
+    const unitLabel = it.unit ? (isRTL() ? (T.he.units[INV_UNITS.indexOf(it.unit)]||it.unit) : it.unit) : "";
+    const qtyStr = (it.qty && String(it.qty)!=="1") || unitLabel ? `${it.qty||1}${unitLabel?' '+unitLabel:''}` : "";
+    addItem(it.name, qtyStr, "", it.img||"");
+    const addedItem = state.items.find(i=>i.name.toLowerCase()===it.name.toLowerCase());
+    if(addedItem) addedItem.inStock = true;
+    toast(t("t_moved_to_list"));
+  }
+
   state.inventory = state.inventory.filter(x=>x.id!==id); save();
-  renderInventory(); renderList(); toast(t("t_moved_to_list"));
+  renderInventory(); renderList();
 }
 let editingInvId = null;
 function editInv(id){ openInvEditor(id); }
