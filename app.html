@@ -2226,27 +2226,44 @@ function setupShufDrag(){
   if(!dragHandle) return;
   let isDragging = false;
   let startY = 0;
-  let currentY = 0;
-  dragHandle.addEventListener('touchstart', (e) => {
+  let startTranslate = 0;
+
+  const startDrag = (e) => {
     isDragging = true;
-    startY = e.touches[0].clientY;
-    currentY = shufPanel.offsetTop || 0;
+    startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    const transform = window.getComputedStyle(shufPanel).transform;
+    if(transform && transform !== 'none'){
+      startTranslate = parseInt(transform.split(',')[5]) || 0;
+    } else {
+      startTranslate = 0;
+    }
     dragHandle.style.cursor = 'grabbing';
-  });
-  document.addEventListener('touchmove', (e) => {
+    dragHandle.style.background = '#c41807';
+  };
+
+  const moveDrag = (e) => {
     if(!isDragging) return;
-    const moveY = e.touches[0].clientY - startY;
-    const newY = Math.max(0, currentY + moveY);
-    shufPanel.style.position = 'relative';
-    shufPanel.style.top = newY + 'px';
-  });
-  document.addEventListener('touchend', () => {
+    e.preventDefault();
+    const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    const diff = currentY - startY;
+    shufPanel.style.transform = `translateY(${diff + startTranslate}px)`;
+  };
+
+  const endDrag = () => {
     isDragging = false;
     dragHandle.style.cursor = 'grab';
-  });
+    dragHandle.style.background = '#e2231a';
+  };
+
+  dragHandle.addEventListener('touchstart', startDrag);
+  dragHandle.addEventListener('mousedown', startDrag);
+  document.addEventListener('touchmove', moveDrag, {passive: false});
+  document.addEventListener('mousemove', moveDrag);
+  document.addEventListener('touchend', endDrag);
+  document.addEventListener('mouseup', endDrag);
 }
 function toggleShuf(id){ if(shufDone.has(id)) shufDone.delete(id); else shufDone.add(id); renderShufPanel(); }
-function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; ed.style.top = ""; }
+function closeShufPanel(){ const ed=document.getElementById("shufPanel"); ed.classList.add("hide"); ed.innerHTML=""; ed.style.transform = ""; }
 document.getElementById("shufChip").onclick = ()=>{
   document.getElementById("actionsMenu").classList.add("hide");
   const ed=document.getElementById("shufPanel");
