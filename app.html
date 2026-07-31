@@ -434,10 +434,9 @@ if(!isGuest) {
           document.getElementById('logoutBtn').style.display = 'block';
           document.getElementById('deleteAccountBtn').style.display = 'block';
           document.getElementById('logoutBtn').onclick = () => {
-            import('./supabase-service.js').then(({logout}) => {
-              logout();
-              window.location.href = '/login';
-            });
+            sessionStorage.removeItem('cartly.user');
+            localStorage.removeItem('cartly.user');
+            window.location.href = '/login';
           };
 
           // Fetch and display family code
