@@ -409,13 +409,14 @@ if(isGuest && user && user.id.startsWith('guest_')) {
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, supabase: supabaseClient }) => {
     getStorageKey = getStorageKeyImported;
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
     window.subscribeToListUpdates = subscribeToListUpdates;
     window.getListItems = getListItemsImported;
     window.getStorageKey = getStorageKeyImported;
+    window.supabase = supabaseClient;
     window.addListItemSupabase = addListItemImported;
     window.updateListItemSupabase = updateListItemImported;
     window.deleteListItemSupabase = deleteListItemImported;
@@ -440,13 +441,17 @@ if(!isGuest) {
           };
 
           // Fetch and display family code
-          import('./supabase-service.js').then(({supabase}) => {
-            supabase
+          if(window.supabase && loggedUser.family_id) {
+            window.supabase
               .from('families')
               .select('family_code')
               .eq('id', loggedUser.family_id)
               .single()
-              .then(({data}) => {
+              .then(({data, error}) => {
+                if(error) {
+                  console.error('Error fetching family code:', error);
+                  return;
+                }
                 if(data && data.family_code) {
                   const codeEl = document.getElementById('familyCodeDisplay');
                   codeEl.textContent = 'Family Code: ' + data.family_code;
@@ -458,7 +463,7 @@ if(!isGuest) {
                   };
                 }
               });
-          });
+          }
           subscribeToListUpdates((payload) => {
             if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
               if(typeof renderList === 'function') renderList();
