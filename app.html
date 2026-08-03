@@ -466,31 +466,90 @@ if(!isGuest) {
                 }
               });
           }
-          subscribeToListUpdates((payload) => {
-            if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
-              // Reload from Supabase first, then render
-              if(typeof loadFamilyItems === 'function') {
-                loadFamilyItems().then(() => {
+          // Store subscription channels globally so we can check/re-establish them
+          window.listUpdatesChannel = null;
+          window.inventoryUpdatesChannel = null;
+
+          // Function to set up subscriptions
+          window.setupSubscriptions = function() {
+            console.log('📡 Setting up Realtime subscriptions...');
+            // Unsubscribe from old channels if they exist
+            if(window.listUpdatesChannel && window.supabase) {
+              console.log('📡 Unsubscribing from old list updates channel...');
+              window.supabase.removeChannel(window.listUpdatesChannel);
+            }
+            if(window.inventoryUpdatesChannel && window.supabase) {
+              console.log('📡 Unsubscribing from old inventory updates channel...');
+              window.supabase.removeChannel(window.inventoryUpdatesChannel);
+            }
+
+            window.listUpdatesChannel = subscribeToListUpdates((payload) => {
+              if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
+                console.log('📡 Realtime list update:', payload.eventType, payload);
+                // Reload from Supabase first, then render
+                if(typeof loadFamilyItems === 'function') {
+                  loadFamilyItems().then(() => {
+                    if(typeof renderList === 'function') renderList();
+                  }).catch(e => console.error('Error reloading family items on Realtime event:', e));
+                } else {
                   if(typeof renderList === 'function') renderList();
-                }).catch(e => console.error('Error reloading family items on Realtime event:', e));
-              } else {
-                if(typeof renderList === 'function') renderList();
+                }
               }
+            });
+
+            window.inventoryUpdatesChannel = subscribeToInventoryUpdates((payload) => {
+              if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
+                console.log('📡 Realtime inventory update:', payload.eventType, payload);
+                // Reload inventory from Supabase first, then render
+                if(typeof loadFamilyInventory === 'function') {
+                  loadFamilyInventory().then(() => {
+                    if(typeof renderInv === 'function') renderInv();
+                  }).catch(e => console.error('Error reloading inventory on Realtime event:', e));
+                } else {
+                  if(typeof renderInv === 'function') renderInv();
+                }
+              }
+            });
+            console.log('✅ Subscriptions set up:', { listUpdates: !!window.listUpdatesChannel, inventory: !!window.inventoryUpdatesChannel });
+          };
+
+          // Initial subscription setup
+          window.setupSubscriptions();
+
+          // Handle visibility changes (app backgrounded/foregrounded on mobile)
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+              console.log('👁️ App came to foreground, checking Realtime connection...');
+              // Small delay to ensure connection is re-established
+              setTimeout(() => {
+                // Force re-subscribe
+                window.setupSubscriptions();
+                // Sync data from Supabase in case we missed any updates
+                if(typeof loadFamilyItems === 'function') {
+                  loadFamilyItems().then(() => {
+                    if(typeof renderList === 'function') renderList();
+                  }).catch(e => console.error('Error syncing items on foreground:', e));
+                }
+                if(typeof loadFamilyInventory === 'function') {
+                  loadFamilyInventory().then(() => {
+                    if(typeof renderInv === 'function') renderInv();
+                  }).catch(e => console.error('Error syncing inventory on foreground:', e));
+                }
+              }, 500);
             }
           });
 
-          subscribeToInventoryUpdates((payload) => {
-            if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
-              // Reload inventory from Supabase first, then render
-              if(typeof loadFamilyInventory === 'function') {
-                loadFamilyInventory().then(() => {
-                  if(typeof renderInv === 'function') renderInv();
-                }).catch(e => console.error('Error reloading inventory on Realtime event:', e));
-              } else {
-                if(typeof renderInv === 'function') renderInv();
+          // Periodic connection check (every 30 seconds) - re-subscribe if connection seems dead
+          setInterval(() => {
+            if(document.visibilityState === 'visible' && window.supabase) {
+              const realtimeState = window.supabase.getChannels?.().filter(c => c.state === 'joined').length || 0;
+              console.log('🔌 Realtime connection check: ' + realtimeState + ' active channels');
+              if(realtimeState < 2) {
+                console.warn('⚠️ WARNING: Expected 2 active channels, found ' + realtimeState + '. Re-subscribing...');
+                window.setupSubscriptions();
               }
             }
-          });
+          }, 30000);
 
           // Migrate old items from 'cartly.v1' to family-specific key, then sync from Supabase
           if(typeof migrateOldItems === 'function') {
