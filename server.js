@@ -190,6 +190,126 @@ app.delete('/api/delete-item/:id', async (req, res) => {
   }
 });
 
+// Add inventory item endpoint
+app.post('/api/add-inventory', async (req, res) => {
+  try {
+    const { item, userId, familyId } = req.body;
+
+    if (!item || !userId || !familyId) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    console.log('🏠 /api/add-inventory: Adding item to family', { familyId, userId, itemName: item.name });
+
+    // Insert item with service key (bypasses RLS)
+    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/home_inventory', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        family_id: familyId,
+        name: item.name,
+        quantity: item.qty || '',
+        unit: item.unit || '',
+        category: item.category,
+        emoji: item.emoji,
+        exp_date: item.expDate || null,
+        in_stock: item.inStock || false,
+        source: item.source || '',
+        updated_by: userId
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ Supabase error response:', { status: response.status, error: result });
+      return res.json({ success: false, error: result.message || 'Failed to add inventory item' });
+    }
+
+    console.log('✅ Inventory item saved successfully:', { familyId, itemId: result[0]?.id });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('❌ Error in /api/add-inventory:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Update inventory item endpoint
+app.put('/api/update-inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { updates, userId, familyId } = req.body;
+
+    if (!id || !updates || !userId || !familyId) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Update item with service key (bypasses RLS)
+    const response = await fetch(`https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/home_inventory?id=eq.${id}&family_id=eq.${familyId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({
+        ...updates,
+        updated_by: userId,
+        updated_at: new Date().toISOString()
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return res.json({ success: false, error: result.message || 'Failed to update inventory item' });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in /api/update-inventory:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Delete inventory item endpoint
+app.delete('/api/delete-inventory/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, familyId } = req.body;
+
+    if (!id || !userId || !familyId) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Delete item with service key (bypasses RLS)
+    const response = await fetch(`https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/home_inventory?id=eq.${id}&family_id=eq.${familyId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok && response.status !== 204) {
+      const result = await response.json();
+      return res.json({ success: false, error: result.message || 'Failed to delete inventory item' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error in /api/delete-inventory:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Analyze video endpoint - uses full pipeline
 app.post('/api/analyze-video', async (req, res) => {
   try {

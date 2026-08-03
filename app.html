@@ -409,11 +409,12 @@ if(isGuest && user && user.id.startsWith('guest_')) {
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, supabase: supabaseClient }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, subscribeToInventoryUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, supabase: supabaseClient }) => {
     getStorageKey = getStorageKeyImported;
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
     window.subscribeToListUpdates = subscribeToListUpdates;
+    window.subscribeToInventoryUpdates = subscribeToInventoryUpdates;
     window.getListItems = getListItemsImported;
     window.getStorageKey = getStorageKeyImported;
     window.supabase = supabaseClient;
@@ -467,6 +468,12 @@ if(!isGuest) {
           subscribeToListUpdates((payload) => {
             if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
               if(typeof renderList === 'function') renderList();
+            }
+          });
+
+          subscribeToInventoryUpdates((payload) => {
+            if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
+              if(typeof renderInv === 'function') renderInv();
             }
           });
 

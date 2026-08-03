@@ -420,6 +420,31 @@ export function subscribeToListUpdates(callback) {
   }
 }
 
+// Subscribe to inventory real-time updates
+export function subscribeToInventoryUpdates(callback) {
+  if (!currentUser || currentUser.id.startsWith('guest_')) return;
+
+  try {
+    const channel = supabase
+      .channel(`home_inventory:family_id=eq.${currentUser.family_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'home_inventory',
+          filter: `family_id=eq.${currentUser.family_id}`
+        },
+        callback
+      )
+      .subscribe();
+
+    return channel;
+  } catch(e) {
+    console.error('Inventory realtime subscription error:', e);
+  }
+}
+
 // Guest/localStorage fallbacks - use family_id in key to isolate per family
 // MUST match getStorageKeyFallback() in app.html to avoid key mismatches!
 export function getStorageKey() {
