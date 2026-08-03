@@ -305,25 +305,20 @@ export async function getListItems() {
     return stored ? JSON.parse(stored).items || [] : [];
   }
 
-  // If Supabase has items, return them
-  if (data && data.length > 0) {
-    return data.map(item => ({
-      id: item.id,
-      name: item.name,
-      qty: item.quantity || '',
-      category: item.category,
-      emoji: item.emoji,
-      checked: item.checked,
-      source: item.source || '',
-      img: item.img || '',
-      inStock: false
-    }));
-  }
-
-  // Fallback to family-specific localStorage
-  const key = getStorageKey();
-  const stored = localStorage.getItem(key);
-  return stored ? JSON.parse(stored).items || [] : [];
+  // The query succeeded, so an empty result means the family list really is
+  // empty. Falling back to localStorage here would resurrect every item this
+  // device had cached the moment someone else cleared the list.
+  return (data || []).map(item => ({
+    id: item.id,
+    name: item.name,
+    qty: item.quantity == null ? '' : String(item.quantity),
+    category: item.category,
+    emoji: item.emoji,
+    checked: item.checked,
+    source: item.source || '',
+    img: item.img || '',
+    inStock: false
+  }));
 }
 
 export async function getInventoryItems() {
@@ -352,26 +347,20 @@ export async function getInventoryItems() {
     return stored ? JSON.parse(stored).inventory || [] : [];
   }
 
-  // If Supabase has items, return them
-  if (data && data.length > 0) {
-    return data.map(item => ({
-      id: item.id,
-      name: item.name,
-      qty: item.quantity == null ? '' : String(item.quantity),
-      unit: item.unit || '',
-      expiry: item.expiry || '',
-      // Deployments whose home_inventory predates these columns return undefined;
-      // app.html re-derives category/emoji from the name in that case.
-      category: item.category || '',
-      emoji: item.emoji || '',
-      img: item.img || ''
-    }));
-  }
-
-  // Fallback to family-specific localStorage
-  const key = getStorageKey();
-  const stored = localStorage.getItem(key);
-  return stored ? JSON.parse(stored).inventory || [] : [];
+  // As above: a successful query returning nothing means the family's home
+  // inventory is empty, not that the read failed.
+  return (data || []).map(item => ({
+    id: item.id,
+    name: item.name,
+    qty: item.quantity == null ? '' : String(item.quantity),
+    unit: item.unit || '',
+    expiry: item.expiry || '',
+    // Deployments whose home_inventory predates these columns return undefined;
+    // app.html re-derives category/emoji from the name in that case.
+    category: item.category || '',
+    emoji: item.emoji || '',
+    img: item.img || ''
+  }));
 }
 
 export async function addListItem(item) {

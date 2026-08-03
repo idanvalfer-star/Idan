@@ -1542,6 +1542,24 @@ function addItem(name, qty, source, img){
   }
   return true;
 }
+/*
+ * Drops inventory rows from local state AND Supabase. Removing them locally only
+ * leaves the row in the database, so the next sync pulls the item straight back.
+ */
+function removeInventoryWhere(predicate){
+  const doomed = state.inventory.filter(predicate);
+  if(!doomed.length) return;
+  state.inventory = state.inventory.filter(x => !predicate(x));
+
+  const user = window.getCurrentUser?.();
+  if(user && !user.id.startsWith('guest_') && window.deleteInventoryItemSupabase){
+    doomed.forEach(row => {
+      window.deleteInventoryItemSupabase(row.id)
+        .catch(e => console.error('Failed to sync inventory removal:', e));
+    });
+  }
+}
+
 function toggleInStock(id, e){
   e.stopPropagation();
   const it = state.items.find(i=>i.id===id); if(!it) return;
@@ -1550,10 +1568,18 @@ function toggleInStock(id, e){
     const existing = state.inventory.find(x=>x.name.toLowerCase()===it.name.toLowerCase());
     if(!existing){
       const info = classify(it.name);
-      state.inventory.unshift({id:uid(), name:it.name, qty:it.qty||"1", unit:"", expiry:"", category:info.category, emoji:info.emoji, img:it.img||""});
+      const newInvItem = {id:uid(), name:it.name, qty:it.qty||"1", unit:"", expiry:"", category:info.category, emoji:info.emoji, img:it.img||""};
+      state.inventory.unshift(newInvItem);
+      // Marking something as in-stock creates a real home-inventory row, so it
+      // has to reach Supabase like any other add — otherwise it lives on this
+      // device only.
+      const user = window.getCurrentUser?.();
+      if(user && !user.id.startsWith('guest_')){
+        pushNewItem(state.inventory, newInvItem, window.addInventoryItemSupabase);
+      }
     }
   } else {
-    state.inventory = state.inventory.filter(x=>x.name.toLowerCase()!==it.name.toLowerCase());
+    removeInventoryWhere(x => x.name.toLowerCase() === it.name.toLowerCase());
   }
   save(); renderList(); renderInventory();
 }
@@ -2239,7 +2265,7 @@ function moveToList(id){
     toast(t("t_moved_to_list"));
   }
 
-  state.inventory = state.inventory.filter(x=>x.id!==id); save();
+  removeInventoryWhere(x => x.id === id); save();
   renderInventory(); renderList();
 }
 let editingInvId = null;
