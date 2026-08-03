@@ -9,6 +9,32 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cartly">
+<script>
+/*
+ * Auth gate. Runs before any UI paints so a signed-out visitor never sees the
+ * app flash before being sent to sign in.
+ *
+ * The session is read from localStorage as well as sessionStorage: an installed
+ * PWA starts a fresh sessionStorage on every cold launch, so checking only that
+ * would drop a signed-in user into an empty guest list each time they reopen the
+ * app from their home screen. Anyone who deliberately chose "Continue as Guest"
+ * carries a guest_ id and is left alone.
+ */
+(function(){
+  var stored = null;
+  try {
+    stored = sessionStorage.getItem('cartly.user') || localStorage.getItem('cartly.user');
+  } catch(e) { /* storage blocked (private mode) — fall through to sign-in */ }
+
+  if(!stored){
+    location.replace('/login');
+    return;
+  }
+
+  // Rehydrate sessionStorage so the rest of the app sees the restored session.
+  try { sessionStorage.setItem('cartly.user', stored); } catch(e) {}
+})();
+</script>
 <style>
 :root{
   --bg:#f5f7f3; --card:#fafbf9; --ink:#15271c; --muted:#7a8d80;
@@ -455,8 +481,13 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 <div class="toast" id="toast"></div>
 
 <script type="module">
-// Lazy-load Supabase only when needed (not for guests)
-const user = JSON.parse(sessionStorage.getItem('cartly.user') || 'null');
+// Lazy-load Supabase only when needed (not for guests).
+// Falls back to localStorage because an installed PWA gets an empty
+// sessionStorage on every cold launch — reading only that would treat a
+// signed-in user as a guest and show them an empty list.
+const user = JSON.parse(
+  sessionStorage.getItem('cartly.user') || localStorage.getItem('cartly.user') || 'null'
+);
 const isGuest = !user || user.id.startsWith('guest_');
 
 window.supabaseReady = true;

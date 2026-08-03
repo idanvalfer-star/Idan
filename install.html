@@ -98,7 +98,7 @@ ol li::before{
   <!-- Already running as an installed app -->
   <div id="installed" class="card hide">
     <div class="ok">✅ You're already using the installed app.</div>
-    <a href="/app" class="btn" style="margin-top:14px;text-align:center;text-decoration:none">Open Cartly</a>
+    <a href="/app" id="openInstalled" class="btn" style="margin-top:14px;text-align:center;text-decoration:none">Open Cartly</a>
   </div>
 
   <!-- Android / desktop Chrome: real one-tap install -->
@@ -148,7 +148,7 @@ ol li::before{
     </ol>
   </div>
 
-  <a href="/app" class="btn secondary" style="text-align:center;text-decoration:none;display:block">
+  <a href="/app" id="openApp" class="btn secondary" style="text-align:center;text-decoration:none;display:block">
     Skip — just open Cartly
   </a>
 
@@ -169,6 +169,22 @@ ol li::before{
                    navigator.standalone === true;
 
   var show = function(id){ document.getElementById(id).classList.remove('hide'); };
+
+  // Someone arriving without an account needs sign-up, not a guest list, so the
+  // "open" links point at sign-in until they have one.
+  var signedIn = false;
+  try {
+    signedIn = !!(sessionStorage.getItem('cartly.user') || localStorage.getItem('cartly.user'));
+  } catch (e) { /* storage blocked */ }
+
+  if (!signedIn) {
+    ['openApp','openInstalled'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.setAttribute('href', '/login');
+    });
+    var skip = document.getElementById('openApp');
+    if (skip) skip.textContent = 'Sign in or create an account';
+  }
 
   if (standalone) {
     show('installed');
