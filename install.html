@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Add Cartly to your home screen</title>
+<meta name="theme-color" content="#22c55e">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cartly">
+
+<!-- Link previews, so the shared link looks like an app invite -->
+<meta property="og:title" content="Cartly — Your smart grocery buddy">
+<meta property="og:description" content="Shared family grocery lists that sync across everyone's phones. Tap to add it to your home screen.">
+<meta property="og:image" content="/icons/icon-512.png">
+<meta property="og:type" content="website">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f7f3; --card:#fff; --ink:#0f1a14; --muted:#5f6b64;
+  --line:#e3e9e4; --accent:#22c55e; --accent-2:#15803d; --soft:#e8f7ee;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#0f1512; --card:#16201b; --ink:#eaf3ed; --muted:#9bb0a4;
+         --line:#243029; --soft:#16302180; }
+}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg); color:var(--ink); min-height:100vh;
+  padding:32px 18px calc(40px + env(safe-area-inset-bottom));
+  display:flex; align-items:center; justify-content:center;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{width:100%;max-width:440px}
+header{text-align:center;margin-bottom:26px}
+.appicon{
+  width:104px;height:104px;border-radius:24px;margin:0 auto 16px;display:block;
+  box-shadow:0 12px 34px rgba(21,128,61,.32);
+}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+.tagline{color:var(--muted);font-size:15px;font-weight:500}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:20px;
+  padding:22px;box-shadow:0 2px 18px rgba(0,0,0,.05);margin-bottom:14px;
+}
+.card h2{font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:9px}
+.card h2 .badge{
+  font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  background:var(--soft);color:var(--accent-2);padding:3px 9px;border-radius:20px;
+}
+.card p.lead{color:var(--muted);font-size:13.5px;margin-bottom:16px;line-height:1.5}
+ol{list-style:none;counter-reset:step;display:flex;flex-direction:column;gap:13px}
+ol li{counter-increment:step;display:flex;gap:12px;align-items:flex-start;font-size:14.5px;line-height:1.5}
+ol li>span.txt{flex:1;min-width:0}
+ol li::before{
+  content:counter(step);flex:none;width:25px;height:25px;border-radius:50%;
+  background:var(--accent);color:#fff;font-size:12.5px;font-weight:800;
+  display:grid;place-items:center;margin-top:1px;
+}
+.glyph{
+  display:inline-grid;place-items:center;width:25px;height:25px;border-radius:7px;
+  background:var(--soft);color:var(--accent-2);font-size:14px;vertical-align:-7px;margin:0 2px;
+}
+.btn{
+  display:block;width:100%;border:none;border-radius:14px;padding:15px;
+  font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;
+  box-shadow:0 6px 18px rgba(34,197,94,.32);transition:transform .15s,opacity .15s;
+}
+.btn:active{transform:scale(.98)}
+.btn.secondary{
+  background:none;color:var(--ink);border:1px solid var(--line);box-shadow:none;
+}
+.btn+.btn{margin-top:10px}
+.note{
+  font-size:12.5px;color:var(--muted);text-align:center;margin-top:18px;line-height:1.55;
+}
+.hide{display:none!important}
+.ok{
+  background:var(--soft);border:1px solid var(--accent);border-radius:14px;
+  padding:14px;font-size:14px;font-weight:700;color:var(--accent-2);text-align:center;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img src="/icons/icon-192.png" alt="" class="appicon" width="104" height="104">
+    <h1>Add Cartly to your home screen</h1>
+    <p class="tagline">Opens like a real app — full screen, no address bar.</p>
+  </header>
+
+  <!-- Already running as an installed app -->
+  <div id="installed" class="card hide">
+    <div class="ok">✅ You're already using the installed app.</div>
+    <a href="/app" class="btn" style="margin-top:14px;text-align:center;text-decoration:none">Open Cartly</a>
+  </div>
+
+  <!-- Android / desktop Chrome: real one-tap install -->
+  <div id="prompt" class="card hide">
+    <h2>Install Cartly <span class="badge">1 tap</span></h2>
+    <p class="lead">Your browser can install this for you.</p>
+    <button class="btn" id="installBtn">Install Cartly</button>
+  </div>
+
+  <!-- iPhone / iPad -->
+  <div id="ios" class="card hide">
+    <h2>On iPhone &amp; iPad <span class="badge">Safari</span></h2>
+    <p class="lead">Apple doesn't let a website install itself, so this part is manual — it takes about five seconds.</p>
+    <ol>
+      <li><span class="txt">Tap
+        <span class="glyph" aria-hidden="true">
+          <svg width="13" height="15" viewBox="0 0 24 28" fill="none"
+               stroke="currentColor" stroke-width="2.4"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 17V3"/><path d="M7 8l5-5 5 5"/>
+            <path d="M5 13H3v12h18V13h-2"/>
+          </svg>
+        </span>
+        <b>Share</b> at the bottom of Safari.</span></li>
+      <li><span class="txt">Scroll down and tap <b>Add to Home Screen</b>.</span></li>
+      <li><span class="txt">Tap <b>Add</b> — the Cartly icon appears on your home screen.</span></li>
+    </ol>
+  </div>
+
+  <!-- Android fallback when the browser hasn't offered the prompt -->
+  <div id="android" class="card hide">
+    <h2>On Android <span class="badge">Chrome</span></h2>
+    <ol>
+      <li><span class="txt">Tap the <b>⋮</b> menu, top-right in Chrome.</span></li>
+      <li><span class="txt">Tap <b>Add to Home screen</b> (or <b>Install app</b>).</span></li>
+      <li><span class="txt">Confirm with <b>Install</b>.</span></li>
+    </ol>
+  </div>
+
+  <!-- Desktop -->
+  <div id="desktop" class="card hide">
+    <h2>On your computer <span class="badge">Chrome / Edge</span></h2>
+    <ol>
+      <li><span class="txt">Look for the <b>install icon</b> at the right of the address bar.</span></li>
+      <li><span class="txt">Click it, then click <b>Install</b>.</span></li>
+      <li><span class="txt">Cartly opens in its own window from then on.</span></li>
+    </ol>
+  </div>
+
+  <a href="/app" class="btn secondary" style="text-align:center;text-decoration:none;display:block">
+    Skip — just open Cartly
+  </a>
+
+  <p class="note" id="note">
+    Nothing is downloaded from an app store: this adds a shortcut that opens Cartly full screen.
+  </p>
+
+</div>
+
+<script>
+(function(){
+  var ua = navigator.userAgent;
+  var isIOS = /iphone|ipad|ipod/i.test(ua) ||
+              // iPadOS 13+ reports itself as a Mac, so touch points disambiguate.
+              (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+  var isAndroid = /android/i.test(ua);
+  var standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                   navigator.standalone === true;
+
+  var show = function(id){ document.getElementById(id).classList.remove('hide'); };
+
+  if (standalone) {
+    show('installed');
+    document.getElementById('note').classList.add('hide');
+    return;
+  }
+
+  // Default guidance per platform. If the browser fires beforeinstallprompt we
+  // upgrade to the real one-tap button below.
+  if (isIOS) show('ios');
+  else if (isAndroid) show('android');
+  else show('desktop');
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+
+    // A genuine install is available — lead with it and drop the manual steps.
+    ['android','desktop'].forEach(function(id){
+      document.getElementById(id).classList.add('hide');
+    });
+    show('prompt');
+
+    document.getElementById('installBtn').onclick = function(){
+      e.prompt();
+      e.userChoice.then(function(choice){
+        if (choice.outcome === 'accepted') {
+          document.getElementById('prompt').classList.add('hide');
+          show('installed');
+        }
+      });
+    };
+  });
+
+  window.addEventListener('appinstalled', function(){
+    document.getElementById('prompt').classList.add('hide');
+    show('installed');
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(err){
+      console.warn('Service worker registration failed:', err);
+    });
+  }
+})();
+</script>
+</body>
+</html>

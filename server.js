@@ -731,6 +731,28 @@ app.get('/app', (req, res) => {
   res.sendFile(path.join(__dirname, 'app.html'));
 });
 
+// Shareable "add to home screen" page
+app.get('/install', (req, res) => {
+  res.sendFile(path.join(__dirname, 'install.html'));
+});
+
+/*
+ * The service worker must be served from the root to control the whole origin,
+ * and browsers refuse a manifest sent as text/html — express.static gets the
+ * paths right but these two need explicit content types and cache rules.
+ */
+app.get('/sw.js', (req, res) => {
+  res.set('Content-Type', 'application/javascript');
+  res.set('Service-Worker-Allowed', '/');
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'sw.js'));
+});
+
+app.get('/manifest.webmanifest', (req, res) => {
+  res.set('Content-Type', 'application/manifest+json');
+  res.sendFile(path.join(__dirname, 'manifest.webmanifest'));
+});
+
 // 404 - serve app for SPA fallback
 app.get('*', (req, res) => {
   if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.json')) {
