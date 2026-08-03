@@ -400,9 +400,12 @@ if(isGuest && user && user.id.startsWith('guest_')) {
     document.getElementById('currentUserName').textContent = 'Guest';
     document.getElementById('logoutBtn').style.display = 'block';
     document.getElementById('logoutBtn').onclick = () => {
+      console.log('🚪 Logging out...');
       sessionStorage.removeItem('cartly.user');
       localStorage.removeItem('cartly.user');
-      window.location.href = '/login';
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
     };
   }
 }
@@ -437,9 +440,12 @@ if(!isGuest) {
           document.getElementById('logoutBtn').style.display = 'block';
           document.getElementById('deleteAccountBtn').style.display = 'block';
           document.getElementById('logoutBtn').onclick = () => {
+            console.log('🚪 Logging out...');
             sessionStorage.removeItem('cartly.user');
             localStorage.removeItem('cartly.user');
-            window.location.href = '/login';
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 100);
           };
 
           // Fetch and display family code
