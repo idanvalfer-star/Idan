@@ -359,6 +359,9 @@ details.recipe-more summary::-webkit-details-marker{display:none}
       <button class="add-btn" id="invAddBtn" aria-label="Add">+</button>
     </div>
     <p class="sub" id="invSub" data-i18n="home_sub" style="margin:2px 4px 12px">What's in your kitchen right now. Move things to your shopping list when they run low.</p>
+    <div class="toolbar">
+      <button class="chip" id="invSortChip"><span>🏪</span> <span data-i18n="sort_aisle">Sort by aisle</span></button>
+    </div>
     <div id="invEditor" class="hide"></div>
     <div id="invBox"></div>
   </section>
@@ -1043,7 +1046,7 @@ const RECIPES = [
 ];
 
 /* ---------------- State ---------------- */
-let state = {items:[], videos:[], inventory:[], recipes:RECIPES.slice(), recipes_edit:[], sortAisle:false, theme:null, lang:null, starter:[], starterAdded:false};
+let state = {items:[], videos:[], inventory:[], recipes:RECIPES.slice(), recipes_edit:[], sortAisle:false, sortInvAisle:false, theme:null, lang:null, starter:[], starterAdded:false};
 let supabaseReady = false;
 let saveTimeout = null;
 
@@ -1071,7 +1074,7 @@ function load(){
       if(currentFamily && s._family_id && s._family_id !== currentFamily) {
         console.warn('⚠️ Data family mismatch, clearing', { stored: s._family_id, current: currentFamily });
         localStorage.removeItem(key);
-        return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:RECIPES.slice(), starter:[], watched:[], _family_id: currentFamily};
+        return {items:[], videos:[], inventory:[], sortAisle:false, sortInvAisle:false, theme:null, lang:null, recipes:RECIPES.slice(), starter:[], watched:[], _family_id: currentFamily};
       }
       if(!Array.isArray(s.inventory)) s.inventory=[];
       s._family_id = currentFamily;
@@ -1079,7 +1082,7 @@ function load(){
     }
   }catch(e){ console.error('Error loading state:', e); }
   console.log('📂 Returning empty state for family:', currentFamily);
-  return {items:[], videos:[], inventory:[], sortAisle:false, theme:null, lang:null, recipes:RECIPES.slice(), starter:[], watched:[], _family_id: currentFamily};
+  return {items:[], videos:[], inventory:[], sortAisle:false, sortInvAisle:false, theme:null, lang:null, recipes:RECIPES.slice(), starter:[], watched:[], _family_id: currentFamily};
 }
 
 /*
@@ -2246,11 +2249,34 @@ function invRow(it){
 }
 function renderInventory(){
   const box = document.getElementById("invBox");
+  const chip = document.getElementById("invSortChip");
+  if(chip) chip.classList.toggle("on", !!state.sortInvAisle);
+
   if(!state.inventory.length){
     box.innerHTML = `<div class="empty"><div class="big">🏠</div><h3>${esc(t("inv_empty_title"))}</h3><p>${esc(t("inv_empty_body"))}</p></div>`;
     return;
   }
-  box.innerHTML = state.inventory.map(invRow).join("");
+
+  if(!state.sortInvAisle){
+    box.innerHTML = state.inventory.map(invRow).join("");
+    return;
+  }
+
+  // Group into store sections, walked in the same order as the shopping list.
+  // Anything with a missing or unrecognised category falls into "Other" so an
+  // item can never be grouped out of sight.
+  const groups = {};
+  state.inventory.forEach(i => {
+    const sec = SECTIONS.includes(i.category) ? i.category : "Other";
+    (groups[sec] = groups[sec] || []).push(i);
+  });
+
+  box.innerHTML = SECTIONS
+    .filter(sec => groups[sec])
+    .map(sec =>
+      `<div class="section-head">${SECTION_EMOJI[sec]} ${esc(sectionLabel(sec))}<span class="ln"></span></div>` +
+      groups[sec].map(invRow).join("")
+    ).join("");
 }
 function invUnitVal(){ return document.getElementById("invUnit").value || ""; }
 function addInv(name, qty, unit, expiry){
@@ -2531,6 +2557,8 @@ document.addEventListener("click", (e) => {
 
 document.getElementById("sortChip").onclick = ()=>{ state.sortAisle=!state.sortAisle; save(); renderList();
   toast(state.sortAisle? t("t_sorted") : t("t_unsorted")); };
+document.getElementById("invSortChip").onclick = ()=>{ state.sortInvAisle=!state.sortInvAisle; save(); renderInventory();
+  toast(state.sortInvAisle? t("t_sorted") : t("t_unsorted")); };
 document.getElementById("defaultChip").onclick = ()=>{
   document.getElementById("actionsMenu").classList.add("hide");
   seedStarter();
