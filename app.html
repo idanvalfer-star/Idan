@@ -503,10 +503,10 @@ if(!isGuest) {
                 // Reload inventory from Supabase first, then render
                 if(typeof loadFamilyInventory === 'function') {
                   loadFamilyInventory().then(() => {
-                    if(typeof renderInv === 'function') renderInv();
+                    if(typeof renderInventory === 'function') renderInventory();
                   }).catch(e => console.error('Error reloading inventory on Realtime event:', e));
                 } else {
-                  if(typeof renderInv === 'function') renderInv();
+                  if(typeof renderInventory === 'function') renderInventory();
                 }
               }
             });
@@ -532,7 +532,7 @@ if(!isGuest) {
                 }
                 if(typeof loadFamilyInventory === 'function') {
                   loadFamilyInventory().then(() => {
-                    if(typeof renderInv === 'function') renderInv();
+                    if(typeof renderInventory === 'function') renderInventory();
                   }).catch(e => console.error('Error syncing inventory on foreground:', e));
                 }
               }, 500);
@@ -1143,7 +1143,7 @@ async function loadFamilyInventory(){
     state.inventory = mergedInventory;
 
     save(); // Save merged state
-    renderInventory();
+    renderInventoryentory();
     console.log('✅ Merged inventory from Supabase:', { supabase: familyInventory.length, deduplicated: mergedInventory.length, total: state.inventory.length });
   } catch(e) {
     console.error('❌ Error loading family inventory:', e);
@@ -1412,7 +1412,7 @@ function toggleInStock(id, e){
   } else {
     state.inventory = state.inventory.filter(x=>x.name.toLowerCase()!==it.name.toLowerCase());
   }
-  save(); renderList(); renderInventory();
+  save(); renderList(); renderInventoryentory();
 }
 
 function incQty(id, e){
@@ -2018,7 +2018,7 @@ function invRow(it){
     <button class="del" onclick="delInv('${it.id}')" aria-label="remove">✕</button>
   </div>`;
 }
-function renderInventory(){
+function renderInventoryentory(){
   const box = document.getElementById("invBox");
   if(!state.inventory.length){
     box.innerHTML = `<div class="empty"><div class="big">🏠</div><h3>${esc(t("inv_empty_title"))}</h3><p>${esc(t("inv_empty_body"))}</p></div>`;
@@ -2065,7 +2065,7 @@ function delInv(id){
     const item = state.items.find(i=>i.name.toLowerCase()===inv.name.toLowerCase());
     if(item) item.inStock = false;
   }
-  save(); renderInventory(); renderList();
+  save(); renderInventoryentory(); renderList();
 
   // Sync deletion to Supabase for authenticated users
   const user = window.getCurrentUser?.();
@@ -2097,7 +2097,7 @@ function moveToList(id){
   }
 
   state.inventory = state.inventory.filter(x=>x.id!==id); save();
-  renderInventory(); renderList();
+  renderInventoryentory(); renderList();
 }
 let editingInvId = null;
 function editInv(id){ openInvEditor(id); }
@@ -2141,7 +2141,7 @@ function openInvEditor(id){
     } else {
       addInv(name,qty,unit,expiry);
     }
-    closeInvEditor(); renderInventory(); toast(t("t_added_inv"));
+    closeInvEditor(); renderInventoryentory(); toast(t("t_added_inv"));
   };
   ed.scrollIntoView({behavior:"smooth", block:"start"});
 }
@@ -2178,7 +2178,7 @@ document.getElementById("photoInput").addEventListener("change", async (e)=>{
 // inventory add bar
 function addInvFromInput(){
   const inp=document.getElementById("invInput"), q=document.getElementById("invQty");
-  if(addInv(inp.value, q.value.trim()||"1", invUnitVal(), "")){ inp.value=""; q.value="1"; inp.focus(); renderInventory(); renderList(); toast(t("t_added_inv")); }
+  if(addInv(inp.value, q.value.trim()||"1", invUnitVal(), "")){ inp.value=""; q.value="1"; inp.focus(); renderInventoryentory(); renderList(); toast(t("t_added_inv")); }
 }
 document.getElementById("invAddBtn").onclick = addInvFromInput;
 document.getElementById("invInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addInvFromInput(); });
@@ -2363,7 +2363,7 @@ document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
   if(id!=="recipes") closeRecipeEditor();
   if(id!=="list"){ closeStarterEditor(); closeShufPanel(); }
   if(id!=="home") closeInvEditor();
-  if(id==="home") renderInventory();
+  if(id==="home") renderInventoryentory();
   if(id==="recipes") renderRecipes();
   if(id==="video") renderSavedVideos();
   window.scrollTo({top:0,behavior:"smooth"});
@@ -2411,7 +2411,7 @@ function applyLang(){
   setVideoSub();
   closeShufPanel();
   // re-render dynamic views
-  renderList(); renderInventory(); renderRecipes(); renderSavedVideos();
+  renderList(); renderInventoryentory(); renderRecipes(); renderSavedVideos();
 }
 document.getElementById("langBtn").onclick = ()=>{
   state.lang = isRTL() ? "en" : "he"; save(); applyLang();
