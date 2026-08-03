@@ -1013,10 +1013,7 @@ async function loadFamilyItems(){
       return;
     }
 
-    // Get existing local item names to avoid duplicates
-    const localNames = new Set(state.items.map(i => i.name.toLowerCase()));
-
-    // Merge Supabase items with local items (Supabase items first, then unique local items)
+    // Trust Supabase as source of truth - just deduplicate within Supabase items
     const mergedItems = [];
     const seenIds = new Set();
 
@@ -1031,18 +1028,9 @@ async function loadFamilyItems(){
         if(!isDup) {
           mergedItems.push(item);
           seenIds.add(item.id);
-          localNames.add(item.name.toLowerCase());
         } else {
           console.log('🔄 Skipping duplicate from Supabase:', item.name);
         }
-      }
-    });
-
-    // Add any unique local items that aren't in Supabase
-    state.items.forEach(localItem => {
-      if(!seenIds.has(localItem.id) && !mergedItems.some(i => i.name.toLowerCase() === localItem.name.toLowerCase())) {
-        mergedItems.push(localItem);
-        seenIds.add(localItem.id);
       }
     });
 
@@ -1076,10 +1064,7 @@ async function loadFamilyInventory(){
       return;
     }
 
-    // Get existing local item names to avoid duplicates
-    const localNames = new Set(state.inventory.map(i => i.name.toLowerCase()));
-
-    // Merge Supabase inventory with local inventory
+    // Trust Supabase as source of truth - just deduplicate within Supabase items
     const mergedInventory = [];
     const seenIds = new Set();
 
@@ -1092,16 +1077,7 @@ async function loadFamilyInventory(){
         if(!isDup) {
           mergedInventory.push(item);
           seenIds.add(item.id);
-          localNames.add(item.name.toLowerCase());
         }
-      }
-    });
-
-    // Add any unique local items that aren't in Supabase
-    state.inventory.forEach(localItem => {
-      if(!seenIds.has(localItem.id) && !mergedInventory.some(i => i.name.toLowerCase() === localItem.name.toLowerCase())) {
-        mergedInventory.push(localItem);
-        seenIds.add(localItem.id);
       }
     });
 
