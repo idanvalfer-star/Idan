@@ -409,13 +409,14 @@ if(isGuest && user && user.id.startsWith('guest_')) {
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, subscribeToInventoryUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, supabase: supabaseClient }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, subscribeToInventoryUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, getInventoryItems: getInventoryItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, supabase: supabaseClient }) => {
     getStorageKey = getStorageKeyImported;
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
     window.subscribeToListUpdates = subscribeToListUpdates;
     window.subscribeToInventoryUpdates = subscribeToInventoryUpdates;
     window.getListItems = getListItemsImported;
+    window.getInventoryItems = getInventoryItemsImported;
     window.getStorageKey = getStorageKeyImported;
     window.supabase = supabaseClient;
     window.addListItemSupabase = addListItemImported;
@@ -467,13 +468,27 @@ if(!isGuest) {
           }
           subscribeToListUpdates((payload) => {
             if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
-              if(typeof renderList === 'function') renderList();
+              // Reload from Supabase first, then render
+              if(typeof loadFamilyItems === 'function') {
+                loadFamilyItems().then(() => {
+                  if(typeof renderList === 'function') renderList();
+                }).catch(e => console.error('Error reloading family items on Realtime event:', e));
+              } else {
+                if(typeof renderList === 'function') renderList();
+              }
             }
           });
 
           subscribeToInventoryUpdates((payload) => {
             if(['INSERT', 'UPDATE', 'DELETE'].includes(payload.eventType)) {
-              if(typeof renderInv === 'function') renderInv();
+              // Reload inventory from Supabase first, then render
+              if(typeof loadFamilyInventory === 'function') {
+                loadFamilyInventory().then(() => {
+                  if(typeof renderInv === 'function') renderInv();
+                }).catch(e => console.error('Error reloading inventory on Realtime event:', e));
+              } else {
+                if(typeof renderInv === 'function') renderInv();
+              }
             }
           });
 
@@ -1043,6 +1058,60 @@ async function loadFamilyItems(){
     console.log('✅ Merged items from Supabase:', { supabase: familyItems.length, deduplicated: mergedItems.length, total: state.items.length });
   } catch(e) {
     console.error('❌ Error loading family items:', e);
+  }
+}
+
+async function loadFamilyInventory(){
+  const getInventoryItemsFn = window.getInventoryItems || (typeof getInventoryItems === 'function' ? getInventoryItems : null);
+  if(typeof getInventoryItemsFn !== 'function') {
+    console.warn('⚠️ getInventoryItems not available yet, skipping Supabase load');
+    return;
+  }
+  try {
+    const familyInventory = await getInventoryItemsFn();
+    console.log('📥 getInventoryItems returned:', { count: familyInventory?.length, type: Array.isArray(familyInventory) ? 'array' : typeof familyInventory });
+
+    if(!familyInventory || !Array.isArray(familyInventory)) {
+      console.warn('⚠️ No family inventory or not an array, keeping local inventory:', state.inventory.length);
+      return;
+    }
+
+    // Get existing local item names to avoid duplicates
+    const localNames = new Set(state.inventory.map(i => i.name.toLowerCase()));
+
+    // Merge Supabase inventory with local inventory
+    const mergedInventory = [];
+    const seenIds = new Set();
+
+    // Add items from Supabase (these are the source of truth)
+    familyInventory.forEach(item => {
+      if(!seenIds.has(item.id)) {
+        const isDup = mergedInventory.some(i =>
+          i.name.toLowerCase() === item.name.toLowerCase()
+        );
+        if(!isDup) {
+          mergedInventory.push(item);
+          seenIds.add(item.id);
+          localNames.add(item.name.toLowerCase());
+        }
+      }
+    });
+
+    // Add any unique local items that aren't in Supabase
+    state.inventory.forEach(localItem => {
+      if(!seenIds.has(localItem.id) && !mergedInventory.some(i => i.name.toLowerCase() === localItem.name.toLowerCase())) {
+        mergedInventory.push(localItem);
+        seenIds.add(localItem.id);
+      }
+    });
+
+    state.inventory = mergedInventory;
+
+    save(); // Save merged state
+    renderInventory();
+    console.log('✅ Merged inventory from Supabase:', { supabase: familyInventory.length, deduplicated: mergedInventory.length, total: state.inventory.length });
+  } catch(e) {
+    console.error('❌ Error loading family inventory:', e);
   }
 }
 

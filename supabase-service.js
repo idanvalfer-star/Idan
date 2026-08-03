@@ -282,6 +282,52 @@ export async function getListItems() {
   return stored ? JSON.parse(stored).items || [] : [];
 }
 
+export async function getInventoryItems() {
+  if (!currentUser || currentUser.id.startsWith('guest_')) {
+    const key = getStorageKey();
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored).inventory || [] : [];
+  }
+
+  if (!currentUser.family_id) {
+    console.error('ERROR: Cannot fetch inventory - family_id is missing from currentUser', { currentUser });
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('home_inventory')
+    .select('*')
+    .eq('family_id', currentUser.family_id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching inventory:', error, { family_id: currentUser.family_id });
+    // Fallback to family-specific localStorage if Supabase fails
+    const key = getStorageKey();
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored).inventory || [] : [];
+  }
+
+  // If Supabase has items, return them
+  if (data && data.length > 0) {
+    return data.map(item => ({
+      id: item.id,
+      name: item.name,
+      qty: item.quantity || '',
+      unit: item.unit || '',
+      expiry: item.exp_date || '',
+      category: item.category,
+      emoji: item.emoji,
+      img: item.img || ''
+    }));
+  }
+
+  // Fallback to family-specific localStorage
+  const key = getStorageKey();
+  const stored = localStorage.getItem(key);
+  return stored ? JSON.parse(stored).inventory || [] : [];
+}
+
 export async function addListItem(item) {
   if (!currentUser || currentUser.id.startsWith('guest_')) {
     return addItemLocalStorage(item);
