@@ -556,9 +556,12 @@ if(!isGuest) {
             console.log('🔐 Auth: Starting migration...');
             migrateOldItems().then(() => {
               if(typeof loadFamilyItems === 'function') {
-                console.log('🔐 Auth: Migration done, loading family items...');
-                loadFamilyItems().then(() => {
-                  console.log('🔐 Auth: Family items loaded, checking if empty...');
+                console.log('🔐 Auth: Migration done, loading family items and inventory...');
+                Promise.all([
+                  loadFamilyItems(),
+                  typeof loadFamilyInventory === 'function' ? loadFamilyInventory() : Promise.resolve()
+                ]).then(() => {
+                  console.log('🔐 Auth: Family items and inventory loaded, checking if empty...');
                   if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
                   // Add starter list if family is new (no items yet)
                   if(typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
@@ -573,9 +576,12 @@ if(!isGuest) {
               }
             });
           } else if(typeof loadFamilyItems === 'function') {
-            console.log('🔐 Auth: No migration needed, loading family items...');
-            loadFamilyItems().then(() => {
-              console.log('🔐 Auth: Family items loaded, checking if empty...');
+            console.log('🔐 Auth: No migration needed, loading family items and inventory...');
+            Promise.all([
+              loadFamilyItems(),
+              typeof loadFamilyInventory === 'function' ? loadFamilyInventory() : Promise.resolve()
+            ]).then(() => {
+              console.log('🔐 Auth: Family items and inventory loaded, checking if empty...');
               if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
               // Add starter list if family is new (no items yet)
               if(typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
@@ -981,6 +987,7 @@ function load(){
 function reloadState(){
   state = load();
   renderList();
+  renderInventory();
 }
 
 async function migrateOldItems(){
