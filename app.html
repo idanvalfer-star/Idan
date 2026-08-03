@@ -204,6 +204,38 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   font-size:13px;width:100%;margin-top:12px;border-radius:12px;transition:.15s}
 .settings-btn-danger:active{transform:scale(.98);background:#fdd!important}
 
+/* family button + panel */
+.family-btn{background:var(--accent-soft);color:var(--accent-2);padding:5px 12px;border-radius:10px;font-size:12.5px;
+  font-weight:800;margin:0 8px;cursor:pointer;border:1px solid var(--accent);max-width:190px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;transition:.15s}
+.family-btn:active{transform:scale(.96)}
+.family-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:210;animation:fadeIn .2s}
+.family-modal.show{display:flex;align-items:flex-start;justify-content:center;padding:70px 16px 16px}
+.family-panel{background:var(--card);border-radius:20px;width:100%;max-width:340px;box-shadow:var(--shadow);padding:18px;
+  animation:slideIn .25s cubic-bezier(.34,1.56,.64,1);max-height:calc(100vh - 100px);overflow-y:auto}
+.family-panel h3{margin:0 0 4px;font-size:17px;font-weight:800;color:var(--ink)}
+.family-panel .fp-sub{margin:0 0 14px;font-size:12.5px;color:var(--muted);font-weight:600}
+.fp-section{border-top:1px solid var(--line);padding:14px 0}
+.fp-section:last-of-type{border-bottom:none}
+.fp-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800;margin-bottom:8px}
+.fp-code{display:flex;align-items:center;gap:8px}
+.fp-code code{flex:1;background:var(--bg);border:1px dashed var(--accent);border-radius:10px;padding:9px 12px;
+  font-size:16px;font-weight:800;letter-spacing:.12em;color:var(--accent-2);text-align:center}
+.fp-members{display:flex;flex-direction:column;gap:7px}
+.fp-member{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--ink)}
+.fp-member .fp-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent-2);
+  display:grid;place-items:center;font-size:12px;font-weight:800;flex:none}
+.fp-member .fp-you{font-size:10.5px;font-weight:800;color:var(--accent-2);background:var(--accent-soft);
+  padding:2px 7px;border-radius:20px}
+.fp-btn{border-radius:12px;border:1px solid var(--line);background:var(--bg);font-weight:800;font-size:13px;
+  padding:10px 14px;cursor:pointer;transition:.15s;color:var(--ink)}
+.fp-btn:active{transform:scale(.97)}
+.fp-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.fp-row{display:flex;gap:8px}
+.fp-row input{flex:1;min-width:0;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;
+  font-weight:600;background:var(--bg);color:var(--ink)}
+.fp-close{width:100%;margin-top:6px}
+
 /* language + photo + inventory */
 #settingsBtn{font-size:18px;font-weight:800}
 .photo-btn{background:var(--card);box-shadow:var(--shadow-sm);font-size:18px;flex:none}
@@ -239,7 +271,7 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <div class="user-info" id="userInfo" style="display:none;">
       <span id="userBadge" title="Logged in as">👤</span>
       <span id="currentUserName" style="font-weight:700;margin:0 8px;"></span>
-      <span id="familyCodeDisplay" style="display:none;background:var(--accent-soft);color:var(--accent-2);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;margin:0 8px;cursor:pointer;border:1px solid var(--accent);"></span>
+      <button id="familyBtn" class="family-btn" style="display:none;" title="Family"></button>
       <span id="guestBadge" style="display:none;"></span>
     </div>
     <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
@@ -379,6 +411,37 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   </div>
 </div>
 
+<!-- Family Modal -->
+<div class="family-modal" id="familyModal">
+  <div class="family-panel">
+    <h3 id="fpTitle">Family</h3>
+    <p class="fp-sub" id="fpSub">Share the code below to add someone</p>
+
+    <div class="fp-section">
+      <div class="fp-label">Family code</div>
+      <div class="fp-code">
+        <code id="fpCode">------</code>
+        <button class="fp-btn" id="fpCopy" title="Copy code">📋</button>
+      </div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-label">Members</div>
+      <div class="fp-members" id="fpMembers"></div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-label">Family name</div>
+      <div class="fp-row">
+        <input id="fpNameInput" maxlength="40" placeholder="e.g. Valfer" autocomplete="off">
+        <button class="fp-btn primary" id="fpSaveName">Save</button>
+      </div>
+    </div>
+
+    <button class="fp-btn fp-close" id="fpClose">Close</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -412,7 +475,7 @@ if(isGuest && user && user.id.startsWith('guest_')) {
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, subscribeToInventoryUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, getInventoryItems: getInventoryItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, supabase: supabaseClient }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, subscribeToInventoryUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, getInventoryItems: getInventoryItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, getFamilyInfo: getFamilyInfoImported, updateFamilyName: updateFamilyNameImported, supabase: supabaseClient }) => {
     getStorageKey = getStorageKeyImported;
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
@@ -423,11 +486,15 @@ if(!isGuest) {
     window.getStorageKey = getStorageKeyImported;
     window.supabase = supabaseClient;
     window.addListItemSupabase = addListItemImported;
-    window.updateListItemSupabase = updateListItemImported;
-    window.deleteListItemSupabase = deleteListItemImported;
     window.addInventoryItemSupabase = addInventoryItemImported;
-    window.updateInventoryItemSupabase = updateInventoryItemImported;
-    window.deleteInventoryItemSupabase = deleteInventoryItemImported;
+    // Edits and deletes go through viaResolvedId so a row added moments earlier
+    // is targeted by its Supabase id rather than the throwaway local one.
+    window.updateListItemSupabase = viaResolvedId(updateListItemImported);
+    window.deleteListItemSupabase = viaResolvedId(deleteListItemImported);
+    window.updateInventoryItemSupabase = viaResolvedId(updateInventoryItemImported);
+    window.deleteInventoryItemSupabase = viaResolvedId(deleteInventoryItemImported);
+    window.getFamilyInfo = getFamilyInfoImported;
+    window.updateFamilyName = updateFamilyNameImported;
 
     initAuth().then(() => {
       const loggedUser = getCurrentUser();
@@ -448,29 +515,9 @@ if(!isGuest) {
             }, 100);
           };
 
-          // Fetch and display family code
-          if(window.supabase && loggedUser.family_id) {
-            window.supabase
-              .from('families')
-              .select('family_code')
-              .eq('id', loggedUser.family_id)
-              .single()
-              .then(({data, error}) => {
-                if(error) {
-                  console.error('Error fetching family code:', error);
-                  return;
-                }
-                if(data && data.family_code) {
-                  const codeEl = document.getElementById('familyCodeDisplay');
-                  codeEl.textContent = 'Family Code: ' + data.family_code;
-                  codeEl.style.display = 'inline-block';
-                  codeEl.title = 'Click to copy family code';
-                  codeEl.onclick = () => {
-                    navigator.clipboard.writeText(data.family_code);
-                    alert('Family code copied!');
-                  };
-                }
-              });
+          // Family button: shows "<name> Family", opens the code/members/rename panel
+          if(loggedUser.family_id && typeof initFamilyButton === 'function') {
+            initFamilyButton();
           }
           // Store subscription channels globally so we can check/re-establish them
           window.listUpdatesChannel = null;
@@ -566,11 +613,14 @@ if(!isGuest) {
                 Promise.all([
                   loadFamilyItems(),
                   typeof loadFamilyInventory === 'function' ? loadFamilyInventory() : Promise.resolve()
-                ]).then(() => {
+                ]).then(([loaded]) => {
                   console.log('🔐 Auth: Family items and inventory loaded, checking if empty...');
                   if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
-                  // Add starter list if family is new (no items yet)
-                  if(typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
+                  // Only seed the starter list once Supabase has confirmed the family
+                  // is empty. Seeding after a failed read would push 16 duplicates
+                  // into a family that already has a list.
+                  if(loaded && typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
+                  else if(!loaded) console.warn('⚠️ Skipping starter list — could not confirm family is empty');
                   // Reload state AFTER loading Supabase items
                   if(typeof reloadState === 'function') reloadState();
                 });
@@ -586,11 +636,12 @@ if(!isGuest) {
             Promise.all([
               loadFamilyItems(),
               typeof loadFamilyInventory === 'function' ? loadFamilyInventory() : Promise.resolve()
-            ]).then(() => {
+            ]).then(([loaded]) => {
               console.log('🔐 Auth: Family items and inventory loaded, checking if empty...');
               if(typeof cleanupOtherFamilyData === 'function') cleanupOtherFamilyData();
-              // Add starter list if family is new (no items yet)
-              if(typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
+              // See note above: never seed a starter list on an unconfirmed read.
+              if(loaded && typeof addStarterIfEmpty === 'function') addStarterIfEmpty();
+              else if(!loaded) console.warn('⚠️ Skipping starter list — could not confirm family is empty');
               // Reload state AFTER loading Supabase items
               if(typeof reloadState === 'function') reloadState();
             });
@@ -1074,7 +1125,7 @@ async function loadFamilyItems(){
   const getListItemsFn = window.getListItems || (typeof getListItems === 'function' ? getListItems : null);
   if(typeof getListItemsFn !== 'function') {
     console.warn('⚠️ getListItems not available yet, skipping Supabase load');
-    return;
+    return false;
   }
   try {
     const familyItems = await getListItemsFn();
@@ -1082,7 +1133,7 @@ async function loadFamilyItems(){
 
     if(!familyItems || !Array.isArray(familyItems)) {
       console.warn('⚠️ No family items or not an array, keeping local items:', state.items.length);
-      return;
+      return false;
     }
 
     // Trust Supabase as source of truth - just deduplicate within Supabase items
@@ -1116,8 +1167,10 @@ async function loadFamilyItems(){
     save(); // Save merged state
     renderList();
     console.log('✅ Merged items from Supabase:', { supabase: familyItems.length, deduplicated: mergedItems.length, total: state.items.length });
+    return true;
   } catch(e) {
     console.error('❌ Error loading family items:', e);
+    return false;
   }
 }
 
@@ -1147,6 +1200,13 @@ async function loadFamilyInventory(){
           i.name.toLowerCase() === item.name.toLowerCase()
         );
         if(!isDup) {
+          // Older rows can come back without a category/emoji; classify() rebuilds
+          // them from the name so synced items still show their aisle and icon.
+          if(!item.category || !item.emoji){
+            const info = classify(item.name);
+            item.category = item.category || info.category;
+            item.emoji = item.emoji || info.emoji;
+          }
           mergedInventory.push(item);
           seenIds.add(item.id);
         }
@@ -1156,7 +1216,7 @@ async function loadFamilyInventory(){
     state.inventory = mergedInventory;
 
     save(); // Save merged state
-    renderInventoryentory();
+    renderInventory();
     console.log('✅ Merged inventory from Supabase:', { supabase: familyInventory.length, deduplicated: mergedInventory.length, total: state.inventory.length });
   } catch(e) {
     console.error('❌ Error loading family inventory:', e);
@@ -1183,24 +1243,94 @@ async function saveToSupabase() {
     const user = window.getCurrentUser?.();
     if(!user || user.id.startsWith('guest_')) return;
 
-    // Sync items via Supabase API (uses service key, bypasses RLS)
+    // Catch up anything that never reached Supabase (e.g. added while offline).
+    // pushNewItem skips rows already in flight and swaps in the real id.
     for(const item of state.items) {
-      if(item._dirty || !item.id.includes('-')) {
-        // Use the API-based function for syncing
-        if(window.addListItemSupabase) {
-          try {
-            await window.addListItemSupabase(item);
-            item._dirty = false;
-          } catch(e) {
-            console.error('Error syncing item to Supabase:', e);
-          }
-        }
+      if(item._dirty || !isServerId(item.id)) {
+        await pushNewItem(state.items, item, window.addListItemSupabase);
+        item._dirty = false;
+      }
+    }
+    for(const inv of state.inventory) {
+      if(inv._dirty || !isServerId(inv.id)) {
+        await pushNewItem(state.inventory, inv, window.addInventoryItemSupabase);
+        inv._dirty = false;
       }
     }
   } catch(e) { console.error('Supabase save error:', e); }
 }
 
 const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/*
+ * New rows get a local uid() so they can render immediately, but Supabase
+ * assigns its own UUID. Until the local id is swapped for the real one every
+ * later PATCH/DELETE targets `id=eq.<local uid>` and matches zero rows — the
+ * edit looks fine on this device and never reaches anyone else. Call this with
+ * whatever the insert returned to keep the two in step.
+ */
+function adoptServerId(collection, localId, savedRow){
+  const realId = savedRow && savedRow.id;
+  if(!realId || realId === localId) return;
+  const target = collection.find(x => x.id === localId);
+  if(!target) return;
+  target.id = realId;
+  save();
+  // The rendered row still carries the old id in its onclick handlers; without a
+  // re-render every +/-/tick/delete on that row looks up a missing item and does
+  // nothing at all.
+  if(collection === state.items) renderList();
+  else if(collection === state.inventory) renderInventory();
+  console.log('🔗 Adopted Supabase id:', { was: localId, now: realId });
+}
+
+// Supabase ids are UUIDs; uid() never produces a dash, so this tells the two apart.
+const isServerId = id => typeof id === 'string' && id.includes('-');
+
+// Guards against the same new row being inserted twice — addItem pushes it and
+// the debounced sweep in saveToSupabase would otherwise push it again while the
+// first request is still in flight.
+const pendingCreates = new Map();  // local id -> in-flight insert
+const adoptedIds = new Map();      // local id -> the id Supabase assigned
+
+async function pushNewItem(collection, item, addFn){
+  if(typeof addFn !== 'function' || pendingCreates.has(item.id)) return;
+  const localId = item.id;
+
+  const inFlight = (async () => {
+    const saved = await addFn(item);
+    if(saved && saved.id){
+      adoptedIds.set(localId, saved.id);
+      adoptServerId(collection, localId, saved);
+    }
+  })();
+
+  pendingCreates.set(localId, inFlight);
+  try {
+    await inFlight;
+  } catch(e) {
+    console.error('Failed to sync new item to Supabase:', e);
+  } finally {
+    pendingCreates.delete(localId);
+  }
+}
+
+/*
+ * Ticking a box or bumping a quantity right after adding an item used to fire a
+ * PATCH against the local uid, which matches no row — the edit stuck on this
+ * device and never synced. Waiting for the insert to land gives us the real id.
+ */
+async function resolveSyncId(id){
+  if(pendingCreates.has(id)){
+    try { await pendingCreates.get(id); } catch(e) { /* create failed; fall through */ }
+  }
+  return adoptedIds.get(id) || id;
+}
+
+// Wraps an (id, ...args) sync call so it always targets the row Supabase knows.
+function viaResolvedId(fn){
+  return async (id, ...rest) => fn(await resolveSyncId(id), ...rest);
+}
 
 /* Starter list — seeded from the built-in essentials, then user-editable. */
 function seedStarter(){
@@ -1392,7 +1522,7 @@ function addItem(name, qty, source, img){
       // Sync to Supabase immediately for authenticated users
       const user = window.getCurrentUser?.();
       if(user && !user.id.startsWith('guest_') && window.addListItemSupabase) {
-        window.addListItemSupabase(newItem).catch(e => console.error('Failed to sync item to Supabase:', e));
+        pushNewItem(state.items, newItem, window.addListItemSupabase);
       }
       return true;
     } else {
@@ -1408,7 +1538,7 @@ function addItem(name, qty, source, img){
   // Sync to Supabase immediately for authenticated users
   const user = window.getCurrentUser?.();
   if(user && !user.id.startsWith('guest_') && window.addListItemSupabase) {
-    window.addListItemSupabase(newItem).catch(e => console.error('Failed to sync item to Supabase:', e));
+    pushNewItem(state.items, newItem, window.addListItemSupabase);
   }
   return true;
 }
@@ -1425,7 +1555,7 @@ function toggleInStock(id, e){
   } else {
     state.inventory = state.inventory.filter(x=>x.name.toLowerCase()!==it.name.toLowerCase());
   }
-  save(); renderList(); renderInventoryentory();
+  save(); renderList(); renderInventory();
 }
 
 function incQty(id, e){
@@ -2031,7 +2161,7 @@ function invRow(it){
     <button class="del" onclick="delInv('${it.id}')" aria-label="remove">✕</button>
   </div>`;
 }
-function renderInventoryentory(){
+function renderInventory(){
   const box = document.getElementById("invBox");
   if(!state.inventory.length){
     box.innerHTML = `<div class="empty"><div class="big">🏠</div><h3>${esc(t("inv_empty_title"))}</h3><p>${esc(t("inv_empty_body"))}</p></div>`;
@@ -2066,7 +2196,7 @@ function addInv(name, qty, unit, expiry){
   // Sync to Supabase immediately for authenticated users
   const user = window.getCurrentUser?.();
   if(user && !user.id.startsWith('guest_') && window.addInventoryItemSupabase) {
-    window.addInventoryItemSupabase(newInvItem).catch(e => console.error('Failed to sync inventory item to Supabase:', e));
+    pushNewItem(state.inventory, newInvItem, window.addInventoryItemSupabase);
   }
 
   return true;
@@ -2078,7 +2208,7 @@ function delInv(id){
     const item = state.items.find(i=>i.name.toLowerCase()===inv.name.toLowerCase());
     if(item) item.inStock = false;
   }
-  save(); renderInventoryentory(); renderList();
+  save(); renderInventory(); renderList();
 
   // Sync deletion to Supabase for authenticated users
   const user = window.getCurrentUser?.();
@@ -2110,7 +2240,7 @@ function moveToList(id){
   }
 
   state.inventory = state.inventory.filter(x=>x.id!==id); save();
-  renderInventoryentory(); renderList();
+  renderInventory(); renderList();
 }
 let editingInvId = null;
 function editInv(id){ openInvEditor(id); }
@@ -2154,11 +2284,118 @@ function openInvEditor(id){
     } else {
       addInv(name,qty,unit,expiry);
     }
-    closeInvEditor(); renderInventoryentory(); toast(t("t_added_inv"));
+    closeInvEditor(); renderInventory(); toast(t("t_added_inv"));
   };
   ed.scrollIntoView({behavior:"smooth", block:"start"});
 }
 function closeInvEditor(){ editingInvId=null; const ed=document.getElementById("invEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
+
+/* ---------------- Family button + panel ---------------- */
+let familyInfo = null;
+
+function familyButtonLabel(name){
+  const trimmed = (name||"").trim();
+  return trimmed ? `${trimmed} Family` : "My Family";
+}
+
+function initialsFor(nickname){
+  const parts = (nickname||"?").trim().split(/\s+/).filter(Boolean);
+  if(!parts.length) return "?";
+  return (parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].slice(0,2)).toUpperCase();
+}
+
+async function initFamilyButton(){
+  const btn = document.getElementById("familyBtn");
+  if(!btn || typeof window.getFamilyInfo !== "function") return;
+
+  familyInfo = await window.getFamilyInfo();
+  if(!familyInfo) return;
+
+  btn.textContent = familyButtonLabel(familyInfo.familyName);
+  btn.style.display = "inline-block";
+  btn.onclick = openFamilyPanel;
+
+  document.getElementById("fpClose").onclick = closeFamilyPanel;
+  document.getElementById("familyModal").onclick = (e) => {
+    if(e.target.id === "familyModal") closeFamilyPanel();
+  };
+  document.getElementById("fpCopy").onclick = copyFamilyCode;
+  document.getElementById("fpSaveName").onclick = saveFamilyName;
+  document.getElementById("fpNameInput").addEventListener("keydown", (e) => {
+    if(e.key === "Enter") saveFamilyName();
+  });
+}
+
+function renderFamilyPanel(){
+  if(!familyInfo) return;
+  const me = window.getCurrentUser?.();
+
+  document.getElementById("fpTitle").textContent = familyButtonLabel(familyInfo.familyName);
+  document.getElementById("fpCode").textContent = familyInfo.familyCode || "------";
+  document.getElementById("fpNameInput").value = familyInfo.familyName || "";
+
+  const members = familyInfo.members || [];
+  document.getElementById("fpMembers").innerHTML = members.length
+    ? members.map(m => {
+        const isMe = me && m.nickname === me.nickname;
+        return `<div class="fp-member">
+          <span class="fp-avatar">${esc(initialsFor(m.nickname))}</span>
+          <span>${esc(m.nickname)}</span>
+          ${isMe ? '<span class="fp-you">you</span>' : ''}
+        </div>`;
+      }).join("")
+    : `<div style="color:var(--muted);font-size:13px">No members found</div>`;
+}
+
+async function openFamilyPanel(){
+  renderFamilyPanel();
+  document.getElementById("familyModal").classList.add("show");
+
+  // Refresh in the background so a rename or new member elsewhere shows up.
+  if(typeof window.getFamilyInfo === "function"){
+    const fresh = await window.getFamilyInfo();
+    if(fresh){
+      familyInfo = fresh;
+      document.getElementById("familyBtn").textContent = familyButtonLabel(fresh.familyName);
+      if(document.getElementById("familyModal").classList.contains("show")) renderFamilyPanel();
+    }
+  }
+}
+
+function closeFamilyPanel(){
+  document.getElementById("familyModal").classList.remove("show");
+}
+
+function copyFamilyCode(){
+  const code = familyInfo?.familyCode;
+  if(!code) return;
+  navigator.clipboard?.writeText(code)
+    .then(() => toast("Family code copied"))
+    .catch(() => toast(code));
+}
+
+async function saveFamilyName(){
+  const input = document.getElementById("fpNameInput");
+  const name = input.value.trim();
+
+  if(!name){ toast("Enter a family name"); return; }
+  if(typeof window.updateFamilyName !== "function") return;
+
+  const btn = document.getElementById("fpSaveName");
+  btn.disabled = true;
+  try {
+    const saved = await window.updateFamilyName(name);
+    familyInfo.familyName = saved;
+    document.getElementById("familyBtn").textContent = familyButtonLabel(saved);
+    document.getElementById("fpTitle").textContent = familyButtonLabel(saved);
+    toast("Family name updated");
+  } catch(e) {
+    console.error("Failed to rename family:", e);
+    toast(e.message || "Could not update family name");
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 /* ---------------- Wiring ---------------- */
 function qtyVal(){ const n = parseInt(document.getElementById("addQty").value, 10); return (isNaN(n)||n<1)?1:n; }
@@ -2191,7 +2428,7 @@ document.getElementById("photoInput").addEventListener("change", async (e)=>{
 // inventory add bar
 function addInvFromInput(){
   const inp=document.getElementById("invInput"), q=document.getElementById("invQty");
-  if(addInv(inp.value, q.value.trim()||"1", invUnitVal(), "")){ inp.value=""; q.value="1"; inp.focus(); renderInventoryentory(); renderList(); toast(t("t_added_inv")); }
+  if(addInv(inp.value, q.value.trim()||"1", invUnitVal(), "")){ inp.value=""; q.value="1"; inp.focus(); renderInventory(); renderList(); toast(t("t_added_inv")); }
 }
 document.getElementById("invAddBtn").onclick = addInvFromInput;
 document.getElementById("invInput").addEventListener("keydown",e=>{ if(e.key==="Enter") addInvFromInput(); });
@@ -2376,7 +2613,7 @@ document.querySelectorAll(".tab").forEach(tb=>tb.onclick=()=>{
   if(id!=="recipes") closeRecipeEditor();
   if(id!=="list"){ closeStarterEditor(); closeShufPanel(); }
   if(id!=="home") closeInvEditor();
-  if(id==="home") renderInventoryentory();
+  if(id==="home") renderInventory();
   if(id==="recipes") renderRecipes();
   if(id==="video") renderSavedVideos();
   window.scrollTo({top:0,behavior:"smooth"});
@@ -2424,7 +2661,7 @@ function applyLang(){
   setVideoSub();
   closeShufPanel();
   // re-render dynamic views
-  renderList(); renderInventoryentory(); renderRecipes(); renderSavedVideos();
+  renderList(); renderInventory(); renderRecipes(); renderSavedVideos();
 }
 document.getElementById("langBtn").onclick = ()=>{
   state.lang = isRTL() ? "en" : "he"; save(); applyLang();

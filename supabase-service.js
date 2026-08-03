@@ -191,6 +191,50 @@ export function getCurrentUser() {
   return currentUser;
 }
 
+// Family code, name and member list for the header's family button.
+export async function getFamilyInfo() {
+  if (!currentUser || currentUser.id.startsWith('guest_') || !currentUser.family_id) return null;
+
+  try {
+    const response = await fetch(`/api/family/${currentUser.family_id}`);
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error('Error fetching family info:', result.error);
+      return null;
+    }
+
+    return {
+      familyCode: result.familyCode,
+      familyName: result.familyName,
+      members: result.members || []
+    };
+  } catch (error) {
+    console.error('ERROR: Failed to fetch family info:', error.message);
+    return null;
+  }
+}
+
+export async function updateFamilyName(familyName) {
+  if (!currentUser || currentUser.id.startsWith('guest_') || !currentUser.family_id) {
+    throw new Error('Not signed in to a family');
+  }
+
+  const response = await fetch(`/api/family/${currentUser.family_id}/name`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ familyName, userId: currentUser.id })
+  });
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to rename family');
+  }
+
+  return result.familyName;
+}
+
 export function logout() {
   currentUser = null;
   sessionStorage.removeItem('cartly.user');
@@ -313,11 +357,13 @@ export async function getInventoryItems() {
     return data.map(item => ({
       id: item.id,
       name: item.name,
-      qty: item.quantity || '',
+      qty: item.quantity == null ? '' : String(item.quantity),
       unit: item.unit || '',
-      expiry: item.exp_date || '',
-      category: item.category,
-      emoji: item.emoji,
+      expiry: item.expiry || '',
+      // Deployments whose home_inventory predates these columns return undefined;
+      // app.html re-derives category/emoji from the name in that case.
+      category: item.category || '',
+      emoji: item.emoji || '',
       img: item.img || ''
     }));
   }

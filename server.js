@@ -10,6 +10,101 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
+const SUPABASE_URL = 'https://xxyhrhkflexpyipttmug.supabase.co';
+
+function sbHeaders(extra = {}) {
+  return {
+    'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+    'apikey': process.env.SUPABASE_SERVICE_KEY,
+    'Content-Type': 'application/json',
+    ...extra
+  };
+}
+
+/*
+ * The browser keeps items in app-shaped fields (qty, expiry, ...) while Postgres
+ * uses its own column names. Every write goes through one of these maps so an
+ * app-shaped patch can never reach Supabase verbatim — an unmapped key like
+ * `qty` is not a column and makes PostgREST reject the whole request, which is
+ * what silently broke quantity edits and inventory sync.
+ */
+const LIST_ITEM_FIELDS = {
+  name: 'name',
+  qty: 'quantity',
+  quantity: 'quantity',
+  category: 'category',
+  emoji: 'emoji',
+  checked: 'checked',
+  source: 'source'
+};
+
+const INVENTORY_FIELDS = {
+  name: 'name',
+  qty: 'quantity',
+  quantity: 'quantity',
+  unit: 'unit',
+  expiry: 'expiry',
+  category: 'category',
+  emoji: 'emoji'
+};
+
+function mapFields(updates, fieldMap) {
+  const row = {};
+  for (const [key, value] of Object.entries(updates || {})) {
+    const column = fieldMap[key];
+    if (column) row[column] = value;
+  }
+  return row;
+}
+
+// home_inventory.quantity is an INT column; '' or 'two' would abort the write.
+function intQty(value, fallback = 1) {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+// A DATE column rejects '', so blank expiry has to become a real NULL.
+function dateOrNull(value) {
+  return value && String(value).trim() ? value : null;
+}
+
+/*
+ * Writes a row, and if this deployment's schema is missing an optional column
+ * (PostgREST answers PGRST204 naming it), drops that column and retries instead
+ * of failing the whole sync. Lets category/emoji ride along where the columns
+ * exist without making them a hard requirement.
+ */
+async function supabaseWrite(url, method, row) {
+  let payload = { ...row };
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const response = await fetch(url, {
+      method,
+      headers: sbHeaders({ 'Prefer': 'return=representation' }),
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const text = await response.text();
+      return { ok: true, data: text ? JSON.parse(text) : [] };
+    }
+
+    const result = await response.json().catch(() => ({}));
+    const missing = result.code === 'PGRST204' &&
+      /Could not find the '([^']+)' column/.exec(result.message || '');
+
+    if (missing && missing[1] in payload) {
+      console.warn(`⚠️ Column '${missing[1]}' missing from schema — retrying without it`);
+      delete payload[missing[1]];
+      continue;
+    }
+
+    return { ok: false, error: result.message || `Supabase returned ${response.status}` };
+  }
+
+  return { ok: false, error: 'Too many missing columns in schema' };
+}
+
 // API Endpoints
 
 // Config endpoint
@@ -39,6 +134,94 @@ app.get('/api/health', (req, res) => {
     });
   }
   res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// Family details: code, name and member nicknames for the family header button.
+// Served with the service key because the anon client cannot read sibling rows
+// in `users` under RLS.
+app.get('/api/family/:familyId', async (req, res) => {
+  try {
+    const { familyId } = req.params;
+
+    if (!familyId) {
+      return res.json({ success: false, error: 'Missing family id' });
+    }
+
+    const [familyResp, membersResp] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/families?select=family_code,family_name&id=eq.${familyId}`, { headers: sbHeaders() }),
+      fetch(`${SUPABASE_URL}/rest/v1/users?select=nickname,email&family_id=eq.${familyId}`, { headers: sbHeaders() })
+    ]);
+
+    const family = await familyResp.json();
+
+    if (!familyResp.ok || !Array.isArray(family) || !family.length) {
+      return res.json({ success: false, error: 'Family not found' });
+    }
+
+    const members = membersResp.ok ? await membersResp.json() : [];
+
+    res.json({
+      success: true,
+      familyCode: family[0].family_code,
+      familyName: family[0].family_name || '',
+      members: (Array.isArray(members) ? members : []).map(m => ({
+        nickname: m.nickname || (m.email || '').split('@')[0] || 'Member'
+      }))
+    });
+  } catch (error) {
+    console.error('Error in /api/family/:familyId:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Rename a family
+app.put('/api/family/:familyId/name', async (req, res) => {
+  try {
+    const { familyId } = req.params;
+    const { familyName, userId } = req.body;
+
+    if (!familyId || !userId) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    const name = String(familyName || '').trim();
+
+    if (!name) {
+      return res.json({ success: false, error: 'Family name cannot be empty' });
+    }
+
+    if (name.length > 40) {
+      return res.json({ success: false, error: 'Family name is too long (max 40 characters)' });
+    }
+
+    // Only a member of this family may rename it.
+    const memberResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?select=id&id=eq.${userId}&family_id=eq.${familyId}`,
+      { headers: sbHeaders() }
+    );
+    const member = await memberResp.json();
+
+    if (!memberResp.ok || !Array.isArray(member) || !member.length) {
+      return res.json({ success: false, error: 'Not a member of this family' });
+    }
+
+    const result = await supabaseWrite(
+      `${SUPABASE_URL}/rest/v1/families?id=eq.${familyId}`,
+      'PATCH',
+      { family_name: name }
+    );
+
+    if (!result.ok) {
+      console.error('❌ Error renaming family:', result.error);
+      return res.json({ success: false, error: result.error });
+    }
+
+    console.log('✅ Family renamed:', { familyId, name });
+    res.json({ success: true, familyName: name });
+  } catch (error) {
+    console.error('Error in /api/family/:familyId/name:', error);
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // Family code validation endpoint
@@ -84,35 +267,28 @@ app.post('/api/add-item', async (req, res) => {
     console.log('📝 /api/add-item: Adding item to family', { familyId, userId, itemName: item.name });
 
     // Insert item with service key (bypasses RLS)
-    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-        'apikey': process.env.SUPABASE_SERVICE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
+    const result = await supabaseWrite(
+      `${SUPABASE_URL}/rest/v1/list_items`,
+      'POST',
+      {
         family_id: familyId,
         name: item.name,
-        quantity: item.qty || '',
+        quantity: item.qty ? String(item.qty) : '',
         category: item.category,
         emoji: item.emoji,
         checked: item.checked || false,
         source: item.source || '',
         updated_by: userId
-      })
-    });
+      }
+    );
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Supabase error response:', { status: response.status, error: result });
-      return res.json({ success: false, error: result.message || 'Failed to add item' });
+    if (!result.ok) {
+      console.error('❌ Supabase error response:', result.error);
+      return res.json({ success: false, error: result.error });
     }
 
-    console.log('✅ Item saved successfully:', { familyId, itemId: result[0]?.id });
-    res.json({ success: true, data: result });
+    console.log('✅ Item saved successfully:', { familyId, itemId: result.data[0]?.id });
+    res.json({ success: true, data: result.data });
   } catch (error) {
     console.error('❌ Error in /api/add-item:', error);
     res.json({ success: false, error: error.message });
@@ -129,29 +305,26 @@ app.put('/api/update-item/:id', async (req, res) => {
       return res.json({ success: false, error: 'Missing required fields' });
     }
 
-    // Update item with service key (bypasses RLS)
-    const response = await fetch(`https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/list_items?id=eq.${id}&family_id=eq.${familyId}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-        'apikey': process.env.SUPABASE_SERVICE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
-        ...updates,
-        updated_by: userId,
-        updated_at: new Date().toISOString()
-      })
-    });
+    const row = mapFields(updates, LIST_ITEM_FIELDS);
+    if ('quantity' in row) row.quantity = row.quantity == null ? '' : String(row.quantity);
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      return res.json({ success: false, error: result.message || 'Failed to update item' });
+    if (!Object.keys(row).length) {
+      return res.json({ success: false, error: 'No recognised fields to update' });
     }
 
-    res.json({ success: true, data: result });
+    // Update item with service key (bypasses RLS)
+    const result = await supabaseWrite(
+      `${SUPABASE_URL}/rest/v1/list_items?id=eq.${id}&family_id=eq.${familyId}`,
+      'PATCH',
+      { ...row, updated_by: userId, updated_at: new Date().toISOString() }
+    );
+
+    if (!result.ok) {
+      console.error('❌ Error updating item:', result.error);
+      return res.json({ success: false, error: result.error });
+    }
+
+    res.json({ success: true, data: result.data });
   } catch (error) {
     console.error('Error in /api/update-item:', error);
     res.json({ success: false, error: error.message });
@@ -202,37 +375,28 @@ app.post('/api/add-inventory', async (req, res) => {
     console.log('🏠 /api/add-inventory: Adding item to family', { familyId, userId, itemName: item.name });
 
     // Insert item with service key (bypasses RLS)
-    const response = await fetch('https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/home_inventory', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-        'apikey': process.env.SUPABASE_SERVICE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
+    const result = await supabaseWrite(
+      `${SUPABASE_URL}/rest/v1/home_inventory`,
+      'POST',
+      {
         family_id: familyId,
         name: item.name,
-        quantity: item.qty || '',
+        quantity: intQty(item.qty),
         unit: item.unit || '',
+        expiry: dateOrNull(item.expiry),
         category: item.category,
         emoji: item.emoji,
-        exp_date: item.expDate || null,
-        in_stock: item.inStock || false,
-        source: item.source || '',
         updated_by: userId
-      })
-    });
+      }
+    );
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      console.error('❌ Supabase error response:', { status: response.status, error: result });
-      return res.json({ success: false, error: result.message || 'Failed to add inventory item' });
+    if (!result.ok) {
+      console.error('❌ Supabase error response:', result.error);
+      return res.json({ success: false, error: result.error });
     }
 
-    console.log('✅ Inventory item saved successfully:', { familyId, itemId: result[0]?.id });
-    res.json({ success: true, data: result });
+    console.log('✅ Inventory item saved successfully:', { familyId, itemId: result.data[0]?.id });
+    res.json({ success: true, data: result.data });
   } catch (error) {
     console.error('❌ Error in /api/add-inventory:', error);
     res.json({ success: false, error: error.message });
@@ -249,29 +413,27 @@ app.put('/api/update-inventory/:id', async (req, res) => {
       return res.json({ success: false, error: 'Missing required fields' });
     }
 
-    // Update item with service key (bypasses RLS)
-    const response = await fetch(`https://xxyhrhkflexpyipttmug.supabase.co/rest/v1/home_inventory?id=eq.${id}&family_id=eq.${familyId}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-        'apikey': process.env.SUPABASE_SERVICE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify({
-        ...updates,
-        updated_by: userId,
-        updated_at: new Date().toISOString()
-      })
-    });
+    const row = mapFields(updates, INVENTORY_FIELDS);
+    if ('quantity' in row) row.quantity = intQty(row.quantity);
+    if ('expiry' in row) row.expiry = dateOrNull(row.expiry);
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      return res.json({ success: false, error: result.message || 'Failed to update inventory item' });
+    if (!Object.keys(row).length) {
+      return res.json({ success: false, error: 'No recognised fields to update' });
     }
 
-    res.json({ success: true, data: result });
+    // Update item with service key (bypasses RLS)
+    const result = await supabaseWrite(
+      `${SUPABASE_URL}/rest/v1/home_inventory?id=eq.${id}&family_id=eq.${familyId}`,
+      'PATCH',
+      { ...row, updated_by: userId, updated_at: new Date().toISOString() }
+    );
+
+    if (!result.ok) {
+      console.error('❌ Error updating inventory item:', result.error);
+      return res.json({ success: false, error: result.error });
+    }
+
+    res.json({ success: true, data: result.data });
   } catch (error) {
     console.error('Error in /api/update-inventory:', error);
     res.json({ success: false, error: error.message });
