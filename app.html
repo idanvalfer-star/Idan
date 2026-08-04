@@ -243,6 +243,11 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   font-size:13px;width:100%;margin-top:12px;border-radius:12px;transition:.15s}
 .settings-btn-danger:active{transform:scale(.98);background:#fdd!important}
 
+/* bulk duplicate dialog */
+.dup-chips{display:flex;flex-wrap:wrap;gap:6px}
+.dup-chips span{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:5px 11px;
+  font-size:13px;font-weight:700;color:var(--ink)}
+
 /* recipe editor ingredient list */
 .ing-addbar{margin-bottom:10px;box-shadow:none;border:1px solid var(--line);padding:6px}
 .ing-addbar input{font-size:15px;padding:10px 8px 10px 12px}
@@ -502,6 +507,29 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   </div>
 </div>
 
+<!-- Bulk-add duplicates: one dialog for the whole batch -->
+<div class="family-modal" id="dupModal">
+  <div class="family-panel">
+    <h3 id="dupTitle">Some of these are already there</h3>
+    <p class="fp-sub" id="dupSub">Add them anyway?</p>
+
+    <div class="fp-section" id="dupListSection">
+      <div class="fp-label" id="dupListLabel">Already on your list</div>
+      <div class="dup-chips" id="dupListChips"></div>
+    </div>
+
+    <div class="fp-section" id="dupHomeSection">
+      <div class="fp-label" id="dupHomeLabel">Already at home</div>
+      <div class="dup-chips" id="dupHomeChips"></div>
+    </div>
+
+    <div class="fp-row" style="margin-top:14px">
+      <button class="fp-btn" id="dupSkip" style="flex:1">Skip these</button>
+      <button class="fp-btn primary" id="dupAdd" style="flex:1">Add anyway</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -748,7 +776,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
+    dup_title:"Some of these are already there", dup_sub:"Add them anyway?", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip these", dup_add:"Add anyway", ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -794,7 +822,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"להוסיף אותם בכל זאת?", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג עליהם", dup_add:"להוסיף בכל זאת", ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
@@ -1565,8 +1593,30 @@ function capitalizeItem(name) {
 }
 
 /* ---------------- Item ops ---------------- */
-function addItem(name, qty, source, img){
+/*
+ * Reports what adding `name` would collide with, without changing anything.
+ * Bulk adds use this to gather every clash up front and ask once, instead of
+ * firing a confirm() per ingredient.
+ */
+function inspectAdd(name){
+  const info = classify(name);
+  const normalized = capitalizeItem(pluralizeItem(name, info.category));
+  const key = normalized.toLowerCase();
+  const hasActiveItems = state.items.some(i => !i.checked);
+  return {
+    normalized,
+    onList: state.items.find(i => i.name.toLowerCase() === key && !i.checked) || null,
+    // Matches addItem: a home match only matters while the list has live items.
+    atHome: hasActiveItems ? (state.inventory.find(i => i.name.toLowerCase() === key) || null) : null
+  };
+}
+
+function addItem(name, qty, source, img, opts){
   name = (name||"").trim(); if(!name) return false;
+
+  // Bulk callers have already asked about duplicates for the whole batch, so
+  // they suppress both the per-item confirm and the per-item toast.
+  const bulk = !!(opts && opts.bulk);
 
   // Get category first to determine if we should pluralize
   const info = classify(name);
@@ -1577,12 +1627,12 @@ function addItem(name, qty, source, img){
   // Check if item exists on the list (unchecked)
   const existsOnList = state.items.find(i => i.name.toLowerCase() === normalized.toLowerCase() && !i.checked);
   if(existsOnList) {
-    if(confirm(`"${normalized}" already exists on your list. Are you sure you want to add it again?`)) {
+    if(bulk || confirm(`"${normalized}" already exists on your list. Are you sure you want to add it again?`)) {
       // User confirmed, update qty if provided
       if(qty) existsOnList.qty = qty;
       if(img) existsOnList.img = img;
       save();
-      toast('Updated quantity for ' + normalized);
+      if(!bulk) toast('Updated quantity for ' + normalized);
       return "dup";
     } else {
       toast('Cancelled');
@@ -1594,12 +1644,12 @@ function addItem(name, qty, source, img){
   const hasActiveItems = state.items.some(i => !i.checked);
   const existsAtHome = state.inventory.find(i => i.name.toLowerCase() === normalized.toLowerCase());
   if(existsAtHome && hasActiveItems) {
-    if(confirm(`"${normalized}" already exists in your home. Do you want to add it to your shopping list?`)) {
+    if(bulk || confirm(`"${normalized}" already exists in your home. Do you want to add it to your shopping list?`)) {
       // User confirmed, proceed to add
       const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
       state.items.unshift(newItem);
       save();
-      toast('Added ' + normalized + ' to shopping list');
+      if(!bulk) toast('Added ' + normalized + ' to shopping list');
       // Sync to Supabase immediately for authenticated users
       const user = window.getCurrentUser?.();
       if(user && !user.id.startsWith('guest_') && window.addListItemSupabase) {
@@ -1623,6 +1673,90 @@ function addItem(name, qty, source, img){
   }
   return true;
 }
+/*
+ * Asks once about every duplicate in a batch. Resolves true to add them anyway,
+ * false to add only the new items. Adding a recipe used to stack one confirm()
+ * per repeated ingredient, which had to be dismissed one at a time.
+ */
+function confirmDuplicates(onList, atHome){
+  return new Promise(resolve => {
+    const modal = document.getElementById("dupModal");
+    const chips = names => names.map(n => `<span>${esc(n)}</span>`).join("");
+
+    document.getElementById("dupTitle").textContent = t("dup_title");
+    document.getElementById("dupSub").textContent = t("dup_sub");
+    document.getElementById("dupListLabel").textContent = t("dup_on_list");
+    document.getElementById("dupHomeLabel").textContent = t("dup_at_home");
+    document.getElementById("dupSkip").textContent = t("dup_skip");
+    document.getElementById("dupAdd").textContent = t("dup_add");
+
+    document.getElementById("dupListChips").innerHTML = chips(onList);
+    document.getElementById("dupHomeChips").innerHTML = chips(atHome);
+    document.getElementById("dupListSection").style.display = onList.length ? "" : "none";
+    document.getElementById("dupHomeSection").style.display = atHome.length ? "" : "none";
+
+    const close = answer => {
+      modal.classList.remove("show");
+      document.getElementById("dupAdd").onclick = null;
+      document.getElementById("dupSkip").onclick = null;
+      modal.onclick = null;
+      resolve(answer);
+    };
+
+    document.getElementById("dupAdd").onclick = () => close(true);
+    document.getElementById("dupSkip").onclick = () => close(false);
+    // Dismissing by tapping the backdrop means "don't add the duplicates".
+    modal.onclick = e => { if(e.target === modal) close(false); };
+
+    modal.classList.add("show");
+  });
+}
+
+/*
+ * Adds a batch of items, collecting every duplicate into a single question.
+ * Accepts plain names or {name, qty}. Returns how many rows were added.
+ */
+async function addItemsBulk(entries, source){
+  const clean = (entries || [])
+    .map(e => typeof e === "string" ? {name:e, qty:""} : {name:e.name, qty:e.qty || ""})
+    .filter(e => (e.name || "").trim());
+
+  const fresh = [], onList = [], atHome = [];
+  const seen = new Set();
+
+  // Inspect everything before adding anything, so the dialog describes the list
+  // as the user currently sees it and repeats within the batch collapse.
+  for(const entry of clean){
+    const found = inspectAdd(entry.name);
+    const key = found.normalized.toLowerCase();
+    if(seen.has(key)) continue;
+    seen.add(key);
+
+    const tagged = {...entry, normalized: found.normalized};
+    if(found.onList) onList.push(tagged);
+    else if(found.atHome) atHome.push(tagged);
+    else fresh.push(tagged);
+  }
+
+  let added = 0;
+  fresh.forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
+
+  if(onList.length || atHome.length){
+    const addAnyway = await confirmDuplicates(
+      onList.map(e => e.normalized),
+      atHome.map(e => e.normalized)
+    );
+    if(addAnyway){
+      // Home items become new rows; list items just take the new quantity.
+      atHome.forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
+      onList.forEach(e => addItem(e.name, e.qty, source, "", {bulk:true}));
+    }
+  }
+
+  renderList();
+  return added;
+}
+
 /*
  * Drops inventory rows from local state AND Supabase. Removing them locally only
  * leaves the row in the database, so the next sync pulls the item straight back.
@@ -1946,10 +2080,10 @@ function renderRecipes(){
     </div>`;
   }).join("");
 }
-function addRecipeToList(id){
+async function addRecipeToList(id){
   const r = state.recipes.find(x=>x.id===id); if(!r) return;
-  let n=0; (r.ing||[]).forEach(i=>{ if(addItem(cap(i.name), i.qty||"", "recipe:" + (r.n||"recipe").split(" ")[0])) n++; });
-  renderList(); toast(n? t("t_added_ings", n) : t("t_already"));
+  const n = await addItemsBulk(r.ing || [], "recipe:" + (r.n||"recipe").split(" ")[0]);
+  toast(n? t("t_added_ings", n) : t("t_already"));
 }
 function delRecipe(id){
   state.recipes = state.recipes.filter(x=>x.id!==id); save(); renderRecipes(); toast(t("t_recipe_removed"));
@@ -2274,12 +2408,12 @@ function renderVideoResult(){
     </div>`;
 }
 function togglePending(i){ if(!pendingVideo) return; pendingVideo.ingredients[i].on=!pendingVideo.ingredients[i].on; renderVideoResult(); }
-function commitVideo(){
+async function commitVideo(){
   const v = pendingVideo; if(!v) return;
   const chosen = v.ingredients.filter(x=>x.on);
   let n=0;
   const label = v.platform==="instagram"?"insta":v.platform==="youtube"?"video":v.platform;
-  chosen.forEach(g=>{ if(addItem(g.name, g.qty, "video:" + label)) n++; });
+  n = await addItemsBulk(chosen, "video:" + label);
   // save the video card (with the chosen ingredients recorded)
   state.videos.unshift({id:v.id,url:v.url,platform:v.platform,title:v.title,thumb:v.thumb,
     name:v.name, description:v.description, ingredients:chosen.map(c=>({name:c.name,qty:c.qty,emoji:c.emoji}))});
@@ -2309,10 +2443,10 @@ function renderSavedVideos(){
         </div></div></div>`;
     }).join("");
 }
-function readd(id){ const v=state.videos.find(x=>x.id===id); if(!v) return; let n=0;
+async function readd(id){ const v=state.videos.find(x=>x.id===id); if(!v) return;
   const label=v.platform==="instagram"?"insta":"video";
-  v.ingredients.forEach(g=>{ if(addItem(g.name,g.qty,"video:" + label)) n++; });
-  renderList(); toast(n? t("t_added_ings", n) : t("t_already")); }
+  const n = await addItemsBulk(v.ingredients || [], "video:" + label);
+  toast(n? t("t_added_ings", n) : t("t_already")); }
 function delVideo(id){ state.videos = state.videos.filter(x=>x.id!==id); save(); renderSavedVideos(); }
 
 /* ---------------- Helpers ---------------- */
@@ -2662,11 +2796,11 @@ document.getElementById("sortChip").onclick = ()=>{ state.sortAisle=!state.sortA
   toast(state.sortAisle? t("t_sorted") : t("t_unsorted")); };
 document.getElementById("invSortChip").onclick = ()=>{ state.sortInvAisle=!state.sortInvAisle; save(); renderInventory();
   toast(state.sortInvAisle? t("t_sorted") : t("t_unsorted")); };
-document.getElementById("defaultChip").onclick = ()=>{
+document.getElementById("defaultChip").onclick = async ()=>{
   document.getElementById("actionsMenu").classList.add("hide");
   seedStarter();
   if(!state.starter.length){ toast(t("t_starter_empty")); return; }
-  let n=0; state.starter.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
+  const n = await addItemsBulk(state.starter, "");
   toast(n? t("t_added_essentials", n) : t("t_essentials_have"));
 };
 document.getElementById("clearAllChip").onclick = ()=>{
@@ -2710,17 +2844,14 @@ function openPasteModal(){
 function closePasteModal(){
   document.getElementById("pasteModal").classList.remove("show");
 }
-function addPastedList(){
+async function addPastedList(){
   const text = document.getElementById("pasteInput").value;
   if(!text.trim()) { toast("Nothing to paste"); return; }
   const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length > 0);
-  let added = 0;
-  lines.forEach(line => {
-    if(addItem(line)===true) added++;
-  });
-  save(); renderList();
   closePasteModal();
-  toast(added? t("t_added_essentials", added) : "All items already exist");
+  const added = await addItemsBulk(lines, "");
+  save();
+  toast(added? t("t_added_essentials", added) : t("t_already"));
 }
 function openPasteAndCloseMenu(){
   document.getElementById("actionsMenu").classList.add("hide");
@@ -3092,10 +3223,13 @@ seedRecipes();
 seedStarter();
 cleanupOldSourceTags();
 
-// Add starter list for guests on first visit
+// Add starter list for guests on first visit.
+// bulk:true because this runs unattended at boot — without it, a guest whose
+// home inventory matches a default gets a stack of confirm() dialogs to dismiss
+// before the app is usable.
 const currentUser = JSON.parse(sessionStorage.getItem('cartly.user') || 'null');
 if(currentUser && currentUser.id && currentUser.id.startsWith('guest_') && state.items.length === 0) {
-  DEFAULTS.forEach(name => addItem(name));
+  DEFAULTS.forEach(name => addItem(name, "", "", "", {bulk:true}));
   save();
 }
 
