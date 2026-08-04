@@ -370,6 +370,7 @@ details.recipe-more summary::-webkit-details-marker{display:none}
           <button class="action-item" id="copyListChip"><span>📋</span> <span data-i18n="copy_list">Copy list</span></button>
           <button class="action-item" id="shufChip"><span>🛒</span> <span data-i18n="shuf_button">Shop at Shufersal</span></button>
           <hr style="margin:4px 0;border:none;height:1px;background:var(--line)">
+          <button class="action-item" id="removeAtHomeChip"><span>🏠</span> <span data-i18n="remove_at_home">Remove what's at home</span></button>
           <button class="action-item" id="clearAllChip" style="color:var(--muted)"><span>🗑️</span> <span data-i18n="clear_all">Clear all</span></button>
         </div>
       </div>
@@ -773,7 +774,7 @@ const T = {
     tagline:"Your smart grocery buddy",
     tab_list:"List", tab_home:"Home", tab_recipes:"Recipes", tab_video:"Video",
     add_placeholder:"Add a grocery…", qty_placeholder:"How many?",
-    sort_aisle:"Sort by aisle", starter_list:"Starter list", edit_starter:"Edit starter", paste_list:"Paste", clear_all:"Clear all", copy_list:"Copy list",
+    sort_aisle:"Sort by aisle", starter_list:"Starter list", edit_starter:"Edit starter", paste_list:"Paste", clear_all:"Clear all", copy_list:"Copy list", remove_at_home:"Remove what's at home",
     to_get:"to get", ticked:"ticked",
     empty_title:"Your cart is empty", empty_body:"Add something above, or tap Starter list for the essentials.",
     recipes_title:"🍳 My recipes",
@@ -797,6 +798,7 @@ const T = {
     foot:"Cartly · saved on this device · works offline",
     // toasts
     t_added_essentials:(n)=>`Added ${n} essential${n>1?"s":""} 📋`,
+    t_removed_at_home:(n)=>`Removed ${n} item${n>1?"s":""} you already have 🏠`, t_nothing_at_home:"Nothing on your list is at home yet",
     t_essentials_have:"Essentials already on your list",
     t_starter_empty:"Your starter list is empty — tap ✎ Edit starter",
     t_list_cleared:"List cleared 🗑️", t_undo:"Undo", t_restored:"Restored",
@@ -819,7 +821,7 @@ const T = {
     tagline:"חבר הקניות החכם שלך",
     tab_list:"רשימה", tab_home:"בבית", tab_recipes:"מתכונים", tab_video:"וידאו",
     add_placeholder:"הוספת מוצר…", qty_placeholder:"כמות",
-    sort_aisle:"מיון לפי מדף", starter_list:"רשימת בסיס", edit_starter:"עריכת בסיס", paste_list:"הדבקה", clear_all:"ניקוי הכל", copy_list:"העתקת רשימה",
+    sort_aisle:"מיון לפי מדף", starter_list:"רשימת בסיס", edit_starter:"עריכת בסיס", paste_list:"הדבקה", clear_all:"ניקוי הכל", copy_list:"העתקת רשימה", remove_at_home:"הסרת מה שכבר בבית",
     to_get:"לקנייה", ticked:"סומנו",
     empty_title:"העגלה ריקה", empty_body:"הוסיפו מוצר למעלה, או הקישו על רשימת בסיס למוצרים הבסיסיים.",
     recipes_title:"🍳 המתכונים שלי",
@@ -841,7 +843,7 @@ const T = {
     starter_editor_sub:"מוצר אחד בכל שורה. הקשה על “רשימת בסיס” תוסיף את כולם.",
     save_starter:"💾 שמירת רשימת בסיס", photo_added:"תמונה צורפה — הוסיפו מוצר כדי לשמור אותה",
     foot:"Cartly · נשמר במכשיר הזה · עובד גם ללא אינטרנט",
-    t_added_essentials:(n)=>`נוספו ${n} מוצרי בסיס 📋`,
+    t_added_essentials:(n)=>`נוספו ${n} מוצרי בסיס 📋`, t_removed_at_home:(n)=>`הוסרו ${n} מוצרים שכבר יש לך 🏠`, t_nothing_at_home:"אין ברשימה מוצרים שכבר בבית",
     t_essentials_have:"מוצרי הבסיס כבר ברשימה",
     t_starter_empty:"רשימת הבסיס ריקה — הקישו ✎ עריכת בסיס",
     t_list_cleared:"הרשימה נוקתה 🗑️", t_undo:"ביטול", t_restored:"שוחזר",
@@ -2807,6 +2809,48 @@ document.getElementById("defaultChip").onclick = async ()=>{
   const n = await addItemsBulk(state.starter, "");
   toast(n? t("t_added_essentials", n) : t("t_essentials_have"));
 };
+/*
+ * Drops every list item that already exists in the home inventory — the tidy-up
+ * after a shop, when the things you bought are now at home. Undoable, since it
+ * can remove a lot at once.
+ */
+document.getElementById("removeAtHomeChip").onclick = ()=>{
+  document.getElementById("actionsMenu").classList.add("hide");
+  if(!state.items.length){ toast(t("t_list_empty")); return; }
+
+  const atHome = new Set(state.inventory.map(i => (i.name||"").toLowerCase()));
+  const doomed = state.items.filter(i => atHome.has((i.name||"").toLowerCase()));
+
+  if(!doomed.length){ toast(t("t_nothing_at_home")); return; }
+
+  const backup = state.items.slice();
+  state.items = state.items.filter(i => !atHome.has((i.name||"").toLowerCase()));
+  save(); renderList();
+
+  const user = window.getCurrentUser?.();
+  const syncDeletes = rows => {
+    if(user && !user.id.startsWith('guest_') && window.deleteListItemSupabase){
+      rows.forEach(row => window.deleteListItemSupabase(row.id)
+        .catch(e => console.error('Failed to sync removal:', e)));
+    }
+  };
+  syncDeletes(doomed);
+
+  toast(t("t_removed_at_home", doomed.length), {
+    label: t("t_undo"),
+    fn: ()=>{
+      // Re-add through the normal path so the restored rows reach Supabase too.
+      state.items = backup; save(); renderList();
+      doomed.forEach(row => {
+        if(user && !user.id.startsWith('guest_') && window.addListItemSupabase){
+          pushNewItem(state.items, row, window.addListItemSupabase);
+        }
+      });
+      toast(t("t_restored"));
+    }
+  });
+};
+
 document.getElementById("clearAllChip").onclick = ()=>{
   document.getElementById("actionsMenu").classList.add("hide");
   if(!state.items.length){ toast(t("t_list_empty")); return; }
