@@ -255,9 +255,19 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 .settings-btn-danger:active{transform:scale(.98);background:#fdd!important}
 
 /* bulk duplicate dialog */
+.dup-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dup-head .fp-label{margin:0;flex:1;min-width:0}
+.dup-all{font-size:11px;font-weight:800;color:var(--accent-2);background:var(--accent-soft);
+  border:1px solid var(--accent);border-radius:20px;padding:3px 10px;cursor:pointer;flex:none}
 .dup-chips{display:flex;flex-wrap:wrap;gap:6px}
-.dup-chips span{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:5px 11px;
-  font-size:13px;font-weight:700;color:var(--ink)}
+.dup-chip{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:5px 11px 5px 8px;
+  font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:.15s}
+.dup-chip .box{width:15px;height:15px;border-radius:5px;border:1.5px solid var(--line);flex:none;
+  display:grid;place-items:center;font-size:10px;color:transparent;line-height:1}
+.dup-chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-2)}
+.dup-chip.on .box{background:var(--accent);border-color:var(--accent);color:#fff}
+.dup-chip:active{transform:scale(.96)}
 
 /* recipe editor ingredient list */
 .ing-addbar{margin-bottom:10px;box-shadow:none;border:1px solid var(--line);padding:6px}
@@ -545,18 +555,24 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <p class="fp-sub" id="dupSub">Add them anyway?</p>
 
     <div class="fp-section" id="dupListSection">
-      <div class="fp-label" id="dupListLabel">Already on your list</div>
+      <div class="dup-head">
+        <span class="fp-label" id="dupListLabel">Already on your list</span>
+        <button type="button" class="dup-all" data-group="list">All</button>
+      </div>
       <div class="dup-chips" id="dupListChips"></div>
     </div>
 
     <div class="fp-section" id="dupHomeSection">
-      <div class="fp-label" id="dupHomeLabel">Already at home</div>
+      <div class="dup-head">
+        <span class="fp-label" id="dupHomeLabel">Already at home</span>
+        <button type="button" class="dup-all" data-group="home">All</button>
+      </div>
       <div class="dup-chips" id="dupHomeChips"></div>
     </div>
 
     <div class="fp-row" style="margin-top:14px">
-      <button class="fp-btn" id="dupSkip" style="flex:1">Skip these</button>
-      <button class="fp-btn primary" id="dupAdd" style="flex:1">Add anyway</button>
+      <button class="fp-btn" id="dupSkip" style="flex:1">Skip all</button>
+      <button class="fp-btn primary" id="dupAdd" style="flex:1">Add selected</button>
     </div>
   </div>
 </div>
@@ -807,7 +823,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    dup_title:"Some of these are already there", dup_sub:"Add them anyway?", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip these", dup_add:"Add anyway", ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
+    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -854,7 +870,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"להוסיף אותם בכל זאת?", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג עליהם", dup_add:"להוסיף בכל זאת", ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
@@ -1713,33 +1729,74 @@ function addItem(name, qty, source, img, opts){
 function confirmDuplicates(onList, atHome){
   return new Promise(resolve => {
     const modal = document.getElementById("dupModal");
-    const chips = names => names.map(n => `<span>${esc(n)}</span>`).join("");
+    const addBtn = document.getElementById("dupAdd");
+    const skipBtn = document.getElementById("dupSkip");
+
+    // Nothing is ticked to begin with: these are things you already have, so
+    // adding them again is the deliberate choice, not the default.
+    const selected = new Set();
+
+    const chips = names => names.map(n =>
+      `<button type="button" class="dup-chip" data-name="${esc(n)}"><span class="box">✓</span>${esc(n)}</button>`
+    ).join("");
 
     document.getElementById("dupTitle").textContent = t("dup_title");
     document.getElementById("dupSub").textContent = t("dup_sub");
     document.getElementById("dupListLabel").textContent = t("dup_on_list");
     document.getElementById("dupHomeLabel").textContent = t("dup_at_home");
-    document.getElementById("dupSkip").textContent = t("dup_skip");
-    document.getElementById("dupAdd").textContent = t("dup_add");
+    skipBtn.textContent = t("dup_skip");
 
     document.getElementById("dupListChips").innerHTML = chips(onList);
     document.getElementById("dupHomeChips").innerHTML = chips(atHome);
     document.getElementById("dupListSection").style.display = onList.length ? "" : "none";
     document.getElementById("dupHomeSection").style.display = atHome.length ? "" : "none";
 
-    const close = answer => {
-      modal.classList.remove("show");
-      document.getElementById("dupAdd").onclick = null;
-      document.getElementById("dupSkip").onclick = null;
-      modal.onclick = null;
-      resolve(answer);
+    const allChips = () => [...modal.querySelectorAll(".dup-chip")];
+
+    const paint = () => {
+      // A name can appear in both groups, so drive every chip off the one set.
+      allChips().forEach(c => c.classList.toggle("on", selected.has(c.dataset.name)));
+      addBtn.textContent = selected.size ? `${t("dup_add")} (${selected.size})` : t("dup_add");
+      modal.querySelectorAll(".dup-all").forEach(btn => {
+        const box = btn.closest(".fp-section").querySelector(".dup-chips");
+        const names = [...box.querySelectorAll(".dup-chip")].map(c => c.dataset.name);
+        const all = names.length && names.every(n => selected.has(n));
+        btn.textContent = all ? t("dup_none") : t("dup_all");
+      });
     };
 
-    document.getElementById("dupAdd").onclick = () => close(true);
-    document.getElementById("dupSkip").onclick = () => close(false);
-    // Dismissing by tapping the backdrop means "don't add the duplicates".
-    modal.onclick = e => { if(e.target === modal) close(false); };
+    allChips().forEach(chip => {
+      chip.onclick = () => {
+        const n = chip.dataset.name;
+        selected.has(n) ? selected.delete(n) : selected.add(n);
+        paint();
+      };
+    });
 
+    modal.querySelectorAll(".dup-all").forEach(btn => {
+      btn.onclick = () => {
+        const box = btn.closest(".fp-section").querySelector(".dup-chips");
+        const names = [...box.querySelectorAll(".dup-chip")].map(c => c.dataset.name);
+        const all = names.every(n => selected.has(n));
+        names.forEach(n => all ? selected.delete(n) : selected.add(n));
+        paint();
+      };
+    });
+
+    const close = chosen => {
+      modal.classList.remove("show");
+      addBtn.onclick = null;
+      skipBtn.onclick = null;
+      modal.onclick = null;
+      resolve(chosen);
+    };
+
+    addBtn.onclick = () => close([...selected]);
+    skipBtn.onclick = () => close([]);
+    // Dismissing by tapping the backdrop means "don't add the duplicates".
+    modal.onclick = e => { if(e.target === modal) close([]); };
+
+    paint();
     modal.classList.add("show");
   });
 }
@@ -1784,12 +1841,15 @@ async function addItemsBulk(entries, source){
   fresh.forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
 
   if(showOnList.length || showAtHome.length){
-    const addAnyway = await confirmDuplicates(showOnList, showAtHome);
-    if(addAnyway){
-      // Home-only items become new rows; list items just take the new quantity.
-      atHomeOnly.forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
-      onList.forEach(e => addItem(e.name, e.qty, source, "", {bulk:true}));
-    }
+    const chosen = await confirmDuplicates(showOnList, showAtHome);
+    const picked = new Set(chosen.map(n => n.toLowerCase()));
+    const wanted = e => picked.has(e.normalized.toLowerCase());
+
+    // Home-only items become new rows; list items just take the new quantity.
+    // Ticking a name in either group selects the item once, so nothing is
+    // added twice when it appears under both headings.
+    atHomeOnly.filter(wanted).forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
+    onList.filter(wanted).forEach(e => addItem(e.name, e.qty, source, "", {bulk:true}));
   }
 
   renderList();
