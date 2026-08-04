@@ -86,6 +86,10 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 /* add bar */
 .addbar{display:flex;gap:8px;background:var(--card);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow);margin-bottom:14px}
 .addbar input{flex:1;min-width:0;border:none;background:transparent;font-size:16px;padding:12px 8px 12px 14px;color:var(--ink);outline:none}
+/* The Home bar's quantity box sits directly in the flex row (the List's is wrapped
+   in .qtybox), so without this it inherited flex:1 and ate half the row — leaving
+   the name field too narrow to show its placeholder. */
+.addbar input.qty{flex:0 0 52px;width:52px;text-align:center;padding:12px 4px}
 .addbar input::placeholder{color:var(--muted)}
 .qtybox{display:flex;align-items:center;flex:none;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
 .qbtn{width:32px;align-self:stretch;font-size:20px;font-weight:800;color:var(--muted);background:transparent;line-height:1}
@@ -165,8 +169,12 @@ header{display:flex;align-items:center;gap:12px;padding:8px 4px 14px}
 .card .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
 .field{margin-bottom:11px}
 .field label{display:block;font-size:12.5px;font-weight:800;color:var(--muted);margin:0 0 6px 3px;text-transform:uppercase;letter-spacing:.3px}
-.field input,.field textarea{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);
+.field input,.field textarea{width:100%;max-width:100%;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);
   border-radius:13px;padding:12px 14px;font-size:15px;outline:none;transition:border .15s}
+/* iOS Safari gives date inputs an intrinsic width that ignores width:100%, which
+   pushed the expiry field and the Save button past the editor card's edge.
+   Dropping the native appearance lets them shrink to the container. */
+.field input[type=date]{-webkit-appearance:none;appearance:none;display:block}
 .field input:focus,.field textarea:focus{border-color:var(--accent)}
 .field textarea{min-height:96px;resize:vertical;line-height:1.5}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
@@ -234,6 +242,19 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 .settings-btn-danger{background:#fee!important;border-color:#fcc!important;color:#c00!important;font-weight:800;padding:10px 14px;
   font-size:13px;width:100%;margin-top:12px;border-radius:12px;transition:.15s}
 .settings-btn-danger:active{transform:scale(.98);background:#fdd!important}
+
+/* recipe editor ingredient list */
+.ing-addbar{margin-bottom:10px;box-shadow:none;border:1px solid var(--line);padding:6px}
+.ing-addbar input{font-size:15px;padding:10px 8px 10px 12px}
+.ing-addbar .add-btn{width:44px;height:44px;font-size:20px;flex:none}
+.ing-list{display:flex;flex-direction:column;gap:6px}
+.ing-row{display:flex;align-items:center;gap:9px;background:var(--bg);border:1px solid var(--line);
+  border-radius:12px;padding:9px 10px;font-size:14.5px}
+.ing-row .ing-emoji{font-size:17px;flex:none}
+.ing-row .ing-name{flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ing-row .del{flex:none;width:28px;height:28px;border-radius:8px;color:var(--muted);font-size:15px}
+.ing-row .del:active{background:var(--line)}
+.ing-empty{color:var(--muted);font-size:13px;padding:8px 4px}
 
 /* family button + panel */
 .family-btn{background:var(--accent-soft);color:var(--accent-2);padding:5px 12px;border-radius:10px;font-size:12.5px;
@@ -353,7 +374,7 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   <!-- HOME INVENTORY -->
   <section id="tab-home" class="hide">
     <div class="addbar">
-      <input id="invInput" placeholder="Add to home inventory…" data-i18n-ph="inv_placeholder" autocomplete="off" enterkeyhint="done">
+      <input id="invInput" placeholder="Add to home…" data-i18n-ph="inv_placeholder" autocomplete="off" enterkeyhint="done">
       <input id="invQty" class="qty" value="1" inputmode="numeric" autocomplete="off" aria-label="qty" style="border:1px solid var(--line);border-radius:12px">
       <select id="invUnit" class="unitsel"></select>
       <button class="add-btn" id="invAddBtn" aria-label="Add">+</button>
@@ -727,7 +748,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    ing_lines:"Ingredients — one per line", steps_lines:"Steps — one per line", no_ingredients:"no ingredients yet",
+    ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -736,7 +757,7 @@ const T = {
     watching:"🍳 Watching the video…", reading:"🍳 Reading…", ingredients:"Ingredients",
     tab_home_title:"🏠 What we have",
     home_sub:"What's in your kitchen right now. Move things to your shopping list when they run low.",
-    inv_placeholder:"Add to home inventory…", inv_empty_title:"Nothing at home yet",
+    inv_placeholder:"Add to home…", inv_empty_title:"Nothing at home yet",
     inv_empty_body:"Add what you have in the kitchen, with a quantity and unit.",
     move_to_list:"To list", expiry:"Expiry", starter_editor_title:"✎ Edit your starter list",
     starter_editor_sub:"One item per line. Tapping “Starter list” adds all of these.",
@@ -773,7 +794,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    ing_lines:"מרכיבים — אחד בכל שורה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
@@ -782,7 +803,7 @@ const T = {
     watching:"🍳 צופה בסרטון…", reading:"🍳 קורא…", ingredients:"מרכיבים",
     tab_home_title:"🏠 מה יש בבית",
     home_sub:"מה שיש במטבח שלכם עכשיו. העבירו לרשימת הקניות מה שנגמר.",
-    inv_placeholder:"הוספה למלאי הבית…", inv_empty_title:"עדיין אין כלום בבית",
+    inv_placeholder:"הוספה לבית…", inv_empty_title:"עדיין אין כלום בבית",
     inv_empty_body:"הוסיפו את מה שיש במטבח, עם כמות ויחידה.",
     move_to_list:"לרשימה", expiry:"תוקף", starter_editor_title:"✎ עריכת רשימת הבסיס",
     starter_editor_sub:"מוצר אחד בכל שורה. הקשה על “רשימת בסיס” תוסיף את כולם.",
@@ -1788,10 +1809,25 @@ function shufUrl(name){
   const hebrewName = FOOD_HE[key] || name;
   return "https://www.shufersal.co.il/online/he/search?text="+encodeURIComponent(hebrewName);
 }
+/*
+ * An item's source is stored as "kind:label" so its tag can show where it came
+ * from — a recipe or a pasted video — instead of labelling everything a video.
+ * Rows saved before the prefix existed carry a bare label and came from the
+ * video flow, which was the only source at the time.
+ */
+function sourceTag(source){
+  if(!source) return "";
+  const m = /^(recipe|video):([\s\S]*)$/.exec(source);
+  const kind = m ? m[1] : "video";
+  const label = (m ? m[2] : source).trim();
+  if(!label) return "";
+  return `<span class="tag src">${kind === "recipe" ? "🍳" : "🎬"} ${esc(label)}</span>`;
+}
+
 function itemRow(it){
   const done = it.checked?"checked":"";
   const inStockClass = it.inStock?"in-stock":"";
-  const src = it.source?`<span class="tag src">🎬 ${esc(it.source)}</span>`:"";
+  const src = sourceTag(it.source);
   const sel = `<select class="catsel" onchange="setCat('${it.id}',this.value)">`+
     SECTIONS.map(s=>`<option value="${s}" ${s===it.category?"selected":""}>${SECTION_EMOJI[s]} ${esc(sectionLabel(s))}</option>`).join("")+`</select>`;
   const thumb = it.img
@@ -1912,8 +1948,8 @@ function renderRecipes(){
 }
 function addRecipeToList(id){
   const r = state.recipes.find(x=>x.id===id); if(!r) return;
-  let n=0; (r.ing||[]).forEach(i=>{ if(addItem(cap(i.name), i.qty||"", (r.n||"recipe").split(" ")[0])) n++; });
-  renderList(); toast(n? t("t_added_ings")(n) : t("t_already"));
+  let n=0; (r.ing||[]).forEach(i=>{ if(addItem(cap(i.name), i.qty||"", "recipe:" + (r.n||"recipe").split(" ")[0])) n++; });
+  renderList(); toast(n? t("t_added_ings", n) : t("t_already"));
 }
 function delRecipe(id){
   state.recipes = state.recipes.filter(x=>x.id!==id); save(); renderRecipes(); toast(t("t_recipe_removed"));
@@ -1921,8 +1957,6 @@ function delRecipe(id){
 
 /* ---------- Recipe editor ---------- */
 let editingRecipeId = null;
-function ingToText(ing){ return (ing||[]).map(x=> (x.qty?x.qty+" ":"")+x.name).join("\n"); }
-function textToIng(t){ return (t||"").split(/\n/).map(parseIngLine).filter(Boolean); }
 function editRecipe(id){ openRecipeEditor(id); }
 function openRecipeEditor(id){
   editingRecipeId = id || null;
@@ -1936,13 +1970,36 @@ function openRecipeEditor(id){
       <div class="field" style="flex:0 0 84px"><label>${esc(t("icon"))}</label><input id="reEmoji" maxlength="4" value="${r?esc(r.e||"🍽️"):"🍽️"}"></div>
       <div class="field" style="flex:1"><label>${esc(t("time"))}</label><input id="reTime" placeholder="20 min" value="${r?esc(r.time||""):""}"></div>
     </div>
-    <div class="field"><label>${esc(t("ing_lines"))}</label><textarea id="reIng" placeholder="2 cups flour&#10;3 eggs&#10;1 tbsp butter">${r?esc(ingToText(r.ing)):""}</textarea></div>
+    <div class="field">
+      <label>${esc(t("ingredients"))}</label>
+      <div class="addbar ing-addbar">
+        <input id="reIngName" placeholder="${esc(t("ing_placeholder"))}" autocomplete="off" enterkeyhint="done">
+        <input id="reIngQty" class="qty" placeholder="1" inputmode="text" autocomplete="off" aria-label="${esc(t("qty_placeholder"))}">
+        <button class="add-btn" id="reIngAdd" type="button" aria-label="${esc(t("add"))}">+</button>
+      </div>
+      <div id="reIngList" class="ing-list"></div>
+    </div>
     <div class="field"><label>${esc(t("steps_lines"))}</label><textarea id="reSteps">${r?esc((r.steps||[]).join("\n")):""}</textarea></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" id="reSave" type="button" style="flex:1;min-width:140px">${esc(t("save_recipe"))}</button>
       <button class="btn sec" id="reCancel" type="button" style="flex:0 0 auto;min-width:100px">${esc(t("cancel"))}</button>
       ${r ? '<button class="btn sec" id="reDelete" type="button" style="flex:0 0 auto;min-width:80px">🗑️ ' + esc(t("del")) + '</button>' : ""}
+    </div>
   </div>`;
+
+  // Ingredients are edited as a running list rather than free text, so the draft
+  // lives here while the editor is open and saveRecipe reads it directly.
+  recipeIngDraft = (r && Array.isArray(r.ing)) ? r.ing.map(x => ({name:x.name, qty:x.qty||""})) : [];
+  renderRecipeIngDraft();
+
+  document.getElementById("reIngAdd").onclick = addRecipeIng;
+  document.getElementById("reIngName").addEventListener("keydown", e => {
+    if(e.key === "Enter"){ e.preventDefault(); addRecipeIng(); }
+  });
+  document.getElementById("reIngQty").addEventListener("keydown", e => {
+    if(e.key === "Enter"){ e.preventDefault(); addRecipeIng(); }
+  });
+
   document.getElementById("reCancel").onclick = closeRecipeEditor;
   document.getElementById("reSave").onclick = saveRecipe;
   if(r && document.getElementById("reDelete")) {
@@ -1950,12 +2007,58 @@ function openRecipeEditor(id){
   }
   ed.scrollIntoView({behavior:"smooth", block:"start"});
 }
+
+let recipeIngDraft = [];
+
+function renderRecipeIngDraft(){
+  const box = document.getElementById("reIngList");
+  if(!box) return;
+  if(!recipeIngDraft.length){
+    box.innerHTML = `<div class="ing-empty">${esc(t("no_ingredients"))}</div>`;
+    return;
+  }
+  box.innerHTML = recipeIngDraft.map((g, i) => {
+    const info = classify(g.name);
+    return `<div class="ing-row">
+      <span class="ing-emoji">${info.emoji || "🛍️"}</span>
+      <span class="ing-name">${esc(cap(g.name))}</span>
+      ${g.qty ? `<span class="tag">${esc(g.qty)}</span>` : ""}
+      <button type="button" class="del" onclick="removeRecipeIng(${i})" aria-label="remove">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function addRecipeIng(){
+  const nameEl = document.getElementById("reIngName");
+  const qtyEl = document.getElementById("reIngQty");
+  const raw = nameEl.value.trim();
+  if(!raw) { nameEl.focus(); return; }
+
+  // Typing "2 cups flour" in the name box should still split into qty + name.
+  const parsed = parseIngLine(raw) || {name:raw, qty:""};
+  const qty = qtyEl.value.trim() || parsed.qty || "";
+
+  if(recipeIngDraft.some(g => g.name.toLowerCase() === parsed.name.toLowerCase())){
+    toast(t("ing_dup"));
+  } else {
+    recipeIngDraft.push({name: parsed.name, qty});
+  }
+
+  nameEl.value = ""; qtyEl.value = "";
+  renderRecipeIngDraft();
+  nameEl.focus();
+}
+
+function removeRecipeIng(i){
+  recipeIngDraft.splice(i, 1);
+  renderRecipeIngDraft();
+}
 function closeRecipeEditor(){ editingRecipeId=null; const ed=document.getElementById("recipeEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
 function saveRecipe(){
   const name = document.getElementById("reName").value.trim() || "Untitled recipe";
   const emoji = document.getElementById("reEmoji").value.trim() || "🍽️";
   const time = document.getElementById("reTime").value.trim();
-  const ing = textToIng(document.getElementById("reIng").value);
+  const ing = recipeIngDraft.map(g => ({name: g.name, qty: g.qty || ""}));
   const steps = document.getElementById("reSteps").value.split(/\n/).map(s=>s.trim()).filter(Boolean);
   if(editingRecipeId){
     const r = state.recipes.find(x=>x.id===editingRecipeId);
@@ -2176,13 +2279,13 @@ function commitVideo(){
   const chosen = v.ingredients.filter(x=>x.on);
   let n=0;
   const label = v.platform==="instagram"?"insta":v.platform==="youtube"?"video":v.platform;
-  chosen.forEach(g=>{ if(addItem(g.name, g.qty, label)) n++; });
+  chosen.forEach(g=>{ if(addItem(g.name, g.qty, "video:" + label)) n++; });
   // save the video card (with the chosen ingredients recorded)
   state.videos.unshift({id:v.id,url:v.url,platform:v.platform,title:v.title,thumb:v.thumb,
     name:v.name, description:v.description, ingredients:chosen.map(c=>({name:c.name,qty:c.qty,emoji:c.emoji}))});
   save();
   renderList(); renderSavedVideos();
-  toast(n? t("t_added_video")(n) : t("t_saved_recipe_book"));
+  toast(n? t("t_added_video", n) : t("t_saved_recipe_book"));
 }
 function renderSavedVideos(){
   const box = document.getElementById("savedVideos");
@@ -2208,8 +2311,8 @@ function renderSavedVideos(){
 }
 function readd(id){ const v=state.videos.find(x=>x.id===id); if(!v) return; let n=0;
   const label=v.platform==="instagram"?"insta":"video";
-  v.ingredients.forEach(g=>{ if(addItem(g.name,g.qty,label)) n++; });
-  renderList(); toast(n? t("t_added_ings")(n) : t("t_already")); }
+  v.ingredients.forEach(g=>{ if(addItem(g.name,g.qty,"video:" + label)) n++; });
+  renderList(); toast(n? t("t_added_ings", n) : t("t_already")); }
 function delVideo(id){ state.videos = state.videos.filter(x=>x.id!==id); save(); renderSavedVideos(); }
 
 /* ---------------- Helpers ---------------- */
@@ -2564,7 +2667,7 @@ document.getElementById("defaultChip").onclick = ()=>{
   seedStarter();
   if(!state.starter.length){ toast(t("t_starter_empty")); return; }
   let n=0; state.starter.forEach(d=>{ if(addItem(d)===true) n++; }); renderList();
-  toast(n? t("t_added_essentials")(n) : t("t_essentials_have"));
+  toast(n? t("t_added_essentials", n) : t("t_essentials_have"));
 };
 document.getElementById("clearAllChip").onclick = ()=>{
   document.getElementById("actionsMenu").classList.add("hide");
@@ -2617,7 +2720,7 @@ function addPastedList(){
   });
   save(); renderList();
   closePasteModal();
-  toast(added? t("t_added_essentials")(added) : "All items already exist");
+  toast(added? t("t_added_essentials", added) : "All items already exist");
 }
 function openPasteAndCloseMenu(){
   document.getElementById("actionsMenu").classList.add("hide");
