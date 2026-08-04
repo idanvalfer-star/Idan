@@ -1753,7 +1753,12 @@ async function addItemsBulk(entries, source){
     .map(e => typeof e === "string" ? {name:e, qty:""} : {name:e.name, qty:e.qty || ""})
     .filter(e => (e.name || "").trim());
 
-  const fresh = [], onList = [], atHome = [];
+  const fresh = [], onList = [], atHomeOnly = [];
+  // What the dialog shows is separate from what gets added: something can be on
+  // the list AND at home, and both facts are worth telling you. Bucketing it as
+  // one or the other meant the home section never appeared, because anything at
+  // home was usually on the list too.
+  const showOnList = [], showAtHome = [];
   const seen = new Set();
 
   // Inspect everything before adding anything, so the dialog describes the list
@@ -1765,22 +1770,24 @@ async function addItemsBulk(entries, source){
     seen.add(key);
 
     const tagged = {...entry, normalized: found.normalized};
+
+    if(found.onList) showOnList.push(found.normalized);
+    if(found.atHome) showAtHome.push(found.normalized);
+
+    // Adding is decided once: on the list wins, since the row already exists.
     if(found.onList) onList.push(tagged);
-    else if(found.atHome) atHome.push(tagged);
+    else if(found.atHome) atHomeOnly.push(tagged);
     else fresh.push(tagged);
   }
 
   let added = 0;
   fresh.forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
 
-  if(onList.length || atHome.length){
-    const addAnyway = await confirmDuplicates(
-      onList.map(e => e.normalized),
-      atHome.map(e => e.normalized)
-    );
+  if(showOnList.length || showAtHome.length){
+    const addAnyway = await confirmDuplicates(showOnList, showAtHome);
     if(addAnyway){
-      // Home items become new rows; list items just take the new quantity.
-      atHome.forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
+      // Home-only items become new rows; list items just take the new quantity.
+      atHomeOnly.forEach(e => { if(addItem(e.name, e.qty, source, "", {bulk:true}) === true) added++; });
       onList.forEach(e => addItem(e.name, e.qty, source, "", {bulk:true}));
     }
   }
