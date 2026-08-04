@@ -31,75 +31,69 @@ export async function signupWithFamilyCode(email, nickname, password, familyCode
     // Normalize familyCode - treat empty string as no code
     const normalizedCode = familyCode && familyCode.trim() ? familyCode.trim() : null;
 
-    // Create Supabase auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (authError) throw authError;
-
-    const userId = authData.user.id;
-
-    // Find or create family
-    let familyId;
-    let returnedFamilyCode = normalizedCode;
-
+    // Check the code BEFORE creating an account. Supabase keeps an auth user the
+    // moment signUp succeeds, so failing after that point burns the email address
+    // — the next attempt is rejected as already registered.
     if (normalizedCode) {
-      // Validate family code using server endpoint
       const validateResp = await fetch('/api/validate-family-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ familyCode: normalizedCode })
       });
-
       const validateResult = await validateResp.json();
 
       if (!validateResult.success || !validateResult.exists) {
-        throw new Error('Invalid family code');
+        return { success: false, error: 'That family code does not exist. Check it and try again.' };
       }
-
-      familyId = validateResult.familyId;
-    } else {
-      // Create new family
-      const newCode = generateFamilyCode();
-      const { data: newFamily, error: createError } = await supabase
-        .from('families')
-        .insert([{ family_code: newCode, created_by: userId, family_name: `${nickname}'s family` }])
-        .select('id')
-        .single();
-
-      if (createError) throw createError;
-      familyId = newFamily.id;
-      returnedFamilyCode = newCode;
     }
 
-    // Update auth user metadata with family_id
-    const { error: metaError } = await supabase.auth.updateUser({
-      data: { family_id: familyId }
+    // Create Supabase auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+
+    let userId = authData && authData.user ? authData.user.id : null;
+
+    if (authError) {
+      const alreadyRegistered = /already registered|already exists|user already/i.test(authError.message || '');
+      if (!alreadyRegistered) throw authError;
+
+      // The address may belong to an account whose profile never got written
+      // (see /api/complete-signup). Signing in lets us finish the job; if the
+      // password is wrong it is simply an existing account.
+      const { data: signInData, error: signInError } =
+        await supabase.auth.signInWithPassword({ email, password });
+
+      if (signInError || !signInData || !signInData.user) {
+        return {
+          success: false,
+          error: 'This email already has an account. Sign in instead, or use "Forgot password" if you cannot get in.'
+        };
+      }
+      userId = signInData.user.id;
+    }
+
+    if (!userId) throw new Error('Could not determine the new user id');
+
+    // Resolve the family and write the profile with the service key.
+    const completeResp = await fetch('/api/complete-signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, email, nickname, familyCode: normalizedCode })
     });
+    const complete = await completeResp.json();
 
-    if (metaError) {
-      console.error('ERROR setting auth metadata:', metaError);
-      throw new Error(`Failed to set family metadata: ${metaError.message || 'Unknown error'}`);
-    }
+    if (!complete.success) throw new Error(complete.error || 'Could not finish creating your account');
 
-    console.log('✓ Auth metadata set with family_id:', familyId);
-    console.log('✓ Family code:', returnedFamilyCode);
+    // Nice to have for anything reading the JWT, but the users row above is the
+    // source of truth — and this needs a session, which email confirmation delays.
+    const { error: metaError } = await supabase.auth.updateUser({ data: { family_id: complete.familyId } });
+    if (metaError) console.warn('Could not set auth metadata (non-fatal):', metaError.message);
 
-    // Create user profile
-    const { error: userError } = await supabase
-      .from('users')
-      .insert([{ id: userId, email, nickname, family_id: familyId }]);
-
-    if (userError) throw userError;
-
-    currentUser = { id: userId, email, nickname, family_id: familyId };
+    currentUser = { id: userId, email, nickname, family_id: complete.familyId };
     const userJson = JSON.stringify(currentUser);
     sessionStorage.setItem('cartly.user', userJson);
     localStorage.setItem('cartly.user', userJson);
 
-    return { success: true, user: currentUser, familyCode: returnedFamilyCode };
+    return { success: true, user: currentUser, familyCode: complete.familyCode };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -127,17 +121,14 @@ export async function loginWithPassword(email, password) {
 
     if (userError || !userProfile) throw new Error('User profile not found');
 
-    // Update auth metadata with family_id for RLS policies
+    // Best-effort: the users row we just read is the source of truth, so a
+    // metadata write that fails must not stop someone signing in.
     const { error: metaError } = await supabase.auth.updateUser({
       data: { family_id: userProfile.family_id }
     });
 
-    if (metaError) {
-      console.error('ERROR setting auth metadata on login:', metaError);
-      throw new Error(`Failed to set family metadata: ${metaError.message || 'Unknown error'}`);
-    }
-
-    console.log('✓ Auth metadata set on login with family_id:', userProfile.family_id);
+    if (metaError) console.warn('Could not set auth metadata on login (non-fatal):', metaError.message);
+    else console.log('✓ Auth metadata set on login with family_id:', userProfile.family_id);
 
     currentUser = { id: userId, email, nickname: userProfile.nickname, family_id: userProfile.family_id };
     sessionStorage.setItem('cartly.user', JSON.stringify(currentUser));

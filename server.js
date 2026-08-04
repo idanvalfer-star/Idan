@@ -224,6 +224,76 @@ app.put('/api/family/:familyId/name', async (req, res) => {
   }
 });
 
+/*
+ * Finishes a signup: resolves the family and writes the users row.
+ *
+ * This has to happen server-side. `users` has SELECT and UPDATE policies but no
+ * INSERT one, so a browser inserting its own profile is refused by RLS — and
+ * because the auth account is created first, the failure left an account that
+ * could neither sign up again ("email already registered") nor load a family.
+ * Idempotent, so anyone already stuck that way is repaired by retrying.
+ */
+app.post('/api/complete-signup', async (req, res) => {
+  try {
+    const { userId, email, nickname, familyCode } = req.body;
+
+    if (!userId || !email) {
+      return res.json({ success: false, error: 'Missing required fields' });
+    }
+
+    const code = (familyCode || '').trim();
+    let familyId = null;
+    let resolvedCode = code;
+
+    if (code) {
+      const lookup = await fetch(
+        `${SUPABASE_URL}/rest/v1/families?select=id,family_code&family_code=eq.${encodeURIComponent(code)}`,
+        { headers: sbHeaders() }
+      );
+      const found = await lookup.json();
+
+      if (!lookup.ok || !Array.isArray(found) || !found.length) {
+        return res.json({ success: false, error: 'Invalid family code' });
+      }
+      familyId = found[0].id;
+      resolvedCode = found[0].family_code;
+    } else {
+      // No code given — start a new family for this person.
+      resolvedCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const created = await supabaseWrite(`${SUPABASE_URL}/rest/v1/families`, 'POST', {
+        family_code: resolvedCode,
+        created_by: userId,
+        family_name: nickname ? `${nickname}'s family` : 'My family'
+      });
+
+      if (!created.ok) {
+        console.error('❌ Could not create family:', created.error);
+        return res.json({ success: false, error: created.error });
+      }
+      familyId = created.data[0].id;
+    }
+
+    // Upsert so a repeated attempt repairs the row instead of colliding on the PK.
+    const profile = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+      method: 'POST',
+      headers: sbHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+      body: JSON.stringify({ id: userId, email, nickname: nickname || email.split('@')[0], family_id: familyId })
+    });
+
+    if (!profile.ok) {
+      const err = await profile.json().catch(() => ({}));
+      console.error('❌ Could not write user profile:', err);
+      return res.json({ success: false, error: err.message || 'Failed to create profile' });
+    }
+
+    console.log('✅ Signup completed:', { userId, familyId, joined: !!code });
+    res.json({ success: true, familyId, familyCode: resolvedCode });
+  } catch (error) {
+    console.error('Error in /api/complete-signup:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // Family code validation endpoint
 app.post('/api/validate-family-code', async (req, res) => {
   try {
