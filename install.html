@@ -19,7 +19,9 @@
 <meta property="og:type" content="website">
 
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
+/* Kill iOS double-tap zoom. touch-action is not inherited, so it has to be
+   set on every element; pinch-to-zoom deliberately still works. */
+*{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation}
 :root{
   --bg:#f5f7f3; --card:#fff; --ink:#0f1a14; --muted:#5f6b64;
   --line:#e3e9e4; --accent:#22c55e; --accent-2:#15803d; --soft:#e8f7ee;

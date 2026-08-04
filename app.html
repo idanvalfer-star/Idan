@@ -49,8 +49,12 @@
   --amber:#fbbf24; --amber-soft:#241d0e; --blue:#60a5fa; --pink:#f472b6;
   --shadow:0 10px 34px rgba(0,0,0,.45); --shadow-sm:0 2px 12px rgba(0,0,0,.35);
 }
-*{box-sizing:border-box}
-html,body{margin:0}
+/* touch-action is not inherited, so setting it only on body left every
+   descendant at the default `auto` and iOS kept zooming on double-tap.
+   `manipulation` drops double-tap zoom while keeping scrolling and
+   pinch-to-zoom, which stays available for accessibility. */
+*{box-sizing:border-box;touch-action:manipulation}
+html,body{margin:0;touch-action:manipulation}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji",sans-serif;
   background:
