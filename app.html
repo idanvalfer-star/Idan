@@ -548,6 +548,14 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   </div>
 </div>
 
+<!-- Plain acknowledgement, one button -->
+<div class="family-modal" id="noticeModal">
+  <div class="family-panel" style="max-width:300px">
+    <h3 id="noticeText" style="margin-bottom:16px">&nbsp;</h3>
+    <button class="fp-btn primary" id="noticeOk" style="width:100%">OK</button>
+  </div>
+</div>
+
 <!-- Bulk-add duplicates: one dialog for the whole batch -->
 <div class="family-modal" id="dupModal">
   <div class="family-panel">
@@ -823,7 +831,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
+    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -870,7 +878,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
@@ -1675,17 +1683,16 @@ function addItem(name, qty, source, img, opts){
   // Check if item exists on the list (unchecked)
   const existsOnList = state.items.find(i => i.name.toLowerCase() === normalized.toLowerCase() && !i.checked);
   if(existsOnList) {
-    if(bulk || confirm(`"${normalized}" already exists on your list. Are you sure you want to add it again?`)) {
-      // User confirmed, update qty if provided
+    if(bulk) {
+      // The batch dialog already asked; apply the new quantity.
       if(qty) existsOnList.qty = qty;
       if(img) existsOnList.img = img;
       save();
-      if(!bulk) toast('Updated quantity for ' + normalized);
       return "dup";
-    } else {
-      toast('Cancelled');
-      return false;
     }
+    // Adding something twice by hand is a mistake, not a choice — say so and stop.
+    notice(t("t_already_on_list", normalized));
+    return false;
   }
 
   // Check if item exists in home inventory (only if shopping list has unchecked items)
@@ -1721,6 +1728,19 @@ function addItem(name, qty, source, img, opts){
   }
   return true;
 }
+// A statement of fact with a single button — nothing to decide, so no Cancel.
+function notice(message){
+  const modal = document.getElementById("noticeModal");
+  const ok = document.getElementById("noticeOk");
+  document.getElementById("noticeText").textContent = message;
+  ok.textContent = t("ok");
+
+  const close = () => { modal.classList.remove("show"); ok.onclick = null; modal.onclick = null; };
+  ok.onclick = close;
+  modal.onclick = e => { if(e.target === modal) close(); };
+  modal.classList.add("show");
+}
+
 /*
  * Asks once about every duplicate in a batch. Resolves true to add them anyway,
  * false to add only the new items. Adding a recipe used to stack one confirm()
