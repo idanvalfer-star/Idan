@@ -254,6 +254,20 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   font-size:13px;width:100%;margin-top:12px;border-radius:12px;transition:.15s}
 .settings-btn-danger:active{transform:scale(.98);background:#fdd!important}
 
+/* avatar picker */
+/* The nickname is hidden on phones, so this badge is the only way into the
+   picker there — keep it a comfortable tap target rather than a bare glyph. */
+#userBadge{font-size:19px;line-height:1;border-radius:11px;flex:none;transition:.15s;
+  min-width:34px;min-height:34px;display:grid;place-items:center}
+#currentUserName{font-weight:700;margin:0 8px;font-size:13px;color:var(--muted);padding:0;transition:.15s}
+#userBadge:active,#currentUserName:active{transform:scale(.92)}
+.avatar-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+.avatar-opt{aspect-ratio:1;border-radius:14px;background:var(--bg);border:1.5px solid var(--line);
+  font-size:22px;display:grid;place-items:center;cursor:pointer;transition:.15s;line-height:1}
+.avatar-opt:active{transform:scale(.92)}
+.avatar-opt.on{background:var(--accent-soft);border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+
 /* bulk duplicate dialog */
 .dup-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .dup-head .fp-label{margin:0;flex:1;min-width:0}
@@ -366,8 +380,8 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     </div>
     <div class="spacer"></div>
     <div class="user-info" id="userInfo" style="display:none;">
-      <span id="userBadge" title="Logged in as">👤</span>
-      <span id="currentUserName" style="font-weight:700;margin:0 8px;"></span>
+      <button id="userBadge" title="Change your avatar">👤</button>
+      <button id="currentUserName" title="Change your avatar"></button>
       <button id="familyBtn" class="family-btn" style="display:none;" title="Family"></button>
       <span id="guestBadge" style="display:none;"></span>
     </div>
@@ -548,6 +562,16 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   </div>
 </div>
 
+<!-- Avatar picker -->
+<div class="family-modal" id="avatarModal">
+  <div class="family-panel">
+    <h3 id="avatarTitle">Choose your avatar</h3>
+    <p class="fp-sub" id="avatarSub">Tap one to use it</p>
+    <div class="avatar-grid" id="avatarGrid"></div>
+    <button class="fp-btn fp-close" id="avatarClose">Close</button>
+  </div>
+</div>
+
 <!-- Plain acknowledgement, one button -->
 <div class="family-modal" id="noticeModal">
   <div class="family-panel" style="max-width:300px">
@@ -609,6 +633,7 @@ if(isGuest && user && user.id.startsWith('guest_')) {
   if(userInfo) {
     userInfo.style.display = 'flex';
     document.getElementById('currentUserName').textContent = 'Guest';
+    if(typeof applyAvatar === 'function') applyAvatar();
     document.getElementById('logoutBtn').style.display = 'block';
     document.getElementById('logoutBtn').onclick = () => {
       console.log('🚪 Logging out...');
@@ -651,6 +676,7 @@ if(!isGuest) {
         if(userInfo) {
           userInfo.style.display = 'flex';
           document.getElementById('currentUserName').textContent = loggedUser.nickname || 'User';
+          if(typeof applyAvatar === 'function') applyAvatar();
           document.getElementById('guestBadge').style.display = 'none'; // Hide guest badge for logged-in users
           document.getElementById('logoutBtn').style.display = 'block';
           document.getElementById('deleteAccountBtn').style.display = 'block';
@@ -831,7 +857,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
+    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", close:"Close", avatar_title:"Choose your avatar", avatar_sub:"Tap one to use it", t_avatar_set:"Avatar updated", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -878,7 +904,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", close:"סגירה", avatar_title:"בחירת אווטאר", avatar_sub:"לחצו על אחד כדי לבחור", t_avatar_set:"האווטאר עודכן", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
@@ -2755,6 +2781,66 @@ function openInvEditor(id){
 }
 function closeInvEditor(){ editingInvId=null; const ed=document.getElementById("invEditor"); ed.classList.add("hide"); ed.innerHTML=""; }
 
+/* ---------------- Avatar ---------------- */
+const AVATARS = ["👤","🧑","👩","👨","🧔","👵","👴","🧑‍🍳","👩‍🍳","🦸",
+                 "🐱","🐶","🦊","🐼","🐨","🦁","🐵","🐰","🦉","🐢",
+                 "🌟","🌸","🍀","🍎","🥑","🍕","🍩","☕","🚀","🎧"];
+
+// Kept per account rather than in the shared list state, so two people on the
+// same device do not overwrite each other's choice.
+function avatarKey(){
+  const user = window.getCurrentUser?.() ||
+    JSON.parse(sessionStorage.getItem("cartly.user") || localStorage.getItem("cartly.user") || "null");
+  return "cartly.avatar." + (user && user.id ? user.id : "guest");
+}
+
+function getAvatar(){
+  try { return localStorage.getItem(avatarKey()) || AVATARS[0]; }
+  catch(e) { return AVATARS[0]; }
+}
+
+function applyAvatar(){
+  const badge = document.getElementById("userBadge");
+  if(badge) badge.textContent = getAvatar();
+  // Keep the "you" row in the family panel in step.
+  if(document.getElementById("familyModal")?.classList.contains("show")) renderFamilyPanel();
+}
+
+function openAvatarPicker(){
+  const grid = document.getElementById("avatarGrid");
+  const current = getAvatar();
+
+  document.getElementById("avatarTitle").textContent = t("avatar_title");
+  document.getElementById("avatarSub").textContent = t("avatar_sub");
+  document.getElementById("avatarClose").textContent = t("close");
+
+  grid.innerHTML = AVATARS.map(a =>
+    `<button type="button" class="avatar-opt ${a === current ? "on" : ""}" data-a="${a}">${a}</button>`
+  ).join("");
+
+  grid.querySelectorAll(".avatar-opt").forEach(btn => {
+    btn.onclick = () => {
+      try { localStorage.setItem(avatarKey(), btn.dataset.a); } catch(e) {}
+      applyAvatar();
+      closeAvatarPicker();
+      toast(t("t_avatar_set") + " " + btn.dataset.a);
+    };
+  });
+
+  document.getElementById("avatarModal").classList.add("show");
+}
+
+function closeAvatarPicker(){
+  document.getElementById("avatarModal").classList.remove("show");
+}
+
+document.getElementById("userBadge").onclick = openAvatarPicker;
+document.getElementById("currentUserName").onclick = openAvatarPicker;
+document.getElementById("avatarClose").onclick = closeAvatarPicker;
+document.getElementById("avatarModal").onclick = (e) => {
+  if(e.target.id === "avatarModal") closeAvatarPicker();
+};
+
 /* ---------------- Family button + panel ---------------- */
 let familyInfo = null;
 
@@ -2803,8 +2889,10 @@ function renderFamilyPanel(){
   document.getElementById("fpMembers").innerHTML = members.length
     ? members.map(m => {
         const isMe = me && m.nickname === me.nickname;
+        // Only your own avatar is known here — it is stored on this device, so
+        // everyone else keeps their initials.
         return `<div class="fp-member">
-          <span class="fp-avatar">${esc(initialsFor(m.nickname))}</span>
+          <span class="fp-avatar">${isMe ? getAvatar() : esc(initialsFor(m.nickname))}</span>
           <span>${esc(m.nickname)}</span>
           ${isMe ? '<span class="fp-you">you</span>' : ''}
         </div>`;
@@ -3402,6 +3490,7 @@ if(currentUser && currentUser.id && currentUser.id.startsWith('guest_') && state
   setVideoSub();
 })();
 applyLang();
+applyAvatar();
 renderList();
 
 </script>
