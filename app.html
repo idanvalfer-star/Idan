@@ -850,7 +850,7 @@ const T = {
     tagline:"Your smart grocery buddy",
     tab_list:"List", tab_home:"Home", tab_recipes:"Recipes", tab_video:"Video",
     add_placeholder:"Add a grocery…", qty_placeholder:"How many?",
-    sort_aisle:"Sort by aisle", starter_list:"Starter list", edit_starter:"Edit starter", paste_list:"Paste", clear_all:"Clear all", copy_list:"Copy list", remove_at_home:"Remove what's at home",
+    sort_aisle:"Sort by aisle", more:"More", starter_list:"Starter list", edit_starter:"Edit starter", paste_list:"Paste", clear_all:"Clear all", copy_list:"Copy list", remove_at_home:"Remove what's at home",
     to_get:"to get", ticked:"ticked",
     empty_title:"Your cart is empty", empty_body:"Add something above, or tap Starter list for the essentials.",
     recipes_title:"🍳 My recipes",
@@ -897,7 +897,7 @@ const T = {
     tagline:"חבר הקניות החכם שלך",
     tab_list:"רשימה", tab_home:"בבית", tab_recipes:"מתכונים", tab_video:"וידאו",
     add_placeholder:"הוספת מוצר…", qty_placeholder:"כמות",
-    sort_aisle:"מיון לפי מדף", starter_list:"רשימת בסיס", edit_starter:"עריכת בסיס", paste_list:"הדבקה", clear_all:"ניקוי הכל", copy_list:"העתקת רשימה", remove_at_home:"הסרת מה שכבר בבית",
+    sort_aisle:"מיון לפי מדף", more:"עוד", starter_list:"רשימת בסיס", edit_starter:"עריכת בסיס", paste_list:"הדבקה", clear_all:"ניקוי הכל", copy_list:"העתקת רשימה", remove_at_home:"הסרת מה שכבר בבית",
     to_get:"לקנייה", ticked:"סומנו",
     empty_title:"העגלה ריקה", empty_body:"הוסיפו מוצר למעלה, או הקישו על רשימת בסיס למוצרים הבסיסיים.",
     recipes_title:"🍳 המתכונים שלי",
@@ -1109,32 +1109,128 @@ const FOODS = {
   foil:{c:"Household",e:"🧻"},
   sponge:{c:"Household",e:"🧽"},
 };
-/* Hebrew translations for Shufersal search */
+/* Hebrew name for every food key. Used both to show items in Hebrew and to
+   search Shufersal, which is why it lives next to FOODS rather than in the UI
+   strings. Plural where a shopping list would naturally use it. */
 const FOOD_HE = {
-  onion:"בצל",garlic:"שום",tomato:"עגבנייה",potato:"תפוח אדמה",carrot:"גזר",
-  "bell pepper":"פלפל צבעוני",pepper:"פלפל",avocado:"אבוקדו",mango:"מנגו",
-  lettuce:"חסה",spinach:"תרד",broccoli:"ברוקולי",cucumber:"מלפפון",
-  lemon:"לימון",lime:"לימון ירוק",apple:"תפוח",banana:"בננה",orange:"תפוז",
-  strawberry:"תות",grape:"ענבים",mushroom:"פטריה",ginger:"ג'ינג'ר",
-  bread:"לחם",bagel:"בייגל",baguette:"חמישייה",croissant:"קרואסון",
-  cheese:"גבינה",ham:"בשר חזיר",turkey:"הודו",salami:"סלאמי",
-  chicken:"עוף",beef:"בקר",steak:"סטייק",pork:"חזיר",bacon:"בייקון",
-  fish:"דג",salmon:"סלמון",shrimp:"שרימפ",
-  milk:"חלב",egg:"ביצה",butter:"חמאה",yogurt:"יוגורט",cream:"שמנת",
-  "ice cream":"גלידה",peas:"אפונה",
-  flour:"קמח",sugar:"סוכר",rice:"אורז",pasta:"פסטה",oats:"שיבולת שועל",
-  lentils:"עדשים",honey:"דבש",
-  "canned tomatoes":"עגבניות שימורים",beans:"שעועית",chickpeas:"חומוס",
-  salt:"מלח",vinegar:"חומץ","olive oil":"שמן זית",oil:"שמן",
-  "soy sauce":"רוטב סויה",ketchup:"קטשופ",mustard:"חרדל",
-  coffee:"קפה",tea:"תה",juice:"מיץ",water:"מים",
-  "toilet paper":"נייר טואלט","paper towels":"מגבות נייר",soap:"סבון"
+  onion:"בצל", garlic:"שום", tomato:"עגבניות", potato:"תפוחי אדמה", carrot:"גזר",
+  "bell pepper":"פלפל צבעוני", pepper:"פלפל", "black pepper":"פלפל שחור",
+  avocado:"אבוקדו", mango:"מנגו", lettuce:"חסה", spinach:"תרד", broccoli:"ברוקולי",
+  cucumber:"מלפפונים", lemon:"לימון", lime:"ליים", apple:"תפוחים", banana:"בננות",
+  orange:"תפוזים", strawberry:"תותים", grape:"ענבים", mushroom:"פטריות",
+  mushrooms:"פטריות", ginger:"ג'ינג'ר", celery:"סלרי", zucchini:"קישואים",
+  eggplant:"חצילים", corn:"תירס", cabbage:"כרוב", cauliflower:"כרובית",
+  chili:"צ'ילי", herbs:"עשבי תיבול", parsley:"פטרוזיליה", scallion:"בצל ירוק",
+
+  bread:"לחם", bagel:"בייגל", baguette:"באגט", croissant:"קרואסון",
+  tortilla:"טורטייה", bun:"לחמניות", muffin:"מאפין", pita:"פיתות",
+
+  cheese:"גבינה", "cream cheese":"גבינת שמנת", ham:"נקניק", turkey:"הודו",
+  salami:"סלמי", hummus:"חומוס", olives:"זיתים",
+
+  chicken:"עוף", beef:"בשר בקר", "ground beef":"בשר טחון", steak:"סטייק",
+  pork:"חזיר", bacon:"בייקון", sausage:"נקניקיות", mince:"בשר טחון",
+  fish:"דגים", salmon:"סלמון", shrimp:"שרימפס", tuna:"טונה",
+
+  milk:"חלב", egg:"ביצים", butter:"חמאה", yogurt:"יוגורט", cream:"שמנת",
+  "sour cream":"שמנת חמוצה", mozzarella:"מוצרלה", parmesan:"פרמזן",
+  cheddar:"צ'דר", feta:"גבינה בולגרית",
+
+  "ice cream":"גלידה", peas:"אפונה", fries:"צ'יפס", "frozen pizza":"פיצה קפואה",
+  "frozen berries":"פירות יער קפואים",
+
+  flour:"קמח", sugar:"סוכר", rice:"אורז", pasta:"פסטה", spaghetti:"ספגטי",
+  noodles:"אטריות", oats:"שיבולת שועל", cereal:"דגני בוקר", lentils:"עדשים",
+  quinoa:"קינואה", yeast:"שמרים", honey:"דבש", "baking soda":"סודה לשתייה",
+  "baking powder":"אבקת אפייה", "peanut butter":"חמאת בוטנים",
+  "coconut milk":"חלב קוקוס", "coconut cream":"שמנת קוקוס",
+
+  beans:"שעועית", chickpeas:"גרגירי חומוס", broth:"ציר",
+  "canned tomatoes":"עגבניות משומרות", "tomato paste":"רסק עגבניות",
+
+  salt:"מלח", oil:"שמן", "olive oil":"שמן זית", vinegar:"חומץ",
+  "soy sauce":"רוטב סויה", ketchup:"קטשופ", mustard:"חרדל", mayo:"מיונז",
+  cumin:"כמון", oregano:"אורגנו", vanilla:"וניל",
+
+  chips:"חטיפים", crackers:"קרקרים", chocolate:"שוקולד", cookies:"עוגיות",
+  nuts:"אגוזים", popcorn:"פופקורן",
+
+  water:"מים", coffee:"קפה", tea:"תה", juice:"מיץ", soda:"משקה מוגז",
+  wine:"יין", beer:"בירה",
+
+  soap:"סבון", "dish soap":"סבון כלים", detergent:"אבקת כביסה",
+  "toilet paper":"נייר טואלט", "paper towels":"מגבות נייר",
+  "trash bags":"שקיות אשפה", foil:"נייר כסף", sponge:"ספוג",
+
+  // plural and alternate keys FOODS also carries
+  strawberries:"תותים", grapes:"ענבים", eggs:"ביצים", bagels:"בייגלים",
+  tortillas:"טורטיות", buns:"לחמניות", yoghurt:"יוגורט", stock:"ציר",
+  mayonnaise:"מיונז", "green onion":"בצל ירוק",
+
+  cilantro:"כוסברה", basil:"בזיליקום", mint:"נענע", paprika:"פפריקה",
+  cinnamon:"קינמון", "chili flakes":"פתיתי צ'ילי", "curry paste":"ממרח קארי",
+  turmeric:"כורכום"
 };
 /* keyword list sorted longest-first so multi-word matches win */
 const FOOD_KEYS = Object.keys(FOODS).sort((a,b)=>b.length-a.length);
 
+
+/* Extra spellings people type: singular/plural pairs, and the alternative
+   spellings Hebrew allows (עגבניה alongside עגבנייה). */
+const FOOD_HE_ALIASES = {
+  onion:["בצלים"], tomato:["עגבנייה","עגבניה"], potato:["תפוח אדמה","תפו\"א"],
+  cucumber:["מלפפון"], apple:["תפוח"], banana:["בננה"], orange:["תפוז"],
+  strawberry:["תות"], grape:["ענב"], mushroom:["פטרייה","פטריה"],
+  zucchini:["קישוא"], eggplant:["חציל"], pepper:["פלפלים"],
+  bun:["לחמנייה","לחמניה"], pita:["פיתה"], olives:["זית"],
+  sausage:["נקניקייה","נקניקיה"], fish:["דג"], egg:["ביצה"],
+  cheese:["גבינות"], milk:["חלב טרי"], cookies:["עוגייה","עוגיה"],
+  nuts:["אגוז"], crackers:["קרקר"], herbs:["תבלינים"],
+  chicken:["חזה עוף","שניצל"], mince:["טחון"], beef:["בקר"],
+  fries:["ציפס"], juice:["מיצים"], water:["מים מינרלים"],
+  detergent:["סבון כביסה","נוזל כביסה"], foil:["אלומיניום"],
+  toilet:["נייר טואלט"]
+};
+
+// Longest first so "תפוחי אדמה" wins over "תפוח" and never resolves to apple.
+const HE_TERMS = (() => {
+  const pairs = [];
+  for(const [key, he] of Object.entries(FOOD_HE)) pairs.push([he, key]);
+  for(const [key, list] of Object.entries(FOOD_HE_ALIASES)){
+    if(FOODS[key]) list.forEach(he => pairs.push([he, key]));
+  }
+  return pairs.sort((a,b) => b[0].length - a[0].length);
+})();
+
+const hasHebrew = s => /[֐-׿]/.test(s || "");
+
+// Hebrew glues single-letter prefixes onto words (ה, ו, ב, ל, מ, ש, כ), so a
+// bare "includes" would miss "העגבניות". Strip them before comparing.
+function heNormalize(s){
+  return (s || "").replace(/["'׳״]/g, "").trim();
+}
+
+function classifyHebrew(name){
+  const n = heNormalize(name);
+  for(const [term, key] of HE_TERMS){
+    const t = heNormalize(term);
+    if(n.includes(t) || n.includes("ה" + t) || n.includes("ו" + t) || n.includes("ב" + t)){
+      return { category: FOODS[key].c, emoji: FOODS[key].e, key };
+    }
+  }
+  return null;
+}
+
 /* ---------------- Classify a free-text item ---------------- */
 function classify(name){
+  // Hebrew first — an item typed in Hebrew should get its aisle and emoji just
+  // like an English one, and its letters can never match an English key anyway.
+  if(hasHebrew(name)){
+    const he = classifyHebrew(name);
+    if(he) return he;
+    return {category:"Other", emoji:"🛍️", key:null};
+  }
+
   const n = " "+name.toLowerCase().trim()+" ";
   for(const k of FOOD_KEYS){
     const kk = " "+k+" ";
@@ -1223,8 +1319,9 @@ function load(){
  * everyone except the device that pressed it, and even there once it refreshes.
  */
 function refreshInStockFlags(){
-  const atHome = new Set(state.inventory.map(i => (i.name || '').toLowerCase()));
-  state.items.forEach(it => { it.inStock = atHome.has((it.name || '').toLowerCase()); });
+  state.items.forEach(it => {
+    it.inStock = state.inventory.some(inv => sameItem(inv.name, it.name));
+  });
 }
 
 function reloadState(){
@@ -1649,6 +1746,8 @@ const ITEM_PLURALS = {
 
 /* Pluralize a grocery item name (ONLY for Produce category) */
 function pluralizeItem(name, category) {
+  // English rules only — they would append an "s" to a Hebrew word.
+  if (hasHebrew(name)) return name;
   // Only pluralize if it's Produce
   if (!category || category !== 'Produce') return name;
 
@@ -1674,7 +1773,42 @@ function capitalizeItem(name) {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
+/*
+ * What to print for a stored item. Names are saved exactly as typed so they
+ * sync verbatim, and the language is applied at render time instead — which
+ * means a list written in Hebrew reads in English for a family member using
+ * English, and the other way round, with no second copy of the data.
+ * Anything unrecognised is shown as typed.
+ */
+function displayName(name){
+  const raw = (name || "").trim();
+  if(!raw) return raw;
+  const info = classify(raw);
+  if(!info.key) return raw;
+
+  if(LANG === "he") return FOOD_HE[info.key] || raw;
+  // English view of a Hebrew entry: fall back to the dictionary's own word.
+  if(hasHebrew(raw)) return capitalizeItem(info.key);
+  return raw;
+}
+
 /* ---------------- Item ops ---------------- */
+/*
+ * Are these the same grocery? Names are stored as typed, so once a list mixes
+ * languages "Tomatoes" and "עגבניות" would otherwise sit on it as two rows.
+ * Matching on the dictionary key bridges that — but only across scripts, since
+ * within one language exact names are what keep "chicken" and "chicken soup"
+ * apart.
+ */
+function sameItem(a, b){
+  const an = (a || "").trim().toLowerCase();
+  const bn = (b || "").trim().toLowerCase();
+  if(an === bn) return true;
+  if(hasHebrew(a) === hasHebrew(b)) return false;
+  const ak = classify(a).key, bk = classify(b).key;
+  return !!ak && ak === bk;
+}
+
 /*
  * Reports what adding `name` would collide with, without changing anything.
  * Bulk adds use this to gather every clash up front and ask once, instead of
@@ -1687,9 +1821,9 @@ function inspectAdd(name){
   const hasActiveItems = state.items.some(i => !i.checked);
   return {
     normalized,
-    onList: state.items.find(i => i.name.toLowerCase() === key && !i.checked) || null,
+    onList: state.items.find(i => sameItem(i.name, normalized) && !i.checked) || null,
     // Matches addItem: a home match only matters while the list has live items.
-    atHome: hasActiveItems ? (state.inventory.find(i => i.name.toLowerCase() === key) || null) : null
+    atHome: hasActiveItems ? (state.inventory.find(i => sameItem(i.name, normalized)) || null) : null
   };
 }
 
@@ -1707,7 +1841,7 @@ function addItem(name, qty, source, img, opts){
   const normalized = capitalizeItem(pluralizeItem(name, info.category));
 
   // Check if item exists on the list (unchecked)
-  const existsOnList = state.items.find(i => i.name.toLowerCase() === normalized.toLowerCase() && !i.checked);
+  const existsOnList = state.items.find(i => sameItem(i.name, normalized) && !i.checked);
   if(existsOnList) {
     if(bulk) {
       // The batch dialog already asked; apply the new quantity.
@@ -1717,13 +1851,13 @@ function addItem(name, qty, source, img, opts){
       return "dup";
     }
     // Adding something twice by hand is a mistake, not a choice — say so and stop.
-    notice(t("t_already_on_list", normalized));
+    notice(t("t_already_on_list", displayName(normalized)));
     return false;
   }
 
   // Check if item exists in home inventory (only if shopping list has unchecked items)
   const hasActiveItems = state.items.some(i => !i.checked);
-  const existsAtHome = state.inventory.find(i => i.name.toLowerCase() === normalized.toLowerCase());
+  const existsAtHome = state.inventory.find(i => sameItem(i.name, normalized));
   if(existsAtHome && hasActiveItems) {
     if(bulk || confirm(`"${normalized}" already exists in your home. Do you want to add it to your shopping list?`)) {
       // User confirmed, proceed to add
@@ -1783,7 +1917,7 @@ function confirmDuplicates(onList, atHome){
     const selected = new Set();
 
     const chips = names => names.map(n =>
-      `<button type="button" class="dup-chip" data-name="${esc(n)}"><span class="box">✓</span>${esc(n)}</button>`
+      `<button type="button" class="dup-chip" data-name="${esc(n)}"><span class="box">✓</span>${esc(displayName(n))}</button>`
     ).join("");
 
     document.getElementById("dupTitle").textContent = t("dup_title");
@@ -2084,8 +2218,11 @@ function setCat(id,cat){
 
 /* ---------------- Render list ---------------- */
 function shufUrl(name){
-  const key = name.toLowerCase().trim();
-  const hebrewName = FOOD_HE[key] || name;
+  // Look the item up rather than indexing on the raw text: that resolves
+  // plurals ("Tomatoes") and Hebrew entries to the same key, where a direct
+  // lookup only ever matched the exact singular English word.
+  const info = classify(name);
+  const hebrewName = (info.key && FOOD_HE[info.key]) || name;
   return "https://www.shufersal.co.il/online/he/search?text="+encodeURIComponent(hebrewName);
 }
 /*
@@ -2121,7 +2258,7 @@ function itemRow(it){
       <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
     ${thumb}
     <div class="body">
-      <div class="nm">${esc(it.name)}</div>
+      <div class="nm">${esc(displayName(it.name))}</div>
       <div class="meta">${metaParts.join(' ')}</div>
     </div>
     <button class="del" onclick="delItem('${it.id}')" aria-label="remove">✕</button>
@@ -2134,6 +2271,10 @@ function updateCount(){
 }
 function renderList(){
   const box = document.getElementById("listBox");
+  // Derived from the inventory, so recompute here rather than at each of the
+  // many places either list can change — otherwise adding something you already
+  // have shows no 🏠 until the next reload.
+  refreshInStockFlags();
   updateCount();
   document.getElementById("sortChip").classList.toggle("on", state.sortAisle);
 
@@ -2207,7 +2348,7 @@ function renderRecipes(){
     const ing = (r.ing||[]).map(x=>{
       const info = classify(x.name);
       const has = have.has(ingKey(x.name));
-      return `<span class="pill ${has?'have':''}">${info.emoji||"•"} ${esc(ingredientName(cap(x.name)))}${x.qty?` <span style="opacity:.7">${esc(x.qty)}</span>`:""}</span>`;
+      return `<span class="pill ${has?'have':''}">${info.emoji||"•"} ${esc(displayName(x.name))}${x.qty?` <span style="opacity:.7">${esc(x.qty)}</span>`:""}</span>`;
     }).join("");
     const steps = (r.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("");
     const srcTag = r.src?`<span class="tag src">🎬 ${esc(r.src)}</span>`:"";
@@ -2300,7 +2441,7 @@ function renderRecipeIngDraft(){
     const info = classify(g.name);
     return `<div class="ing-row">
       <span class="ing-emoji">${info.emoji || "🛍️"}</span>
-      <span class="ing-name">${esc(cap(g.name))}</span>
+      <span class="ing-name">${esc(displayName(g.name))}</span>
       ${g.qty ? `<span class="tag">${esc(g.qty)}</span>` : ""}
       <button type="button" class="del" onclick="removeRecipeIng(${i})" aria-label="remove">✕</button>
     </div>`;
@@ -2537,7 +2678,7 @@ function renderVideoResult(){
   const ingHtml = v.ingredients.length
     ? v.ingredients.map((g,i)=>`<div class="ingrow" onclick="togglePending(${i})">
         <span class="cb ${g.on?'on':''}"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>
-        <span class="in">${g.emoji} ${esc(ingredientName(g.name))}</span>
+        <span class="in">${g.emoji} ${esc(displayName(g.name))}</span>
         ${g.qty?`<span class="qh">${esc(g.qty)}</span>`:""}</div>`).join("")
     : `<p class="sub" style="margin:6px 0 0">${isRTL()?"לא זוהו מרכיבים — הדביקו עוד מהכיתוב, או הוסיפו ידנית בלשונית הרשימה.":"No ingredients auto-detected — paste more of the caption, or add items manually on the List tab."}</p>`;
   box.classList.remove("hide");
@@ -2574,7 +2715,7 @@ function renderSavedVideos(){
       const media = v.thumb
         ? `<img class="vthumb" style="margin:0" src="${v.thumb}" alt="" onerror="this.outerHTML='<div class=\\'vplace\\' style=\\'margin:0\\'>🎬</div>'">`
         : `<div class="vplace" style="margin:0">${v.platform==='instagram'?'📸':'🎬'}</div>`;
-      const ing = v.ingredients.map(g=>`<span class="pill">${g.emoji||""} ${esc(ingredientName(g.name))}</span>`).join(" ");
+      const ing = v.ingredients.map(g=>`<span class="pill">${g.emoji||""} ${esc(displayName(g.name))}</span>`).join(" ");
       const recipeName = v.name ? `<h4 style="margin:0 0 6px;font-size:15px;font-weight:800">${esc(v.name)}</h4>` : "";
       return `<div class="vcard">${media}<div class="vc-body">
         ${recipeName}
@@ -2622,7 +2763,7 @@ function invRow(it){
   return `<div class="item inv" data-id="${it.id}">
     <span class="cat-emoji">${emoji}</span>
     <div class="body">
-      <div class="nm">${esc(it.name)} <span class="tag">${esc(qty)}</span></div>
+      <div class="nm">${esc(displayName(it.name))} <span class="tag">${esc(qty)}</span></div>
       <div class="meta">${exp}<button class="mv" onclick="editInv('${it.id}')">✏️</button></div>
     </div>
     <button class="mv" onclick="moveToList('${it.id}')">➕ ${esc(t("move_to_list"))}</button>
@@ -2671,7 +2812,7 @@ function addInv(name, qty, unit, expiry){
   const normalized = capitalizeItem(pluralizeItem(name, info.category));
 
   // Check if item already exists in inventory
-  const existsInInv = state.inventory.find(i => i.name.toLowerCase() === normalized.toLowerCase());
+  const existsInInv = state.inventory.find(i => sameItem(i.name, normalized));
   if(existsInInv) {
     toast(normalized + ' already exists in your home');
     return false;
@@ -3152,7 +3293,7 @@ function renderShufPanel(){
         const d = shufDone.has(it.id);
         return `<div class="ingrow">
           <span class="cb ${d?'on':''}" onclick="toggleShuf('${it.id}')"><svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></span>
-          <span class="in" style="${d?'text-decoration:line-through;opacity:.5':''}">${it.emoji||"🛍️"} ${esc(it.name)}${it.qty?` <span class="qh">${esc(it.qty)}</span>`:""}</span>
+          <span class="in" style="${d?'text-decoration:line-through;opacity:.5':''}">${it.emoji||"🛍️"} ${esc(displayName(it.name))}${it.qty?` <span class="qh">${esc(it.qty)}</span>`:""}</span>
           <a class="shuf" href="${shufUrl(it.name)}" target="_blank" rel="noopener">🔍 ${esc(t("shuf_search"))}</a>
         </div>`;
       }).join("")
@@ -3180,7 +3321,7 @@ function openShufPanel(){
 }
 function openShufPopup(){
   const items = state.items.filter(i=>!i.checked);
-  const listHtml = items.map(it=>`<div style="padding:10px;border-radius:6px;background:#fafafa;border-bottom:1px solid #eee"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:14px"><input type="checkbox" style="cursor:pointer;width:18px;height:18px"> <span style="font-size:16px">${it.emoji||"🛍️"}</span> <span style="flex:1">${esc(it.name)}</span>${it.qty?` <span style="color:#999;font-size:12px">${esc(it.qty)}</span>`:""}</label></div>`).join("");
+  const listHtml = items.map(it=>`<div style="padding:10px;border-radius:6px;background:#fafafa;border-bottom:1px solid #eee"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0;font-size:14px"><input type="checkbox" style="cursor:pointer;width:18px;height:18px"> <span style="font-size:16px">${it.emoji||"🛍️"}</span> <span style="flex:1">${esc(displayName(it.name))}</span>${it.qty?` <span style="color:#999;font-size:12px">${esc(it.qty)}</span>`:""}</label></div>`).join("");
   const itemCount = items.length;
   const itemWord = itemCount!==1?'s':'';
   const shopHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>Shopping</title><style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;font-family:system-ui,-apple-system,sans-serif;overflow:hidden;background:#f9f9f9}#shop-frame{position:absolute;top:0;left:0;width:100%;height:100%;border:none;z-index:1;pointer-events:none}#shop-frame.active{pointer-events:auto}#list-panel{position:fixed;bottom:16px;right:16px;width:360px;max-height:500px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;z-index:1000;overflow:hidden;touch-action:none}#list-panel.hidden{display:none}#drag-handle{background:#e2231a;height:12px;display:flex;align-items:center;justify-content:center;cursor:grab;user-select:none;touch-action:none}#drag-handle:active{cursor:grabbing}#list-header{background:#e2231a;color:white;padding:14px;font-weight:bold;font-size:15px;display:flex;justify-content:space-between;align-items:center;user-select:none;touch-action:none}#list-header button{background:#fff;color:#e2231a;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold}#list-body{flex:1;overflow-y:auto;padding:0}#list-footer{padding:8px 14px;background:#f5f5f5;font-size:11px;color:#999;text-align:center;border-top:1px solid #eee}#restore-btn{position:fixed;top:12px;right:12px;background:#e2231a;color:white;border:none;padding:10px 14px;border-radius:20px;cursor:pointer;font-size:12px;font-weight:bold;z-index:999;display:none}#restore-btn.show{display:block}@media(max-width:640px){#list-panel{width:calc(100% - 32px);max-height:50vh}#restore-btn{top:8px;right:8px}}</style></head><body><iframe id="shop-frame" src="https://www.shufersal.co.il/online/he"></iframe><button id="restore-btn">🛒 Show List</button><div id="list-panel"><div id="drag-handle"></div><div id="list-header">🛒 ' + itemCount + ' Item' + itemWord + '<button onclick="hidePanel()">✕</button></div><div id="list-body">' + listHtml + '</div><div id="list-footer">Hold red line to move • Pinch to resize</div></div><script>var panel=document.getElementById("list-panel"),dragHandle=document.getElementById("drag-handle"),header=document.getElementById("list-header"),frame=document.getElementById("shop-frame"),restoreBtn=document.getElementById("restore-btn"),isDragging=false,dragX=0,dragY=0,touchStartDist=0,startW=0,startH=0;function hidePanel(){panel.classList.add("hidden");restoreBtn.classList.add("show");}function showPanel(){panel.classList.remove("hidden");restoreBtn.classList.remove("show");}restoreBtn.addEventListener("click",showPanel);var startDragListener=function(e){isDragging=true;var clientX=e.touches?e.touches[0].clientX:e.clientX;var clientY=e.touches?e.touches[0].clientY:e.clientY;dragX=clientX-panel.offsetLeft;dragY=clientY-panel.offsetTop;frame.classList.remove("active");};var moveDragListener=function(e){if(isDragging){e.preventDefault();var clientX=e.touches?e.touches[0].clientX:e.clientX;var clientY=e.touches?e.touches[0].clientY:e.clientY;panel.style.right="auto";panel.style.bottom="auto";panel.style.left=(clientX-dragX)+"px";panel.style.top=(clientY-dragY)+"px";}};var endDragListener=function(e){isDragging=false;frame.classList.add("active");};dragHandle.addEventListener("touchstart",startDragListener);header.addEventListener("touchstart",startDragListener);dragHandle.addEventListener("mousedown",startDragListener);header.addEventListener("mousedown",startDragListener);document.addEventListener("touchmove",moveDragListener);document.addEventListener("mousemove",moveDragListener);document.addEventListener("touchend",endDragListener);document.addEventListener("mouseup",endDragListener);panel.addEventListener("touchstart",function(e){if(e.touches.length===2){var dx=e.touches[0].clientX-e.touches[1].clientX;var dy=e.touches[0].clientY-e.touches[1].clientY;touchStartDist=Math.sqrt(dx*dx+dy*dy);startW=panel.offsetWidth;startH=panel.offsetHeight;frame.classList.remove("active");}});panel.addEventListener("touchmove",function(e){if(e.touches.length===2){e.preventDefault();var dx=e.touches[0].clientX-e.touches[1].clientX;var dy=e.touches[0].clientY-e.touches[1].clientY;var currentDist=Math.sqrt(dx*dx+dy*dy);var scale=currentDist/touchStartDist;panel.style.width=Math.max(250,startW*scale)+"px";panel.style.maxHeight=Math.max(200,startH*scale)+"px";}});panel.addEventListener("touchend",function(e){if(e.touches.length<2){frame.classList.add("active");}});<\/script></body></html>';
