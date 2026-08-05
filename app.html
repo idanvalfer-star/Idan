@@ -1249,6 +1249,42 @@ const DEFAULTS = ["Milk","Eggs","Bread","Butter","Bananas","Apples","Chicken","R
   "Pasta","Tomatoes","Onions","Cheese","Yogurt","Coffee","Olive oil","Toilet paper"];
 
 /* ---------------- Recipes ---------------- */
+/*
+ * Hebrew for the built-in recipes. Keyed by the English name that ships in
+ * RECIPES, so a recipe the user wrote themselves simply keeps its own title —
+ * there is nothing to translate it from.
+ */
+const RECIPE_HE = {
+  "Pasta":       {n:"פסטה", steps:["מבשלים את הפסטה במים מומלחים.","מטגנים שום פרוס בשמן זית, מוסיפים עגבניות ומבשלים 10 דקות.","מערבבים את הפסטה ברוטב ומפזרים בזיליקום ופרמזן."]},
+  "Stir-Fry":    {n:"מוקפץ", steps:["פורסים את העוף דק וצורבים על אש גבוהה.","מוסיפים ירקות, ג'ינג'ר ושום ומקפיצים 4 דקות.","מוסיפים רוטב סויה ומגישים על אורז."]},
+  "Avocado Toast":{n:"טוסט אבוקדו", steps:["מקלים את הלחם.","מועכים אבוקדו עם לימון ומלח.","מוסיפים ביצת עין ופתיתי צ'ילי."]},
+  "Tomato Soup": {n:"מרק עגבניות", steps:["מרככים בצל ושום בחמאה.","מוסיפים עגבניות וציר ומבשלים 15 דקות.","טוחנים ומוסיפים שמנת."]},
+  "Curry":       {n:"קארי", steps:["מטגנים בצל, שום, ג'ינג'ר וממרח קארי.","מוסיפים גרגירי חומוס וחלב קוקוס ומבשלים 12 דקות.","מגישים עם אורז."]},
+  "Salad":       {n:"סלט", steps:["קוצצים ירקות ומפוררים גבינה בולגרית.","מערבבים שמן זית, לימון ומלח.","מערבבים ומגישים."]},
+  "Pancakes":    {n:"פנקייקים", steps:["מערבבים חומרים יבשים ואז רטובים לבלילה.","נותנים לנוח 5 דקות.","מטגנים על מחבת מחוממת עד שעולות בועות והופכים."]},
+  "Tacos":       {n:"טאקוס", steps:["מטגנים בשר טחון עם בצל, כמון ופפריקה.","מחממים טורטיות.","ממלאים ומוסיפים גבינה ועגבניות."]},
+  "Salmon":      {n:"סלמון", steps:["צולים תפוחי אדמה קצוצים 15 דקות.","מוסיפים סלמון, ברוקולי, שום ושמן.","צולים 12 דקות ומסיימים בלימון."]},
+  "Yogurt Bowl": {n:"קערת יוגורט", steps:["שמים יוגורט בקערה.","מוסיפים פירות יער ובננה פרוסה.","מזלפים דבש ומפזרים שיבולת שועל."]}
+};
+
+// "20 min" is data, not a UI string, so it needs converting for Hebrew.
+function recipeTime(time){
+  if(!time) return "";
+  return LANG === "he" ? String(time).replace(/\bmin\b/i, "דק׳") : time;
+}
+
+function recipeName(r){
+  return (LANG === "he" && RECIPE_HE[r.n]) ? RECIPE_HE[r.n].n : r.n;
+}
+
+function recipeSteps(r){
+  const he = LANG === "he" && RECIPE_HE[r.n];
+  // Only swap in translated steps when they line up with the built-in ones —
+  // an edited recipe keeps whatever the user wrote.
+  if(he && he.steps.length === (r.steps || []).length) return he.steps;
+  return r.steps || [];
+}
+
 const RECIPES = [
   {n:"Pasta",e:"🍝",time:"20 min",ing:["pasta","canned tomatoes","garlic","olive oil","basil","parmesan"],
    steps:["Boil pasta in salted water.","Sizzle sliced garlic in olive oil, add tomatoes, simmer 10 min.","Toss pasta with sauce, top with basil & parmesan."]},
@@ -2235,8 +2271,10 @@ function sourceTag(source){
   if(!source) return "";
   const m = /^(recipe|video):([\s\S]*)$/.exec(source);
   const kind = m ? m[1] : "video";
-  const label = (m ? m[2] : source).trim();
+  let label = (m ? m[2] : source).trim();
   if(!label) return "";
+  // Built-in recipe names have a Hebrew form; anything else shows as stored.
+  if(kind === "recipe" && LANG === "he" && RECIPE_HE[label]) label = RECIPE_HE[label].n;
   return `<span class="tag src">${kind === "recipe" ? "🍳" : "🎬"} ${esc(label)}</span>`;
 }
 
@@ -2350,12 +2388,12 @@ function renderRecipes(){
       const has = have.has(ingKey(x.name));
       return `<span class="pill ${has?'have':''}">${info.emoji||"•"} ${esc(displayName(x.name))}${x.qty?` <span style="opacity:.7">${esc(x.qty)}</span>`:""}</span>`;
     }).join("");
-    const steps = (r.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("");
+    const steps = recipeSteps(r).map(s=>`<li>${esc(s)}</li>`).join("");
     const srcTag = r.src?`<span class="tag src">🎬 ${esc(r.src)}</span>`:"";
     return `<div class="recipe ${match?'match':''}">
       <div class="rhead"><div class="rem">${r.e||"🍽️"}</div>
-        <div style="flex:1"><div class="rt">${esc(r.n)}</div>
-        <div class="rmeta">${r.time?`⏱️ ${esc(r.time)} · `:""}${(r.ing||[]).length} ${esc(t("ingredients").toLowerCase())}${match?`<span class="badge">✓ ${m} ${esc(t("on_your_list"))}</span>`:""} ${srcTag}</div></div></div>
+        <div style="flex:1"><div class="rt">${esc(recipeName(r))}</div>
+        <div class="rmeta">${r.time?`⏱️ ${esc(recipeTime(r.time))} · `:""}${(r.ing||[]).length} ${esc(t("ingredients").toLowerCase())}${match?`<span class="badge">✓ ${m} ${esc(t("on_your_list"))}</span>`:""} ${srcTag}</div></div></div>
       <div class="ing">${ing||`<span class="pill">${esc(t("no_ingredients"))}</span>`}</div>
       ${steps?`<details class="recipe-more"><summary>${esc(t("view_steps"))} ▾</summary><ol class="steps">${steps}</ol></details>`:""}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -2368,7 +2406,7 @@ function renderRecipes(){
 }
 async function addRecipeToList(id){
   const r = state.recipes.find(x=>x.id===id); if(!r) return;
-  const n = await addItemsBulk(r.ing || [], "recipe:" + (r.n||"recipe").split(" ")[0]);
+  const n = await addItemsBulk(r.ing || [], "recipe:" + (r.n || "recipe"));
   toast(n? t("t_added_ings", n) : t("t_already"));
 }
 function delRecipe(id){
