@@ -149,7 +149,7 @@ app.get('/api/family/:familyId', async (req, res) => {
 
     const [familyResp, membersResp] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/families?select=family_code,family_name&id=eq.${familyId}`, { headers: sbHeaders() }),
-      fetch(`${SUPABASE_URL}/rest/v1/users?select=nickname,email&family_id=eq.${familyId}`, { headers: sbHeaders() })
+      fetch(`${SUPABASE_URL}/rest/v1/users?select=id,nickname,email&family_id=eq.${familyId}`, { headers: sbHeaders() })
     ]);
 
     const family = await familyResp.json();
@@ -164,7 +164,9 @@ app.get('/api/family/:familyId', async (req, res) => {
       success: true,
       familyCode: family[0].family_code,
       familyName: family[0].family_name || '',
+      // ids come back too so the list can label who last touched each row
       members: (Array.isArray(members) ? members : []).map(m => ({
+        id: m.id,
         nickname: m.nickname || (m.email || '').split('@')[0] || 'Member'
       }))
     });

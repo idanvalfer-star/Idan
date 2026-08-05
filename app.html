@@ -254,6 +254,21 @@ details.recipe-more summary::-webkit-details-marker{display:none}
   font-size:13px;width:100%;margin-top:12px;border-radius:12px;transition:.15s}
 .settings-btn-danger:active{transform:scale(.98);background:#fdd!important}
 
+/* expiry banner */
+#expiryBanner{background:var(--card);border:1px solid var(--amber);border-radius:16px;padding:12px 14px;
+  margin-bottom:12px;box-shadow:var(--shadow-sm)}
+#expiryBanner .exp-head{font-size:13.5px;font-weight:800;color:var(--amber);margin-bottom:9px}
+#expiryBanner .exp-chips{display:flex;flex-wrap:wrap;gap:6px}
+#expiryBanner .exp-chip{background:var(--bg);border:1px solid var(--line);border-radius:20px;
+  padding:5px 11px;font-size:12.5px;font-weight:700;color:var(--ink);display:inline-flex;gap:6px;align-items:center}
+#expiryBanner .exp-chip em{font-style:normal;font-weight:800;color:var(--amber);font-size:11px}
+#expiryBanner .exp-chip.gone{border-color:#ef4444}
+#expiryBanner .exp-chip.gone em{color:#ef4444}
+
+/* "who touched this" badge */
+.item .who{width:21px;height:21px;border-radius:50%;background:var(--accent-soft);color:var(--accent-2);
+  font-size:9.5px;font-weight:800;display:inline-grid;place-items:center;flex:none;letter-spacing:.02em}
+
 /* avatar picker */
 /* The nickname is hidden on phones, so this badge is the only way into the
    picker there — keep it a comfortable tap target rather than a bare glyph. */
@@ -443,6 +458,7 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <div class="toolbar">
       <button class="chip" id="invSortChip"><span>🏪</span> <span data-i18n="sort_aisle">Sort by aisle</span></button>
     </div>
+    <div id="expiryBanner" class="hide"></div>
     <div id="invEditor" class="hide"></div>
     <div id="invBox"></div>
   </section>
@@ -497,6 +513,11 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <div class="settings-item">
       <label>Sign out</label>
       <button id="logoutBtn" title="Sign out" style="display:none;">🚪</button>
+    </div>
+
+    <div class="settings-item">
+      <label>Expiry reminders</label>
+      <button id="expiryBtn" title="Remind me about food about to expire">🔕</button>
     </div>
 
     <div class="settings-item" id="installRow" style="display:none;">
@@ -569,6 +590,17 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     <p class="fp-sub" id="avatarSub">Tap one to use it</p>
     <div class="avatar-grid" id="avatarGrid"></div>
     <button class="fp-btn fp-close" id="avatarClose">Close</button>
+  </div>
+</div>
+
+<!-- Yes/no question -->
+<div class="family-modal" id="askModal">
+  <div class="family-panel" style="max-width:320px">
+    <h3 id="askText" style="margin-bottom:16px">&nbsp;</h3>
+    <div class="fp-row">
+      <button class="fp-btn" id="askCancel" style="flex:1">Cancel</button>
+      <button class="fp-btn primary" id="askOk" style="flex:1">Add</button>
+    </div>
   </div>
 </div>
 
@@ -747,6 +779,7 @@ if(!isGuest) {
           document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
               console.log('👁️ App came to foreground, checking Realtime connection...');
+              if(typeof maybeNotifyExpiry === 'function') maybeNotifyExpiry();
               // Small delay to ensure connection is re-established
               setTimeout(() => {
                 // Force re-subscribe
@@ -857,7 +890,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", close:"Close", avatar_title:"Choose your avatar", avatar_sub:"Tap one to use it", t_avatar_set:"Avatar updated", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
+    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", close:"Close", exp_title:(n)=>`${n} item${n>1?"s":""} to use up`, exp_expired:"expired", exp_today:"today", exp_days:(d)=>`${d}d left`, exp_on:"Expiry reminders on 🔔", exp_off:"Expiry reminders off", exp_blocked:"Notifications are blocked in your browser settings", exp_unsupported:"This browser cannot show notifications", t_at_home_ask:(name)=>`${name} is already in your home inventory. Add it to the list anyway?`, t_add_anyway:"Add anyway", avatar_title:"Choose your avatar", avatar_sub:"Tap one to use it", t_avatar_set:"Avatar updated", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -904,7 +937,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", close:"סגירה", avatar_title:"בחירת אווטאר", avatar_sub:"לחצו על אחד כדי לבחור", t_avatar_set:"האווטאר עודכן", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", close:"סגירה", exp_title:(n)=>`${n} מוצרים לסיים בקרוב`, exp_expired:"פג תוקף", exp_today:"היום", exp_days:(d)=>`עוד ${d} ימים`, exp_on:"תזכורות תוקף פעילות 🔔", exp_off:"תזכורות תוקף כבויות", exp_blocked:"ההתראות חסומות בהגדרות הדפדפן", exp_unsupported:"הדפדפן הזה לא תומך בהתראות", t_at_home_ask:(name)=>`${name} כבר במלאי הבית. להוסיף לרשימה בכל זאת?`, t_add_anyway:"להוסיף בכל זאת", avatar_title:"בחירת אווטאר", avatar_sub:"לחצו על אחד כדי לבחור", t_avatar_set:"האווטאר עודכן", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
@@ -1891,27 +1924,10 @@ function addItem(name, qty, source, img, opts){
     return false;
   }
 
-  // Check if item exists in home inventory (only if shopping list has unchecked items)
-  const hasActiveItems = state.items.some(i => !i.checked);
-  const existsAtHome = state.inventory.find(i => sameItem(i.name, normalized));
-  if(existsAtHome && hasActiveItems) {
-    if(bulk || confirm(`"${normalized}" already exists in your home. Do you want to add it to your shopping list?`)) {
-      // User confirmed, proceed to add
-      const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
-      state.items.unshift(newItem);
-      save();
-      if(!bulk) toast('Added ' + normalized + ' to shopping list');
-      // Sync to Supabase immediately for authenticated users
-      const user = window.getCurrentUser?.();
-      if(user && !user.id.startsWith('guest_') && window.addListItemSupabase) {
-        pushNewItem(state.items, newItem, window.addListItemSupabase);
-      }
-      return true;
-    } else {
-      toast('Cancelled');
-      return false;
-    }
-  }
+  // Whether to ask about something already at home is the caller's call —
+  // addFromInput asks first (see confirmAtHome), while moving an item out of the
+  // home tab or adding a batch has already settled the question. Keeping the
+  // prompt out of here is what lets addItem stay synchronous.
 
   // Item doesn't exist, add it normally
   const newItem = {id:uid(), name:normalized, qty:qty||"", category:info.category, emoji:info.emoji, checked:false, source:source||"", img:img||"", inStock:false};
@@ -1924,6 +1940,28 @@ function addItem(name, qty, source, img, opts){
   }
   return true;
 }
+// A real question, in the app's styling rather than the browser's.
+function confirmAsk(message, okLabel){
+  return new Promise(resolve => {
+    const modal = document.getElementById("askModal");
+    const ok = document.getElementById("askOk");
+    const cancel = document.getElementById("askCancel");
+    document.getElementById("askText").textContent = message;
+    ok.textContent = okLabel || t("dup_add");
+    cancel.textContent = t("cancel");
+
+    const close = answer => {
+      modal.classList.remove("show");
+      ok.onclick = null; cancel.onclick = null; modal.onclick = null;
+      resolve(answer);
+    };
+    ok.onclick = () => close(true);
+    cancel.onclick = () => close(false);
+    modal.onclick = e => { if(e.target === modal) close(false); };
+    modal.classList.add("show");
+  });
+}
+
 // A statement of fact with a single button — nothing to decide, so no Cancel.
 function notice(message){
   const modal = document.getElementById("noticeModal");
@@ -2228,14 +2266,31 @@ function toggleItem(id){
   } else { renderList(); }
 }
 function delItem(id){
-  state.items = state.items.filter(i=>i.id!==id);
+  const idx = state.items.findIndex(i => i.id === id);
+  if(idx < 0) return;
+  const removed = state.items[idx];
+
+  state.items.splice(idx, 1);
   save();
   renderList();
+
   // Sync delete to Supabase for authenticated users
   const user = window.getCurrentUser?.();
   if(user && !user.id.startsWith('guest_') && window.deleteListItemSupabase) {
     window.deleteListItemSupabase(id).catch(e => console.error('Failed to sync delete to Supabase:', e));
   }
+
+  // Deleting is one tap next to the quantity buttons, so it needs a way back —
+  // restored at its original position, and pushed to Supabase again since the
+  // row there is already gone.
+  toast(t("t_removed"), { label: t("t_undo"), fn: () => {
+    state.items.splice(Math.min(idx, state.items.length), 0, removed);
+    save(); renderList();
+    if(user && !user.id.startsWith('guest_') && window.addListItemSupabase){
+      pushNewItem(state.items, removed, window.addListItemSupabase);
+    }
+    toast(t("t_restored"));
+  }});
 }
 function setCat(id,cat){
   const it=state.items.find(i=>i.id===id);
@@ -2278,10 +2333,29 @@ function sourceTag(source){
   return `<span class="tag src">${kind === "recipe" ? "🍳" : "🎬"} ${esc(label)}</span>`;
 }
 
+/*
+ * Who last wrote this row. Supabase records it as `updated_by`, which the add
+ * endpoint sets and every later edit overwrites — so this is "last touched by",
+ * not strictly "added by". Only shown once another member has actually touched
+ * something, so a one-person family never sees a badge on every row.
+ */
+let familyMemberNames = {};   // user id -> nickname
+
+function whoBadge(it){
+  const by = it.updatedBy;
+  if(!by) return "";
+  const me = window.getCurrentUser?.();
+  if(me && by === me.id) return "";               // no point labelling your own
+  const name = familyMemberNames[by];
+  if(!name) return "";
+  return `<span class="who" title="${esc(name)}">${esc(initialsFor(name))}</span>`;
+}
+
 function itemRow(it){
   const done = it.checked?"checked":"";
   const inStockClass = it.inStock?"in-stock":"";
   const src = sourceTag(it.source);
+  const who = whoBadge(it);
   const sel = `<select class="catsel" onchange="setCat('${it.id}',this.value)">`+
     SECTIONS.map(s=>`<option value="${s}" ${s===it.category?"selected":""}>${SECTION_EMOJI[s]} ${esc(sectionLabel(s))}</option>`).join("")+`</select>`;
   const thumb = it.img
@@ -2290,7 +2364,7 @@ function itemRow(it){
   const rmPhoto = it.img?`<button class="mv" onclick="removeItemImg('${it.id}')" title="remove photo">✕📷</button>`:"";
   const stock = `<button class="stock-btn ${it.inStock?'on':''}" onclick="toggleInStock('${it.id}',event)" title="${it.inStock?'Mark as needed':'Mark as in stock'}" aria-label="toggle in stock">${it.inStock?'🏠':'☐'}</button>`;
   const qtyControls = `<div class="qty-inline"><button class="qbtn-sm" onclick="decQty('${it.id}',event)">−</button><span class="qty-display" onclick="editQty('${it.id}',event)" title="Click to edit quantity" style="cursor:pointer">${it.qty||'1'}</span><button class="qbtn-sm" onclick="incQty('${it.id}',event)">+</button></div>`;
-  const metaParts = [qtyControls, stock, rmPhoto, src].filter(x=>x);
+  const metaParts = [qtyControls, stock, rmPhoto, src, who].filter(x=>x);
   return `<div class="item ${done} ${inStockClass}" data-id="${it.id}" title="${it.category}">
     <button class="check ${it.checked?'done':''}" onclick="toggleItem('${it.id}')" aria-label="tick">
       <svg viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg></button>
@@ -2809,6 +2883,7 @@ function invRow(it){
   </div>`;
 }
 function renderInventory(){
+  renderExpiryBanner();
   const box = document.getElementById("invBox");
   const chip = document.getElementById("invSortChip");
   if(chip) chip.classList.toggle("on", !!state.sortInvAisle);
@@ -2839,6 +2914,101 @@ function renderInventory(){
       groups[sec].map(invRow).join("")
     ).join("");
 }
+/* ---------------- Expiry ---------------- */
+const EXPIRY_WINDOW_DAYS = 3;
+
+// Compare whole days rather than timestamps, so something dated today reads as
+// 0 days left all day instead of flipping to "expired" as the clock passes.
+function daysUntil(dateStr){
+  const d = new Date(dateStr);
+  if(isNaN(d)) return null;
+  const today = new Date();
+  d.setHours(0,0,0,0); today.setHours(0,0,0,0);
+  return Math.round((d - today) / 86400000);
+}
+
+function expiringItems(withinDays = EXPIRY_WINDOW_DAYS){
+  const expired = [], soon = [];
+  (state.inventory || []).forEach(it => {
+    if(!it.expiry) return;
+    const days = daysUntil(it.expiry);
+    if(days === null) return;
+    if(days < 0) expired.push({ ...it, days });
+    else if(days <= withinDays) soon.push({ ...it, days });
+  });
+  soon.sort((a,b) => a.days - b.days);
+  return { expired, soon };
+}
+
+function renderExpiryBanner(){
+  const box = document.getElementById("expiryBanner");
+  if(!box) return;
+  const { expired, soon } = expiringItems();
+
+  if(!expired.length && !soon.length){ box.classList.add("hide"); box.innerHTML = ""; return; }
+
+  const chip = it => `<span class="exp-chip${it.days < 0 ? " gone" : ""}">${it.emoji || "🏠"} ${esc(displayName(it.name))}` +
+    `<em>${it.days < 0 ? t("exp_expired") : (it.days === 0 ? t("exp_today") : t("exp_days", it.days))}</em></span>`;
+
+  box.classList.remove("hide");
+  box.innerHTML =
+    `<div class="exp-head">⏰ ${esc(t("exp_title", expired.length + soon.length))}</div>` +
+    `<div class="exp-chips">${[...expired, ...soon].map(chip).join("")}</div>`;
+}
+
+/*
+ * One notification a day at most, and only if it was asked for. There is no
+ * server scheduler, so this fires when the app is opened or brought back — the
+ * PWA's own launch is the trigger.
+ */
+function maybeNotifyExpiry(){
+  if(localStorage.getItem("cartly.expiryReminders") !== "on") return;
+  if(!("Notification" in window) || Notification.permission !== "granted") return;
+
+  const { expired, soon } = expiringItems();
+  const total = expired.length + soon.length;
+  if(!total) return;
+
+  const today = new Date().toISOString().slice(0,10);
+  if(localStorage.getItem("cartly.expiryNotified") === today) return;
+  localStorage.setItem("cartly.expiryNotified", today);
+
+  const names = [...expired, ...soon].slice(0,4).map(i => displayName(i.name)).join(", ");
+  try {
+    new Notification(t("exp_title", total), {
+      body: names + (total > 4 ? "…" : ""),
+      icon: "/icons/icon-192.png",
+      tag: "cartly-expiry"
+    });
+  } catch(e) { console.warn("Could not show expiry notification:", e); }
+}
+
+async function toggleExpiryReminders(){
+  const on = localStorage.getItem("cartly.expiryReminders") === "on";
+  if(on){
+    localStorage.setItem("cartly.expiryReminders", "off");
+    updateExpiryToggle();
+    toast(t("exp_off"));
+    return;
+  }
+  if(!("Notification" in window)){ toast(t("exp_unsupported")); return; }
+
+  let perm = Notification.permission;
+  if(perm === "default") perm = await Notification.requestPermission();
+  if(perm !== "granted"){ toast(t("exp_blocked")); return; }
+
+  localStorage.setItem("cartly.expiryReminders", "on");
+  localStorage.removeItem("cartly.expiryNotified");   // let today's fire
+  updateExpiryToggle();
+  toast(t("exp_on"));
+  maybeNotifyExpiry();
+}
+
+function updateExpiryToggle(){
+  const btn = document.getElementById("expiryBtn");
+  if(btn) btn.textContent = localStorage.getItem("cartly.expiryReminders") === "on" ? "🔔" : "🔕";
+}
+
 function invUnitVal(){ return document.getElementById("invUnit").value || ""; }
 function addInv(name, qty, unit, expiry){
   name=(name||"").trim(); if(!name) return false;
@@ -2872,12 +3042,11 @@ function addInv(name, qty, unit, expiry){
   return true;
 }
 function delInv(id){
-  const inv = state.inventory.find(x=>x.id===id);
-  state.inventory = state.inventory.filter(x=>x.id!==id);
-  if(inv){
-    const item = state.items.find(i=>i.name.toLowerCase()===inv.name.toLowerCase());
-    if(item) item.inStock = false;
-  }
+  const idx = state.inventory.findIndex(x => x.id === id);
+  if(idx < 0) return;
+  const removed = state.inventory[idx];
+
+  state.inventory.splice(idx, 1);
   save(); renderInventory(); renderList();
 
   // Sync deletion to Supabase for authenticated users
@@ -2886,7 +3055,14 @@ function delInv(id){
     window.deleteInventoryItemSupabase(id).catch(e => console.error('Failed to sync inventory deletion:', e));
   }
 
-  toast(t("t_removed"));
+  toast(t("t_removed"), { label: t("t_undo"), fn: () => {
+    state.inventory.splice(Math.min(idx, state.inventory.length), 0, removed);
+    save(); renderInventory(); renderList();
+    if(user && !user.id.startsWith('guest_') && window.addInventoryItemSupabase){
+      pushNewItem(state.inventory, removed, window.addInventoryItemSupabase);
+    }
+    toast(t("t_restored"));
+  }});
 }
 function moveToList(id){
   const it = state.inventory.find(x=>x.id===id); if(!it) return;
@@ -3013,6 +3189,9 @@ function closeAvatarPicker(){
   document.getElementById("avatarModal").classList.remove("show");
 }
 
+document.getElementById("expiryBtn").onclick = toggleExpiryReminders;
+updateExpiryToggle();
+
 document.getElementById("userBadge").onclick = openAvatarPicker;
 document.getElementById("currentUserName").onclick = openAvatarPicker;
 document.getElementById("avatarClose").onclick = closeAvatarPicker;
@@ -3022,6 +3201,16 @@ document.getElementById("avatarModal").onclick = (e) => {
 
 /* ---------------- Family button + panel ---------------- */
 let familyInfo = null;
+
+// Names are needed by every list row, so keep them where whoBadge can reach
+// them and re-render once they arrive.
+function cacheMemberNames(info){
+  const next = {};
+  (info.members || []).forEach(m => { if(m.id) next[m.id] = m.nickname; });
+  const changed = JSON.stringify(next) !== JSON.stringify(familyMemberNames);
+  familyMemberNames = next;
+  if(changed && typeof renderList === "function") renderList();
+}
 
 function familyButtonLabel(name){
   const trimmed = (name||"").trim();
@@ -3040,6 +3229,7 @@ async function initFamilyButton(){
 
   familyInfo = await window.getFamilyInfo();
   if(!familyInfo) return;
+  cacheMemberNames(familyInfo);
 
   btn.textContent = familyButtonLabel(familyInfo.familyName);
   btn.style.display = "inline-block";
@@ -3088,6 +3278,7 @@ async function openFamilyPanel(){
     const fresh = await window.getFamilyInfo();
     if(fresh){
       familyInfo = fresh;
+      cacheMemberNames(fresh);
       document.getElementById("familyBtn").textContent = familyButtonLabel(fresh.familyName);
       if(document.getElementById("familyModal").classList.contains("show")) renderFamilyPanel();
     }
@@ -3132,10 +3323,21 @@ async function saveFamilyName(){
 /* ---------------- Wiring ---------------- */
 function qtyVal(){ const n = parseInt(document.getElementById("addQty").value, 10); return (isNaN(n)||n<1)?1:n; }
 function setQty(n){ document.getElementById("addQty").value = Math.max(1, n); }
-function addFromInput(){
+async function addFromInput(){
   const inp = document.getElementById("addInput");
   const n = qtyVal();
-  const r = addItem(inp.value, n>1 ? String(n) : "", "", pendingPhoto);
+  const typed = inp.value.trim();
+  if(!typed) return;
+
+  // Buying more of something you already have is a fair thing to want, so this
+  // stays a question — just not a browser one.
+  const found = inspectAdd(typed);
+  if(found.atHome && !found.onList){
+    const go = await confirmAsk(t("t_at_home_ask", displayName(found.normalized)), t("t_add_anyway"));
+    if(!go) return;
+  }
+
+  const r = addItem(typed, n>1 ? String(n) : "", "", pendingPhoto);
   if(r){ inp.value=""; setQty(1); pendingPhoto=""; renderPhotoPreview(); inp.focus(); renderList(); if(r==="dup") toast(t("t_dup")); }
 }
 document.getElementById("addBtn").onclick = addFromInput;
@@ -3671,5 +3873,6 @@ if(currentUser && currentUser.id && currentUser.id.startsWith('guest_') && state
 applyLang();
 applyAvatar();
 renderList();
+maybeNotifyExpiry();
 
 </script>

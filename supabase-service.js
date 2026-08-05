@@ -308,6 +308,8 @@ export async function getListItems() {
     checked: item.checked,
     source: item.source || '',
     img: item.img || '',
+    // who last wrote this row — the list uses it to show whose item it is
+    updatedBy: item.updated_by || null,
     inStock: false
   }));
 }
