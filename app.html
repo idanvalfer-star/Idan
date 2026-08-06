@@ -1,4 +1,6 @@
 <meta charset="utf-8">
+<script src="/vendor/supabase.js"></script>
+<script>window.supabaseLib = window.supabase;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#22c55e">
 <title>Cartly — Grocery List</title>
@@ -694,10 +696,10 @@ if(!isGuest) {
     window.addInventoryItemSupabase = addInventoryItemImported;
     // Edits and deletes go through viaResolvedId so a row added moments earlier
     // is targeted by its Supabase id rather than the throwaway local one.
-    window.updateListItemSupabase = viaResolvedId(updateListItemImported);
-    window.deleteListItemSupabase = viaResolvedId(deleteListItemImported);
-    window.updateInventoryItemSupabase = viaResolvedId(updateInventoryItemImported);
-    window.deleteInventoryItemSupabase = viaResolvedId(deleteInventoryItemImported);
+    window.updateListItemSupabase = viaResolvedId(updateListItemImported, 'update', 'item');
+    window.deleteListItemSupabase = viaResolvedId(deleteListItemImported, 'delete', 'item');
+    window.updateInventoryItemSupabase = viaResolvedId(updateInventoryItemImported, 'update', 'inv');
+    window.deleteInventoryItemSupabase = viaResolvedId(deleteInventoryItemImported, 'delete', 'inv');
     window.getFamilyInfo = getFamilyInfoImported;
     window.updateFamilyName = updateFamilyNameImported;
 
@@ -725,6 +727,8 @@ if(!isGuest) {
           if(loggedUser.family_id && typeof initFamilyButton === 'function') {
             initFamilyButton();
           }
+          // Replay anything recorded while this device was offline.
+          if(typeof flushOutbox === 'function') flushOutbox();
           // Store subscription channels globally so we can check/re-establish them
           window.listUpdatesChannel = null;
           window.inventoryUpdatesChannel = null;
@@ -780,6 +784,7 @@ if(!isGuest) {
             if (document.visibilityState === 'visible') {
               console.log('👁️ App came to foreground, checking Realtime connection...');
               if(typeof maybeNotifyExpiry === 'function') maybeNotifyExpiry();
+                if(typeof flushOutbox === 'function') flushOutbox();
               // Small delay to ensure connection is re-established
               setTimeout(() => {
                 // Force re-subscribe
@@ -890,7 +895,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", close:"Close", exp_title:(n)=>`${n} item${n>1?"s":""} to use up`, exp_expired:"expired", exp_today:"today", exp_days:(d)=>`${d}d left`, exp_on:"Expiry reminders on 🔔", exp_off:"Expiry reminders off", exp_blocked:"Notifications are blocked in your browser settings", exp_unsupported:"This browser cannot show notifications", t_at_home_ask:(name)=>`${name} is already in your home inventory. Add it to the list anyway?`, t_add_anyway:"Add anyway", avatar_title:"Choose your avatar", avatar_sub:"Tap one to use it", t_avatar_set:"Avatar updated", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
+    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", close:"Close", t_synced:"Offline changes synced ✓", exp_title:(n)=>`${n} item${n>1?"s":""} to use up`, exp_expired:"expired", exp_today:"today", exp_days:(d)=>`${d}d left`, exp_on:"Expiry reminders on 🔔", exp_off:"Expiry reminders off", exp_blocked:"Notifications are blocked in your browser settings", exp_unsupported:"This browser cannot show notifications", t_at_home_ask:(name)=>`${name} is already in your home inventory. Add it to the list anyway?`, t_add_anyway:"Add anyway", avatar_title:"Choose your avatar", avatar_sub:"Tap one to use it", t_avatar_set:"Avatar updated", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -937,7 +942,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", close:"סגירה", exp_title:(n)=>`${n} מוצרים לסיים בקרוב`, exp_expired:"פג תוקף", exp_today:"היום", exp_days:(d)=>`עוד ${d} ימים`, exp_on:"תזכורות תוקף פעילות 🔔", exp_off:"תזכורות תוקף כבויות", exp_blocked:"ההתראות חסומות בהגדרות הדפדפן", exp_unsupported:"הדפדפן הזה לא תומך בהתראות", t_at_home_ask:(name)=>`${name} כבר במלאי הבית. להוסיף לרשימה בכל זאת?`, t_add_anyway:"להוסיף בכל זאת", avatar_title:"בחירת אווטאר", avatar_sub:"לחצו על אחד כדי לבחור", t_avatar_set:"האווטאר עודכן", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", close:"סגירה", t_synced:"השינויים מהמצב לא־מקוון סונכרנו ✓", exp_title:(n)=>`${n} מוצרים לסיים בקרוב`, exp_expired:"פג תוקף", exp_today:"היום", exp_days:(d)=>`עוד ${d} ימים`, exp_on:"תזכורות תוקף פעילות 🔔", exp_off:"תזכורות תוקף כבויות", exp_blocked:"ההתראות חסומות בהגדרות הדפדפן", exp_unsupported:"הדפדפן הזה לא תומך בהתראות", t_at_home_ask:(name)=>`${name} כבר במלאי הבית. להוסיף לרשימה בכל זאת?`, t_add_anyway:"להוסיף בכל זאת", avatar_title:"בחירת אווטאר", avatar_sub:"לחצו על אחד כדי לבחור", t_avatar_set:"האווטאר עודכן", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
@@ -1510,7 +1515,8 @@ async function loadFamilyItems(){
       }
     });
 
-    state.items = mergedItems;
+    // Anything still queued has not reached Supabase, so layer it back on top.
+    state.items = applyOutbox(mergedItems, 'item');
 
     // Log warning if too many items (likely duplication or accumulation)
     if(state.items.length > 50) {
@@ -1567,7 +1573,7 @@ async function loadFamilyInventory(){
       }
     });
 
-    state.inventory = mergedInventory;
+    state.inventory = applyOutbox(mergedInventory, 'inv');
 
     // Inventory drives the list's 🏠 badges, so refresh those too.
     refreshInStockFlags();
@@ -1641,6 +1647,106 @@ function adoptServerId(collection, localId, savedRow){
   console.log('🔗 Adopted Supabase id:', { was: localId, now: realId });
 }
 
+/*
+ * Offline outbox.
+ *
+ * Writes that cannot reach Supabase are recorded here and replayed on
+ * reconnect. Without it, anything added while disconnected was thrown away the
+ * moment the app came back: loadFamilyItems treats Supabase as the source of
+ * truth (which is what stopped deleted items reappearing), so a local row the
+ * server had never heard of simply vanished.
+ *
+ * Entries are explicit operations, never a guess. That distinction matters —
+ * "keep any local row the server does not have" is exactly the rule that used
+ * to resurrect deleted items.
+ */
+function outbox(){
+  if(!Array.isArray(state._outbox)) state._outbox = [];
+  return state._outbox;
+}
+
+function queueOutbox(entry){
+  const q = outbox();
+  const same = e => e.op === entry.op && e.kind === entry.kind &&
+    (entry.id ? e.id === entry.id : e.item && entry.item && sameItem(e.item.name, entry.item.name));
+  const existing = q.find(same);
+
+  if(existing){
+    // Repeated edits to one row collapse into the last value — tapping + twice
+    // offline must end up at 3, not at the 2 that was queued first.
+    if(entry.op === 'update') existing.updates = { ...existing.updates, ...entry.updates };
+    save();
+    return;
+  }
+  q.push({ ...entry, at: Date.now() });
+  save();
+  console.log('📮 Queued for later:', entry.op, entry.kind, entry.id || entry.item?.name);
+}
+
+// Applies whatever is still queued on top of what Supabase returned, so the
+// list on screen matches what the user believes they have.
+function applyOutbox(rows, kind){
+  const pending = outbox().filter(e => e.kind === kind);
+  if(!pending.length) return rows;
+
+  let out = rows.slice();
+  for(const e of pending){
+    if(e.op === 'delete'){
+      out = out.filter(r => r.id !== e.id);
+    } else if(e.op === 'update'){
+      out = out.map(r => r.id === e.id ? { ...r, ...e.updates } : r);
+    } else if(e.op === 'add'){
+      if(!out.some(r => sameItem(r.name, e.item.name))) out.push(e.item);
+    }
+  }
+  return out;
+}
+
+let flushing = false;
+
+async function flushOutbox(){
+  const queue = outbox();
+  if(flushing || !queue.length) return;
+
+  const user = window.getCurrentUser?.();
+  if(!user || user.id.startsWith('guest_')) return;
+  if(!window.addListItemSupabase) return;      // module still not loaded
+
+  flushing = true;
+  console.log('📮 Flushing', queue.length, 'queued change(s)');
+  const survived = [];
+
+  for(const e of queue){
+    try {
+      if(e.kind === 'item'){
+        if(e.op === 'add')    await window.addListItemSupabase(e.item);
+        if(e.op === 'update') await window.updateListItemSupabase(e.id, e.updates);
+        if(e.op === 'delete') await window.deleteListItemSupabase(e.id);
+      } else {
+        if(e.op === 'add')    await window.addInventoryItemSupabase(e.item);
+        if(e.op === 'update') await window.updateInventoryItemSupabase(e.id, e.updates);
+        if(e.op === 'delete') await window.deleteInventoryItemSupabase(e.id);
+      }
+    } catch(err){
+      // Still unreachable — keep it for the next attempt.
+      console.warn('📮 Still queued:', e.op, e.kind, err.message);
+      survived.push(e);
+    }
+  }
+
+  state._outbox = survived;
+  save();
+  flushing = false;
+
+  if(queue.length !== survived.length){
+    if(typeof loadFamilyItems === 'function') await loadFamilyItems();
+    if(typeof loadFamilyInventory === 'function') await loadFamilyInventory();
+    toast(t("t_synced"));
+  }
+}
+
+window.addEventListener('online', () => { flushOutbox(); });
+
 // Supabase ids are UUIDs; uid() never produces a dash, so this tells the two apart.
 const isServerId = id => typeof id === 'string' && id.includes('-');
 
@@ -1651,9 +1757,22 @@ const pendingCreates = new Map();  // local id -> in-flight insert
 const adoptedIds = new Map();      // local id -> the id Supabase assigned
 
 async function pushNewItem(collection, item, addFn){
-  if(typeof addFn !== 'function' || pendingCreates.has(item.id)) return;
-  const localId = item.id;
+  if(pendingCreates.has(item.id)) return;
+  const kind = collection === state.inventory ? 'inv' : 'item';
 
+  // Only rows the server has never seen may be queued. One that already carries
+  // a Supabase id exists remotely, and re-adding it on reconnect would duplicate
+  // it — which is what the offline catch-up sweep would otherwise cause for the
+  // entire list.
+  const queueable = !isServerId(item.id);
+
+  // Offline the module may not have loaded at all, so there is nothing to call.
+  if(typeof addFn !== 'function'){
+    if(queueable) queueOutbox({ op:'add', kind, item: { ...item } });
+    return;
+  }
+
+  const localId = item.id;
   const inFlight = (async () => {
     const saved = await addFn(item);
     if(saved && saved.id){
@@ -1667,6 +1786,7 @@ async function pushNewItem(collection, item, addFn){
     await inFlight;
   } catch(e) {
     console.error('Failed to sync new item to Supabase:', e);
+    if(queueable) queueOutbox({ op:'add', kind, item: { ...item } });
   } finally {
     pendingCreates.delete(localId);
   }
@@ -1684,9 +1804,20 @@ async function resolveSyncId(id){
   return adoptedIds.get(id) || id;
 }
 
-// Wraps an (id, ...args) sync call so it always targets the row Supabase knows.
-function viaResolvedId(fn){
-  return async (id, ...rest) => fn(await resolveSyncId(id), ...rest);
+/*
+ * Wraps an (id, ...args) sync call so it always targets the row Supabase knows,
+ * and records the change if the request cannot get through.
+ */
+function viaResolvedId(fn, op, kind){
+  return async (id, ...rest) => {
+    const realId = await resolveSyncId(id);
+    try {
+      return await fn(realId, ...rest);
+    } catch(e) {
+      queueOutbox({ op, kind, id: realId, updates: rest[0] });
+      throw e;
+    }
+  };
 }
 
 /* Starter list — seeded from the built-in essentials, then user-editable. */

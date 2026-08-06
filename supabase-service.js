@@ -1,10 +1,21 @@
 // Supabase integration for Cartly
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm';
+//
+// The client library is served from /vendor rather than a CDN. A cross-origin
+// import cannot be cached by the service worker, so offline it failed and took
+// this whole module with it — no session, no family, and nothing to queue the
+// changes made while disconnected. Each page loads it before this module runs
+// and parks it on window.supabaseLib, since window.supabase later holds the
+// client instance itself.
+const lib = (typeof window !== 'undefined') && (window.supabaseLib || window.supabase);
+
+if (!lib || typeof lib.createClient !== 'function') {
+  throw new Error('Supabase library not loaded — /vendor/supabase.js must be included before this module');
+}
 
 const SUPABASE_URL = 'https://xxyhrhkflexpyipttmug.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_S18kdYcFkvHKBKjvcXXOjg_rF7qqW94';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = lib.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Current user
 let currentUser = null;

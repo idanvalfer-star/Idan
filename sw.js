@@ -9,12 +9,17 @@
  * caching those would serve one device a stale copy of a shared family list,
  * which is the whole thing this app must not do.
  */
-const VERSION = 'cartly-v1';
+const VERSION = 'cartly-v2';
 const SHELL = [
   '/app',
   '/install',
   '/login',
   '/manifest.webmanifest',
+  // Without these the app opens offline but cannot talk to Supabase at all,
+  // so nothing queues the changes made while disconnected.
+  '/supabase-service.js',
+  '/vendor/supabase.js',
+  '/vendor/26.supabase.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png'
