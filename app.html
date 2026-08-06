@@ -500,56 +500,56 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 <!-- Settings Modal -->
 <div class="settings-modal" id="settingsModal">
   <div class="settings-panel">
-    <h3 style="text-align:center">⚙️ Settings</h3>
+    <h3 style="text-align:center">⚙️ <span data-i18n="settings">Settings</span></h3>
 
     <div class="settings-item">
-      <label>Language</label>
+      <label data-i18n="settings_language">Language</label>
       <button id="langBtn" title="Toggle language">עב</button>
     </div>
 
     <div class="settings-item">
-      <label>Brightness</label>
+      <label data-i18n="settings_theme">Brightness</label>
       <button id="themeBtn" title="Toggle theme">🌙</button>
     </div>
 
     <div class="settings-item">
-      <label>Sign out</label>
+      <label data-i18n="settings_signout">Sign out</label>
       <button id="logoutBtn" title="Sign out" style="display:none;">🚪</button>
     </div>
 
     <div class="settings-item">
-      <label>Expiry reminders</label>
+      <label data-i18n="settings_expiry">Expiry reminders</label>
       <button id="expiryBtn" title="Remind me about food about to expire">🔕</button>
     </div>
 
     <div class="settings-item" id="installRow" style="display:none;">
-      <label>Add to Home Screen</label>
+      <label data-i18n="settings_install">Add to Home Screen</label>
       <button id="installBtn" title="Install Cartly">📲</button>
     </div>
 
     <div class="settings-item">
-      <label>Sync Data</label>
+      <label data-i18n="settings_sync">Sync Data</label>
       <button id="syncBtn" title="Sync and refresh">🔄</button>
     </div>
 
     <div class="settings-item">
-      <label>Clean Duplicates</label>
+      <label data-i18n="settings_clean">Clean Duplicates</label>
       <button onclick="cleanupSupabaseDuplicates()" title="Remove duplicate items from database">🧹</button>
     </div>
 
-    <button class="settings-btn-danger" id="deleteAccountBtn" style="display:none;">🗑️ Delete Account</button>
+    <button class="settings-btn-danger" id="deleteAccountBtn" style="display:none;">🗑️ <span data-i18n="settings_delete">Delete Account</span></button>
   </div>
 </div>
 
 <!-- Paste List Modal -->
 <div class="settings-modal" id="pasteModal">
   <div class="settings-panel" style="max-width:400px;width:95vw">
-    <h3 style="text-align:center">📄 Paste List</h3>
-    <div style="color:var(--muted);font-size:13px;margin-bottom:12px">Paste one item per line. Each line will be added to your list.</div>
+    <h3 style="text-align:center">📄 <span data-i18n="paste_title">Paste List</span></h3>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:12px" data-i18n="paste_help">Paste one item per line. Each line will be added to your list.</div>
     <textarea id="pasteInput" placeholder="milk&#10;eggs&#10;bread&#10;butter..." style="width:100%;height:150px;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-family:inherit;font-size:14px;resize:vertical;margin-bottom:12px" autocomplete="off"></textarea>
     <div style="display:flex;gap:8px">
-      <button onclick="addPastedList()" style="flex:1;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;padding:12px;border:none;border-radius:12px;cursor:pointer;font-family:inherit">Add Items</button>
-      <button onclick="closePasteModal()" style="flex:1;background:var(--bg);color:var(--ink);border:1px solid var(--line);font-weight:800;padding:12px;border-radius:12px;cursor:pointer;font-family:inherit">Cancel</button>
+      <button onclick="addPastedList()" style="flex:1;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-weight:800;padding:12px;border:none;border-radius:12px;cursor:pointer;font-family:inherit" data-i18n="paste_add">Add Items</button>
+      <button onclick="closePasteModal()" style="flex:1;background:var(--bg);color:var(--ink);border:1px solid var(--line);font-weight:800;padding:12px;border-radius:12px;cursor:pointer;font-family:inherit" data-i18n="cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -558,10 +558,10 @@ details.recipe-more summary::-webkit-details-marker{display:none}
 <div class="family-modal" id="familyModal">
   <div class="family-panel">
     <h3 id="fpTitle">Family</h3>
-    <p class="fp-sub" id="fpSub">Share the code below to add someone</p>
+    <p class="fp-sub" id="fpSub" data-i18n="fp_sub">Share the code below to add someone</p>
 
     <div class="fp-section">
-      <div class="fp-label">Family code</div>
+      <div class="fp-label" data-i18n="fp_code">Family code</div>
       <div class="fp-code">
         <code id="fpCode">------</code>
         <button class="fp-btn" id="fpCopy" title="Copy code">📋</button>
@@ -569,19 +569,19 @@ details.recipe-more summary::-webkit-details-marker{display:none}
     </div>
 
     <div class="fp-section">
-      <div class="fp-label">Members</div>
+      <div class="fp-label" data-i18n="fp_members">Members</div>
       <div class="fp-members" id="fpMembers"></div>
     </div>
 
     <div class="fp-section">
-      <div class="fp-label">Family name</div>
+      <div class="fp-label" data-i18n="fp_name">Family name</div>
       <div class="fp-row">
         <input id="fpNameInput" maxlength="40" placeholder="e.g. Valfer" autocomplete="off">
-        <button class="fp-btn primary" id="fpSaveName">Save</button>
+        <button class="fp-btn primary" id="fpSaveName" data-i18n="save">Save</button>
       </div>
     </div>
 
-    <button class="fp-btn fp-close" id="fpClose">Close</button>
+    <button class="fp-btn fp-close" id="fpClose" data-i18n="close">Close</button>
   </div>
 </div>
 
@@ -895,7 +895,7 @@ const T = {
     recipes_sub:"Your recipe book. Add, edit and delete recipes, and send all of a recipe's ingredients to your list. Recipes matching your list float to the top.",
     new_recipe:"New recipe", add_ingredients:"Add ingredients to list", edit:"Edit", del:"Delete",
     save_recipe:"Save recipe", cancel:"Cancel", name:"Name", icon:"Icon", time:"Time",
-    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", close:"Close", t_synced:"Offline changes synced ✓", exp_title:(n)=>`${n} item${n>1?"s":""} to use up`, exp_expired:"expired", exp_today:"today", exp_days:(d)=>`${d}d left`, exp_on:"Expiry reminders on 🔔", exp_off:"Expiry reminders off", exp_blocked:"Notifications are blocked in your browser settings", exp_unsupported:"This browser cannot show notifications", t_at_home_ask:(name)=>`${name} is already in your home inventory. Add it to the list anyway?`, t_add_anyway:"Add anyway", avatar_title:"Choose your avatar", avatar_sub:"Tap one to use it", t_avatar_set:"Avatar updated", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
+    dup_title:"Some of these are already there", dup_sub:"Pick any you still want to add", dup_on_list:"Already on your list", dup_at_home:"Already in your home inventory", dup_skip:"Skip all", dup_add:"Add selected", dup_all:"All", dup_none:"None", ok:"OK", close:"Close", save:"Save", fp_sub:"Share the code below to add someone", fp_code:"Family code", fp_members:"Members", fp_name:"Family name", paste_title:"Paste List", paste_help:"Paste one item per line. Each line will be added to your list.", paste_add:"Add Items", settings:"Settings", settings_language:"Language", settings_theme:"Brightness", settings_signout:"Sign out", settings_expiry:"Expiry reminders", settings_install:"Add to Home Screen", settings_sync:"Sync Data", settings_clean:"Clean Duplicates", settings_delete:"Delete Account", t_synced:"Offline changes synced ✓", exp_title:(n)=>`${n} item${n>1?"s":""} to use up`, exp_expired:"expired", exp_today:"today", exp_days:(d)=>`${d}d left`, exp_on:"Expiry reminders on 🔔", exp_off:"Expiry reminders off", exp_blocked:"Notifications are blocked in your browser settings", exp_unsupported:"This browser cannot show notifications", t_at_home_ask:(name)=>`${name} is already in your home inventory. Add it to the list anyway?`, t_add_anyway:"Add anyway", avatar_title:"Choose your avatar", avatar_sub:"Tap one to use it", t_avatar_set:"Avatar updated", t_already_on_list:(name)=>`${name} is already on your list`, ing_lines:"Ingredients — one per line", ingredients:"Ingredients", ing_placeholder:"Add an ingredient…", add:"Add", ing_dup:"Already in this recipe", steps_lines:"Steps — one per line", no_ingredients:"No ingredients yet",
     on_your_list:"on your list", view_steps:"View steps",
     video_title:"🎬 Add from a video", video_link:"Video link",
     caption_label:"Caption / description (optional)",
@@ -942,7 +942,7 @@ const T = {
     recipes_sub:"ספר המתכונים שלך. הוסיפו, ערכו ומחקו מתכונים, ושלחו את כל המרכיבים לרשימה. מתכונים שתואמים לרשימה שלכם יופיעו למעלה.",
     new_recipe:"מתכון חדש", add_ingredients:"הוספת מרכיבים לרשימה", edit:"עריכה", del:"מחיקה",
     save_recipe:"שמירת מתכון", cancel:"ביטול", name:"שם", icon:"אייקון", time:"זמן",
-    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", close:"סגירה", t_synced:"השינויים מהמצב לא־מקוון סונכרנו ✓", exp_title:(n)=>`${n} מוצרים לסיים בקרוב`, exp_expired:"פג תוקף", exp_today:"היום", exp_days:(d)=>`עוד ${d} ימים`, exp_on:"תזכורות תוקף פעילות 🔔", exp_off:"תזכורות תוקף כבויות", exp_blocked:"ההתראות חסומות בהגדרות הדפדפן", exp_unsupported:"הדפדפן הזה לא תומך בהתראות", t_at_home_ask:(name)=>`${name} כבר במלאי הבית. להוסיף לרשימה בכל זאת?`, t_add_anyway:"להוסיף בכל זאת", avatar_title:"בחירת אווטאר", avatar_sub:"לחצו על אחד כדי לבחור", t_avatar_set:"האווטאר עודכן", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
+    dup_title:"חלק מהמוצרים כבר קיימים", dup_sub:"סמנו מה שעדיין רוצים להוסיף", dup_on_list:"כבר ברשימה שלך", dup_at_home:"כבר במלאי הבית", dup_skip:"לדלג על הכל", dup_add:"הוספת הנבחרים", dup_all:"הכל", dup_none:"כלום", ok:"אישור", close:"סגירה", save:"שמירה", fp_sub:"שתפו את הקוד כדי לצרף מישהו", fp_code:"קוד משפחה", fp_members:"חברי המשפחה", fp_name:"שם המשפחה", paste_title:"הדבקת רשימה", paste_help:"הדביקו מוצר בכל שורה. כל שורה תתווסף לרשימה.", paste_add:"הוספת המוצרים", settings:"הגדרות", settings_language:"שפה", settings_theme:"בהירות", settings_signout:"התנתקות", settings_expiry:"תזכורות תוקף", settings_install:"הוספה למסך הבית", settings_sync:"סנכרון נתונים", settings_clean:"ניקוי כפילויות", settings_delete:"מחיקת חשבון", t_synced:"השינויים מהמצב לא־מקוון סונכרנו ✓", exp_title:(n)=>`${n} מוצרים לסיים בקרוב`, exp_expired:"פג תוקף", exp_today:"היום", exp_days:(d)=>`עוד ${d} ימים`, exp_on:"תזכורות תוקף פעילות 🔔", exp_off:"תזכורות תוקף כבויות", exp_blocked:"ההתראות חסומות בהגדרות הדפדפן", exp_unsupported:"הדפדפן הזה לא תומך בהתראות", t_at_home_ask:(name)=>`${name} כבר במלאי הבית. להוסיף לרשימה בכל זאת?`, t_add_anyway:"להוסיף בכל זאת", avatar_title:"בחירת אווטאר", avatar_sub:"לחצו על אחד כדי לבחור", t_avatar_set:"האווטאר עודכן", t_already_on_list:(name)=>`${name} כבר ברשימה שלך`, ing_lines:"מרכיבים — אחד בכל שורה", ingredients:"מרכיבים", ing_placeholder:"הוספת מרכיב…", add:"הוספה", ing_dup:"כבר במתכון הזה", steps_lines:"שלבים — אחד בכל שורה", no_ingredients:"אין עדיין מרכיבים",
     on_your_list:"ברשימה שלך", view_steps:"הצגת שלבים",
     video_title:"🎬 הוספה מסרטון", video_link:"קישור לסרטון",
     caption_label:"כיתוב / תיאור (רשות)",
