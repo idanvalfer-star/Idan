@@ -809,6 +809,16 @@ app.get('/install', (req, res) => {
 });
 
 /*
+ * The address Supabase puts in its password-reset email is
+ * <origin>/reset-password, with no extension. There was no route for it, so the
+ * catch-all served the shopping list instead and the reset form — which only
+ * existed at /reset-password.html — was unreachable from the email.
+ */
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'reset-password.html'));
+});
+
+/*
  * The service worker must be served from the root to control the whole origin,
  * and browsers refuse a manifest sent as text/html — express.static gets the
  * paths right but these two need explicit content types and cache rules.
