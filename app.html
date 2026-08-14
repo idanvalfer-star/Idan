@@ -682,7 +682,7 @@ if(isGuest && user && user.id.startsWith('guest_')) {
 
 // Only load Supabase if user is logged in
 if(!isGuest) {
-  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, subscribeToInventoryUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, getInventoryItems: getInventoryItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, getFamilyInfo: getFamilyInfoImported, updateFamilyName: updateFamilyNameImported, supabase: supabaseClient }) => {
+  import('./supabase-service.js').then(({ initAuth, getCurrentUser, subscribeToListUpdates, subscribeToInventoryUpdates, getStorageKey: getStorageKeyImported, getListItems: getListItemsImported, getInventoryItems: getInventoryItemsImported, addListItem: addListItemImported, updateListItem: updateListItemImported, deleteListItem: deleteListItemImported, addInventoryItem: addInventoryItemImported, updateInventoryItem: updateInventoryItemImported, deleteInventoryItem: deleteInventoryItemImported, getFamilyInfo: getFamilyInfoImported, updateFamilyName: updateFamilyNameImported, updateAvatar: updateAvatarImported, supabase: supabaseClient }) => {
     getStorageKey = getStorageKeyImported;
     getListItems = getListItemsImported;
     window.getCurrentUser = getCurrentUser;
@@ -702,6 +702,7 @@ if(!isGuest) {
     window.deleteInventoryItemSupabase = viaResolvedId(deleteInventoryItemImported, 'delete', 'inv');
     window.getFamilyInfo = getFamilyInfoImported;
     window.updateFamilyName = updateFamilyNameImported;
+    window.updateAvatar = updateAvatarImported;
 
     initAuth().then(() => {
       const loggedUser = getCurrentUser();
@@ -2465,15 +2466,17 @@ function sourceTag(source){
 }
 
 /*
- * Who last wrote this row. Supabase records it as `updated_by`, which the add
- * endpoint sets and every later edit overwrites — so this is "last touched by",
- * not strictly "added by". Only shown once another member has actually touched
- * something, so a one-person family never sees a badge on every row.
+ * Who put this item on the list. Supabase records it as `added_by`, set once
+ * when the row is created and never touched by later edits — unlike
+ * `updated_by`, which every edit overwrites. Rows created before the
+ * added_by column existed fall back to updated_by. Only shown once another
+ * member has actually added something, so a one-person family never sees a
+ * badge on every row.
  */
 let familyMemberNames = {};   // user id -> nickname
 
 function whoBadge(it){
-  const by = it.updatedBy;
+  const by = it.addedBy || it.updatedBy;
   if(!by) return "";
   const me = window.getCurrentUser?.();
   if(me && by === me.id) return "";               // no point labelling your own
@@ -3310,6 +3313,9 @@ function openAvatarPicker(){
       applyAvatar();
       closeAvatarPicker();
       toast(t("t_avatar_set") + " " + btn.dataset.a);
+      // Best-effort — a guest or an offline moment just keeps the pick local
+      // until the next successful family info fetch.
+      if(typeof window.updateAvatar === "function") window.updateAvatar(btn.dataset.a);
     };
   });
 
@@ -3389,10 +3395,12 @@ function renderFamilyPanel(){
   document.getElementById("fpMembers").innerHTML = members.length
     ? members.map(m => {
         const isMe = me && m.nickname === me.nickname;
-        // Only your own avatar is known here — it is stored on this device, so
-        // everyone else keeps their initials.
+        // Your own pick applies instantly from this device; everyone else's
+        // comes from what they last synced. A member who never opened the
+        // picker has no avatar row yet, so falls back to initials.
+        const avatar = isMe ? getAvatar() : (m.avatar || initialsFor(m.nickname));
         return `<div class="fp-member">
-          <span class="fp-avatar">${isMe ? getAvatar() : esc(initialsFor(m.nickname))}</span>
+          <span class="fp-avatar">${esc(avatar)}</span>
           <span>${esc(m.nickname)}</span>
           ${isMe ? '<span class="fp-you">you</span>' : ''}
         </div>`;
@@ -3989,8 +3997,9 @@ cleanupOldSourceTags();
 // home inventory matches a default gets a stack of confirm() dialogs to dismiss
 // before the app is usable.
 const currentUser = JSON.parse(sessionStorage.getItem('cartly.user') || 'null');
-if(currentUser && currentUser.id && currentUser.id.startsWith('guest_') && state.items.length === 0) {
+if(currentUser && currentUser.id && currentUser.id.startsWith('guest_') && state.items.length === 0 && !state.starterAdded) {
   DEFAULTS.forEach(name => addItem(name, "", "", "", {bulk:true}));
+  state.starterAdded = true;
   save();
 }
 

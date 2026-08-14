@@ -237,6 +237,26 @@ export async function updateFamilyName(familyName) {
   return result.familyName;
 }
 
+// Persists an avatar choice so the rest of the family sees it too. Guests
+// have no row in `users` to write to, so their pick stays device-local
+// (handled entirely by the caller's own localStorage fallback).
+export async function updateAvatar(avatar) {
+  if (!currentUser || currentUser.id.startsWith('guest_')) return;
+
+  try {
+    const response = await fetch(`/api/user/${currentUser.id}/avatar`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar })
+    });
+
+    const result = await response.json();
+    if (!result.success) console.error('Failed to sync avatar:', result.error);
+  } catch (error) {
+    console.error('ERROR: Failed to sync avatar:', error.message);
+  }
+}
+
 export function logout() {
   currentUser = null;
   sessionStorage.removeItem('cartly.user');
@@ -319,7 +339,10 @@ export async function getListItems() {
     checked: item.checked,
     source: item.source || '',
     img: item.img || '',
-    // who last wrote this row — the list uses it to show whose item it is
+    // who put this on the list, set once at insert and never touched again;
+    // falls back to updatedBy for rows created before the added_by column
+    // existed, since that's the closest thing to an answer they have.
+    addedBy: item.added_by || item.updated_by || null,
     updatedBy: item.updated_by || null,
     inStock: false
   }));

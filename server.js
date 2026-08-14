@@ -12,6 +12,14 @@ app.use(express.static(__dirname));
 
 const SUPABASE_URL = 'https://xxyhrhkflexpyipttmug.supabase.co';
 
+// Must match AVATARS in app.html. Kept as an explicit whitelist rather than
+// just a length check, since this value ends up in another family member's
+// innerHTML — validating it here means a client bypassing the picker's UI
+// and calling the API directly can't push arbitrary content into that.
+const AVATARS = new Set(["👤","🧑","👩","👨","🧔","👵","👴","🧑‍🍳","👩‍🍳","🦸",
+  "🐱","🐶","🦊","🐼","🐨","🦁","🐵","🐰","🦉","🐢",
+  "🌟","🌸","🍀","🍎","🥑","🍕","🍩","☕","🚀","🎧"]);
+
 function sbHeaders(extra = {}) {
   return {
     'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
@@ -151,9 +159,27 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
-// Family details: code, name and member nicknames for the family header button.
-// Served with the service key because the anon client cannot read sibling rows
-// in `users` under RLS.
+// avatar is a newer column on `users` — fall back to a query without it so
+// this route keeps working on a database that hasn't added it yet.
+async function fetchFamilyMembers(familyId) {
+  let resp = await fetch(
+    `${SUPABASE_URL}/rest/v1/users?select=id,nickname,email,avatar&family_id=eq.${familyId}`,
+    { headers: sbHeaders() }
+  );
+  if (!resp.ok) {
+    resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/users?select=id,nickname,email&family_id=eq.${familyId}`,
+      { headers: sbHeaders() }
+    );
+  }
+  if (!resp.ok) return [];
+  const rows = await resp.json().catch(() => []);
+  return Array.isArray(rows) ? rows : [];
+}
+
+// Family details: code, name and member nicknames/avatars for the family
+// header button. Served with the service key because the anon client cannot
+// read sibling rows in `users` under RLS.
 app.get('/api/family/:familyId', async (req, res) => {
   try {
     const { familyId } = req.params;
@@ -162,9 +188,9 @@ app.get('/api/family/:familyId', async (req, res) => {
       return res.json({ success: false, error: 'Missing family id' });
     }
 
-    const [familyResp, membersResp] = await Promise.all([
+    const [familyResp, members] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/families?select=family_code,family_name&id=eq.${familyId}`, { headers: sbHeaders() }),
-      fetch(`${SUPABASE_URL}/rest/v1/users?select=id,nickname,email&family_id=eq.${familyId}`, { headers: sbHeaders() })
+      fetchFamilyMembers(familyId)
     ]);
 
     const family = await familyResp.json();
@@ -173,20 +199,48 @@ app.get('/api/family/:familyId', async (req, res) => {
       return res.json({ success: false, error: 'Family not found' });
     }
 
-    const members = membersResp.ok ? await membersResp.json() : [];
-
     res.json({
       success: true,
       familyCode: family[0].family_code,
       familyName: family[0].family_name || '',
       // ids come back too so the list can label who last touched each row
-      members: (Array.isArray(members) ? members : []).map(m => ({
+      members: members.map(m => ({
         id: m.id,
-        nickname: m.nickname || (m.email || '').split('@')[0] || 'Member'
+        nickname: m.nickname || (m.email || '').split('@')[0] || 'Member',
+        avatar: m.avatar || null
       }))
     });
   } catch (error) {
     console.error('Error in /api/family/:familyId:', error);
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Update a user's own avatar. Was device-local (localStorage) before this —
+// now it's a users column so the rest of the family can see it too.
+app.put('/api/user/:userId/avatar', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { avatar } = req.body;
+
+    if (!userId || !AVATARS.has(avatar)) {
+      return res.json({ success: false, error: 'Invalid avatar' });
+    }
+
+    const result = await supabaseWrite(
+      `${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`,
+      'PATCH',
+      { avatar }
+    );
+
+    if (!result.ok) {
+      console.error('❌ Error updating avatar:', result.error);
+      return res.json({ success: false, error: result.error });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error in /api/user/:userId/avatar:', error);
     res.json({ success: false, error: error.message });
   }
 });
@@ -363,6 +417,10 @@ app.post('/api/add-item', async (req, res) => {
         emoji: item.emoji,
         checked: item.checked || false,
         source: item.source || '',
+        // added_by is who gets credit on the "who added this" badge; it's
+        // set once here and update-item must never touch it, unlike
+        // updated_by which every edit overwrites.
+        added_by: userId,
         updated_by: userId
       }
     );
